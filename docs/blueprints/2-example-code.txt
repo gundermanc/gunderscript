@@ -1,0 +1,9 @@
+GunderScript Code Examples:
+********************************************************************************
+
+/**
+ * Use of standard multiline C comments
+ */
+entryPoint() {
+  print("Hello world");
+}

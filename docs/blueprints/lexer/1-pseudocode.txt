@@ -1,0 +1,68 @@
+GunderScript Lexer Pseudo Code
+********************************************************************************
+Lexer {
+
+  void lex(String code) {
+    lexPass1(code);
+    lexPass2();
+  }
+
+  bool lexPass1(String code) {
+    loop through code, 1 char at a time {
+      char current; // current character
+      char prev; // previous character
+      int tokenStart = -1; // current token beginning index
+      boolean inComment; // is this a comment
+      linkedlist list; // list of tokens
+
+      if inComment is false {
+
+        // start comment
+	if current == * and prev == / {
+	  // now we're in a comment
+	  inComment = true
+	}
+
+
+	// we're not in a comment, handle stuff
+	if isWhiteSpace(current) is true {
+
+	  // if were at the end of a token
+	  if tokenStart != -1 {
+	    list.add(new Token from tokenStart to current index)
+	  }
+
+        }
+
+
+      } else // inComment is true {
+        
+	// terminate comment
+	if current == / and prev == * {
+	  inComment = false
+	}
+
+
+      }
+
+
+
+
+
+      if c == * and prev == / {
+        inComment = true  //were in a comment, ignore characters
+      } else if{
+        // we're not in a comment
+      }
+    }
+  }
+
+  bool isWhiteSpace(char character) {
+    returns true if the given character is a whitespace char
+  }
+
+
+
+
+
+}
