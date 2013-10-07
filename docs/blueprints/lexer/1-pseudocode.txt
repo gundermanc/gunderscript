@@ -14,45 +14,11 @@ Lexer {
       int tokenStart = -1; // current token beginning index
       boolean inComment; // is this a comment
       linkedlist list; // list of tokens
+      set operators; // a set of all operators +, - / *, /*, etc.
 
-      if inComment is false {
-
-        // start comment
-	if current == * and prev == / {
-	  // now we're in a comment
-	  inComment = true
-	}
+      loop through code, 1 char at a time {
 
 
-	// we're not in a comment, handle stuff
-	if isWhiteSpace(current) is true {
-
-	  // if were at the end of a token
-	  if tokenStart != -1 {
-	    list.add(new Token from tokenStart to current index)
-	  }
-
-        }
-
-
-      } else // inComment is true {
-        
-	// terminate comment
-	if current == / and prev == * {
-	  inComment = false
-	}
-
-
-      }
-
-
-
-
-
-      if c == * and prev == / {
-        inComment = true  //were in a comment, ignore characters
-      } else if{
-        // we're not in a comment
       }
     }
   }

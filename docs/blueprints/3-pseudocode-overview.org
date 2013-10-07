@@ -1,0 +1,132 @@
+#+TITLE: GunderScript High Level Pseudo Code
+#+AUTHOR: Christian Gunderman
+This document is an Emacs Org-mode document. Open with emacs to use advanced
+features and collapsing of function descriptions.
+
+* GunderScript Object
+** Create Gunderscript Object Method
+  This routine creates a GunderScript context object.
+
+** Destroy GunderScript Object Method
+ This routine destroys a GunderScript object and frees memory
+
+** Bind Native Function GunderScript Object Method
+  Binds a native function in the implementing language to the the provided
+  GunderScript object instance. This function will be called whenever the
+  command parameter, a String, occurs in the GunderScript script code.
+
+**  Evaluate Expression GunderScript Object Method
+  Accepts a String containing GunderScript code. Performs compile of the script to
+  a byte code and then executes this bytecode in the context of the provided
+  GunderScript Object.
+
+* Lexer Object
+** Lex Code Method
+*** Description
+   Removes all comments, tokenizes the String containing the code and then
+   builds list of "token" nodes.
+*** Pseudo Code
+    Perform First Pass.
+    Perform Second Pass.
+** First Pass Method
+*** Description
+   Performs first lexographic pass, splitting code into simplified tokens that
+   are differentiated only by the following:
+   - Operators :: +, -, /, *, etc.
+   - Literals :: Constant numeric expressions
+   - Strings :: Values enclosed by quotes
+   - Keywords :: Any text not contained in quotes. e.g.: function, exported,
+		 varname, etc.
+   - Comments ::  must decide whether to exclude them, or simple tokenize them
+*** Pseudo Code
+
+** Second Pass Method
+*** Description
+    Iterates through tokens created by the first pass method and reorganizes
+    them based on the following tree structure:
+    Tokens
+    - Function Declarations :: A Token containing all the tokens
+	 for a specific method.
+	 + Arguments :: List of arguments accepted by the Function.
+	 + Modifiers :: List of modifier keywords to apply to this function.
+	 + Variable Declarations :: List of variables used within this function.
+	 + Tokens :: The Tokens describing the actions performed by this
+		     Function.
+    - Function Call :: A Token containing a function call and the parameters to
+		       provide to the function.
+* Compiler Object
+** Compile Expression Method
+  Accepts a String containing GunderScript code. Performs compile of the script
+  to an assembly-like intermediate code which can be turned into bytecode.
+** Assemble Expression Method
+   Assembles the provided opcodes into VM executable byte code.
+
+* Virtual Machine Object
+** Description
+** Byte Code Specification
+   - push_var :: pushes a variable read from a specified Frame Stack index,
+		 and memory address index to the current Byte Code stack.
+   - pop_var :: pops a variable from the top of the stack and stores it in the
+		specified Frame Stack index, in the specified Memory Address
+		index.
+   - stackframe_push :: pushes a new stack frame to the stack.
+   TODO: Describe Byte code evaluation methods
+** Create VM Object Method
+   Creates a new Virtual Machine Instance variable and returns it if successful,
+   and error if not successful.
+
+** Destroy VM Object Method
+   Destroys the specfied VM Object.
+** Execute Byte Code Method
+   Interprets the provided bytecode.
+
+** Frame Stack Object Field
+*** Description
+    The stack is a stack data structure where all VM operations take place,
+    containing Frame Stack Objects. Each Stack Frame represents one execution
+    block and is used to isolate private variables. The Stack within the frame
+    is where all byte code execution happens.
+
+    Byte code execution occurs by using the Frame Stack Object's peek method to
+    get the top-most frame, and push the byte code bytes to that frame's stack.
+
+    Every time a function is called, a loop is executed, or an if statement, or
+    other compound statement is evaluated, a new Stack Frame is pushed to the
+    Frame Stack.
+
+** Stack Frame Object
+*** Description
+    Defines a frame on the stack. A frame is an individual execution state that
+    represents an individual block of code. Each time a new block is pushed to
+    the stack, such as, when a function is called, a loop is executed, or an if
+    statement is evaluated, this frame is used to contain all private variables
+    for the block.
+
+*** Architecture
+    The Stack Frame Contains the following fields:
+    - Byte Code Stack :: A stack used for evaluating the current byte code
+	 operations. For more info, see the VM description.
+    - Local Variable Memory :: Memory for the storage of local variables. This
+	 memory size should be calculated at compile time and should auto alloc
+	 enough space for all of the variables of the block, as well as the
+	 arguments.
+*** Pseudo Code
+    The stack frame object supports the following methods:
+
+**** Create Frame Method
+     Returns a new stack frame, initializes the Byte code stack inside the frame
+     and allocates enough space in the Local Variable memory for the arguments
+     and all declared local variables. Sets memory to null, unless a value is
+     provided.
+
+**** Destroy Frame Method
+     Releases resources associated with the frame.
+**** Push to Stack Method
+     Pushes a new byte, or series of bytes to the Byte Code Stack.
+
+**** Pop from Stack Method
+     Pops off the last byte pushed to the frame's Byte Code Stack.
+
+**** Get Variable Address Method
+     Returns the memory address of a VM variable, contained this frame at the
+     provided memory address. This memory can be read or written to.
