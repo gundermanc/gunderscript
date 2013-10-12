@@ -124,7 +124,7 @@ GunderScript Application Blueprints and Layout
     the Next Token method's description.
 *** Create Lexer Object Method(s)
     Creates a new Lexer object which contains a reference to a String and the
-    current text index. 
+    current text index.
 
     Make this a Stack variable if at all possible.
 
@@ -147,6 +147,9 @@ GunderScript Application Blueprints and Layout
     - Symbols :: Each (, ), , {, }, [, ], ;
     - Keywords/Variables :: Each word is treated as a token.
 *** Current Token Method
+**** Description
+     Returns the last token output by the next token method.
+*** Current Token Method
     Returns the last Token returned by the Next Token method.
 *** Set Lexer Error Method
     Sets the last error that occurred in this Lexer. This method will probably
@@ -158,10 +161,20 @@ GunderScript Application Blueprints and Layout
     Gets the last error that occurred in this lexer object. Use this method if
     Next Token Method returns NULL. This method should return one of the values
     listed in the Set Lexer Error Method Description.
+*** Token Type
+**** Description
+     Returns the Type of the token.
+
+     Token can be one of the following types:
+     - String Literal :: Anything enclosed in quotes.
+     - Keyword or Variable :: Any value that isn't surrounded by quotes, starts
+	  with A-Z, lowercase or capital, and does not contain symbols.
+     - Symbol :: (, ), {, }, etc.
+     - Operator :: +, -, /, !, %, etc.
 ** Parser Object
 *** Description
     The Parser will follow a recursive parsing model, with separate parsers for
-    each set of Token types.    
+    each set of Token types.
 *** Parse Set Error Method
     Accepts 2 params, line number, and error code from error enum.
     Will probably be a private method.
@@ -171,43 +184,101 @@ GunderScript Application Blueprints and Layout
 	 end before the end of the file.
     - UNEXPECTED_TYPE_IN_ASSIGNMENT :: Set if a programmer uses a symbol or
 	 keyword in an assignment statement.
+    - EXPECTED_METHOD_NAME :: Set if a function declaration is improper, or does
+	 not contain a name for the function.
+    - SUCCESS :: No error has occurred.
 *** Parse Get Error Method
     Gets the last error encountered by the parser while parsing the script file.
     Outputs the error and the line number on which it happened.
 
     The possible error codes are listed in the Parse Set Error Method Section.
+*** Parse Empty Lines Method
+**** Description
+     Skips '\n' tokens to get to the real "meat" in the tokens. \n characters
+     are only left in allow for single line C style comments.
+**** Pseudo Code
+     While current token is '\n'
+       advance token iterator.
+     EndWhile
+
 *** Parse Comments Method
 **** Description
-     Highest priority subparser. Parse comments is run before all other parsers
-     and is responsible for skipping across all comments it encounters.
+     Second highest priority subparser. Parse comments is responsible for
+     skipping across all comments it encounters.
 **** Pseudo Code
-     if current token is "/*" then
-       advance current token variable until current token is "*/"
-       if no more tokens and current token is not "*/"
+
+     // handle multiline C style comments
+     If current token is "/*" Then
+       While current token is not */" and tokens remain
+         advance current token variable
+       EndWhile
+       If no more tokens and current token is not "*/" Then
+
+         // error in code
          return false and call Parser Set Error to UNTERMINATED_COMMENT
-       endif
-     endif
-     if current token is "//" then 
-       advance current token variable until "\n" or no more tokens left
-     endif
-     return true
-*** Parse Tokens Method
+       EndIf
+       return true
+     Else
+       // handle single line C++ style comments
+       If current token is "//" Then
+         While current token is not "\n"
+           advance current token variable until "\n" or no more tokens left
+         EndWhile
+         return true
+       EndIf
+     EndIf
+*** Parse Method
 **** Description
      Over arching parse method, this method runs all sub subparsers
      and they individually get to decide whether or not they are going to
-     perform an action.
+     perform an action upon the current token.
+
+     Each sub-parser is of the basic form:
+     boolean subparser(lexerInstance, error)
+
+     The sub parser should automatically handle ONE instance of whatever
+     it is supposed to if the current token is related. For example, the
+     Comments parser looks for a begin comment symbol. If it finds one,
+     it advances the token iterator until it reaches an end comment symbol,
+     or it runs out of tokens. If this happens, it sets error to a proper
+     parse error value. If no error occurs, it sets error to SUCCESS. Error
+     MUST be set EVERY TIME.
+
+     Sub parser should return true if it does something useful so that the
+     Parse Method knows to loop again. If it doesn't do anything useful,
+     it returns false and the Parse Method tries the next possible option.
 **** Pseudo Code
-     while tokens remain
-       Parse Commments Method
-       ... parse others
-     endwhile
+     // lexer is an instance of the iterable lexer
+     // error is an output value of each subparser
+     While tokens remain
+       If ParseEmptyLines(lexer, error) == true Then
+         If error != SUCCESS Then
+	   // handle error
+	 EndIf
+       ElseIf ParseComments(lexer, error) == true Then
+         If error != SUCCESS Then
+	   // handle error
+	 EndIf
+       ElseIf
+         ...
+       Else
+         // error, unknown expression
+       EndIf
+     EndWhile
 *** Parse Straight Code Method
 **** Description
      Parses lines of code with only function calls and variable assignments.
      Since this method only checks to see if a token is a keyword before
      treating it like a variable or function call, it should be run last.
+
+     This method has the following responsibilities:
+     - Assignment Statements :: Handles the assignment of values to variables.
+	  Variable declarations will be handled in the Parse Method Declaration
+	  sub parser Method.
+     - Function Calls :: Any function call, math, etc.
+
 **** Pseudo Code
-     if token is not an operator, keyword, or symbol then
+     If token is not an operator, keyword, or symbol Then
        store token in variable
        get next token
        if next token is "=" then
@@ -221,6 +292,72 @@ GunderScript Application Blueprints and Layout
         ...do function call
 
       endif
+*** Parse Method Declaration Method
+**** Description
+     Parses code in a script file that declares a method.
+
+     NOTE: The pseudo code is general outline that details how I want to procede
+     but I intend to split this method into several private helper methods in
+     actual implementation to manage complexity.
+
+     Responsible for:
+     - Method Declaration :: Parses method input and output header.
+     - Variable Declaration :: After declaring the method, this method is
+	  responsible for reading all variable declarations and creating byte
+	  code to allocate memory for them in the stack frame for each new
+	  instance of this method.
+     - Method Parsing :: Dispatches sub parsers, recursively, if neccessary
+			 to parse all the method calls and logic witin the
+			 method.
+     - Return Statements :: This method should implement a sub parser that
+	  looks for a return statement, and then pops this frame off the
+	  stack.
+**** Pseudo Code
+
+     // tell calling function if we're doing something important
+     If currentToken is not "function"
+       return false;
+     EndIf
+
+     While currentToken is a function related keyword
+       // add these attributes to new frame byte code
+       // command some how
+       currentToken = nextToken
+     EndWhile
+
+     If tokenType(currentToken) is keyword or variable Then
+       // This is the function name, do something with it
+
+     Else
+       error = EXPECTED_METHOD_NAME
+       return true  // this method tried to be useful :'(
+     EndIf
+
+     
+
+
+     // lexer is an instance of the iterable lexer
+     // error is an output value of each subparser
+     While tokens remain
+
+
+
+
+       // -------------------------------------------
+       If ParseEmptyLines(lexer, error) == true Then
+         If error != SUCCESS Then
+	   // handle error
+	 EndIf
+       ElseIf ParseComments(lexer, error) == true Then
+         If error != SUCCESS Then
+	   // handle error
+	 EndIf
+       ElseIf
+         ...
+       Else
+         // error, unknown expression
+       EndIf
+     EndWhile
 *** Lex Code Method
 **** Description
    Removes all comments, tokenizes the String containing the code and then
