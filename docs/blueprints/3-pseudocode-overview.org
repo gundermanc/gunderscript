@@ -18,7 +18,7 @@ features and collapsing of function descriptions.
 
    - Multicharacter operators
 
-   - Ability for library user to specify code entry point.
+   - Ability for library user to specify code entry points.
 
    - Variable Types:
      + Number :: Generic float data type
@@ -186,6 +186,13 @@ GunderScript Application Blueprints and Layout
 	 keyword in an assignment statement.
     - EXPECTED_METHOD_NAME :: Set if a function declaration is improper, or does
 	 not contain a name for the function.
+    - EXPECTED_OPEN_PARENTH :: Set if an open parenthesis was expected, but was
+	 missing.
+    - EXPECTED_CLOSE_PARENTH :: Set if a close parenthesis was expected, but was
+	 missing.
+    - EXPECTED_PARAM_NAME :: Set if a function parameter name was expected, but
+	 was missing.
+    - EXPECTED_ARG_DELIM :: Returned if a comma was expected, but was missing.
     - SUCCESS :: No error has occurred.
 *** Parse Get Error Method
     Gets the last error encountered by the parser while parsing the script file.
@@ -319,20 +326,81 @@ GunderScript Application Blueprints and Layout
        return false;
      EndIf
 
+     // take care of function keywords
      While currentToken is a function related keyword
        // add these attributes to new frame byte code
        // command some how
-       currentToken = nextToken
+       currentToken = nextToken()
      EndWhile
 
-     If tokenType(currentToken) is keyword or variable Then
+     // get function name
+     If Lexer.tokenType(currentToken) is keyword or variable Then
        // This is the function name, do something with it
 
      Else
-       error = EXPECTED_METHOD_NAME
+       error = EXPECTED_METHOD_NAME // an error occurred
        return true  // this method tried to be useful :'(
      EndIf
 
+     // advance token iterator
+     currentToken = nextToken()
+
+     // record arguments
+     // TODO: Simplify these statements
+     If currentToken == "(" Then
+       While currentToken != ")"
+         If there are no more tokens Then
+	   error = EXPECTED_CLOSE_PARENTH
+	   return true; // tried, but error
+	 EndIf
+
+	 // store current token temporarily
+         currentVar = currentToken
+	 // advance to next token, should be comma
+	 currentToken = nextToken()
+
+	 // check that input is proper type
+	 If Lexer.tokenType(currentVar) is Keyword or Variable Then
+	   // declare function input variable parameter in bytecode
+	 Else
+	   error = EXPECTED_PARAM_NAME
+	   return true // attempted
+	 EndIf
+
+	 // check for close parenthesis
+	 If currentToken == ")" Then
+	   break loop
+	 EndIf
+
+	 // check next token is a delimiter
+	 If currentToken != "," Then
+	   error = EXPECTED_ARG_DELIM
+	   return true
+	 EndIf
+       EndWhile
+
+       // TODO: Check if iterator increment is necessary here
+       If currentToken == "{" Then
+         While more tokens remain and currentToken != "}"
+	   If ParseEmptyLines(lexer, error) == true Then
+	     If error != SUCCESS Then
+	       // handle error
+	     EndIf
+	   ElseIf ParseComments(lexer, error) == true Then
+             If error != SUCCESS Then
+	       // handle error
+	     EndIf
+	   ElseIf
+	     ...parse others
+	   EndIf
+	 EndWhile
+       EndIf
+     Else
+       error = EXPECTED_OPEN_PARENTH
+       return true // method tried and failed
+     EndIf
+
+     
      
 
 
@@ -402,14 +470,49 @@ GunderScript Application Blueprints and Layout
 
 ** Virtual Machine Object
 *** Description
+    GunderScript Virtual Machine is a stack base byte code executing VM that 
+    is constructed with a stack of stack frame objects. Each stack frame object
+    contains, among other things, a stack for execution of the current frame's
+    code, and a buffer for local variables and function parameters.
 *** Byte Code Specification
-   - push_var :: pushes a variable read from a specified Frame Stack index,
+   - STK_VAR_PUSH  :: pushes a variable read from a specified Frame Stack index,
 		 and memory address index to the current Byte Code stack.
-   - pop_var :: pops a variable from the top of the stack and stores it in the
-		specified Frame Stack index, in the specified Memory Address
-		index.
-   - stackframe_push :: pushes a new stack frame to the stack.
-   TODO: Describe Byte code evaluation methods
+   - STK_VAR_STOR [index] :: pops a variable from the top of the stack and stores it in the
+		specified Frame Stack index.
+   - STKFRM_PUSH [slot varMemory] :: Pushes a new stack frame to the stack with
+	specified number of variable slots.
+   - STKFRM_POP :: Pops a stack from from the stack.
+   - STK_ADD :: Adds previous two values on the stack.
+   - STK_SUB :: Subtracts previous two values on the stack.
+   - STK_MUL :: Multiplies previous two values on the stack.
+   - STK_DIV :: Divides previous two values on the stack.
+   - STK_MOD :: Performs modulus operation on previous two values.
+   - STK_LT :: Performs less than comparison on previous two values.
+   - STK_GT :: Performs greater than comparision on previous two values on stack
+   - STK_LTE :: Performs less than or equal to comparision of previous two values.
+   - STK_GTE :: Performs greater than or equal to comparison operation.
+   - GOTO :: Moves control to the specified byte.
+   - STK_BOOL_PUSH :: Pushes a new boolean value to the stack.
+   - STK_NUM_PUSH :: Pushes a new number value to the stack.
+   - STK_EQUALS :: Compares the previous two values on the stack to see if they are
+	       equal. If so, true is pushed onto the stack. If not, false is
+	       pushed onto the stack.
+   - VM_EXIT :: Quick and dirty exit command. Terminates virtual machine. Not
+	     compiled from GunderScript code, but might be implemented to
+	     facilitate embedding of data within bytecode.
+   - STK_STR_PUSH :: Pushes a new string to the stack.
+   - CALL_STR_N :: Calls the native method who's name is specified in the String
+	       at the top of the stack.
+   - CALL_PTR_N :: Calls the native method who's pointer is the value at the top
+		   of the stack.
+   - STK_NOT :: Inverts the boolean at the top of the stack and repushes it.
+   - COND_GOTO :: Transfers control to the specified byte when the previous
+		  boolean on the stack is true.
+   - STK_NOT_EQUALS :: Returns true if the previous item on the stack is not equal
+		   to the current item.
+   - STK_CLR :: Clears this stack frame's execution stack.
+   - STK_POP :: Pops the top item from this stack frame's execution stack.
+
 *** Create VM Object Method
    Creates a new Virtual Machine Instance variable and returns it if successful,
    and error if not successful.
