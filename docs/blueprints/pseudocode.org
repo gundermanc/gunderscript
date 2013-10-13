@@ -13,7 +13,7 @@ features and collapsing of function descriptions.
    - C style commenting, syntax, function declarations, operators, end statement
      character, etc.
 
-   - Standard programming assignment statements: 
+   - Standard programming assignment statements:
      : varName = 3;
 
    - Multicharacter operators
@@ -470,7 +470,7 @@ GunderScript Application Blueprints and Layout
 
 ** Virtual Machine Object
 *** Description
-    GunderScript Virtual Machine is a stack base byte code executing VM that 
+    GunderScript Virtual Machine is a stack base byte code executing VM that
     is constructed with a stack of stack frame objects. Each stack frame object
     contains, among other things, a stack for execution of the current frame's
     code, and a buffer for local variables and function parameters.

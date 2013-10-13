@@ -1,0 +1,7 @@
+GunderScript Program Blueprints
+********************************************************************************
+This directory and all files in all subdirectories constitute the GunderScript
+blueprints and specification that are/were used to construct the software.
+blueprints.org is an Emacs Org-Mode document. To view this document, you must
+have Emacs with Org-mode installed, or you must have a published copy of the
+document.
