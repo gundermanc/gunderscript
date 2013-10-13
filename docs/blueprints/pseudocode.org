@@ -475,7 +475,7 @@ GunderScript Application Blueprints and Layout
     contains, among other things, a stack for execution of the current frame's
     code, and a buffer for local variables and function parameters.
 *** Byte Code Specification
-   - STK_VAR_PUSH  :: pushes a variable read from a specified Frame Stack index,
+   - STK_VAR_PUSH [index] :: pushes a variable read from a specified Frame Stack index,
 		 and memory address index to the current Byte Code stack.
    - STK_VAR_STOR [index] :: pops a variable from the top of the stack and stores it in the
 		specified Frame Stack index.
@@ -505,13 +505,17 @@ GunderScript Application Blueprints and Layout
 	       at the top of the stack.
    - CALL_PTR_N :: Calls the native method who's pointer is the value at the top
 		   of the stack.
+   - CALL_B [numargs] [addr] :: Calls a method in the byte code. When this instruction
+	is encountered, a new stack frame is pushed to the frame stack.
    - STK_NOT :: Inverts the boolean at the top of the stack and repushes it.
    - COND_GOTO :: Transfers control to the specified byte when the previous
 		  boolean on the stack is true.
    - STK_NOT_EQUALS :: Returns true if the previous item on the stack is not equal
 		   to the current item.
    - STK_CLR :: Clears this stack frame's execution stack.
-   - STK_POP :: Pops the top item from this stack frame's execution stack.
+   - STK_POP [prevdownstack] :: Pops the top item from this stack frame's execution stack.
+	If prevdownstack byte is 1, the next item down on the stack is then saved, and
+	placed on the stack of the next stack frame after this frame has been popped.
 
 *** Create VM Object Method
    Creates a new Virtual Machine Instance variable and returns it if successful,
