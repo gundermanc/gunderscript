@@ -136,30 +136,36 @@ GunderScript Application Blueprints and Layout
     are low level, non-language-specific patterns in text, such as symbols, (, )
     {, }, etc. For more information on the Lexer's behavior, see
     the Next Token method's description.
+
+    This object acts to unify the interface for acquiring new tokens. The object
+    can be initialized using either a file, or String. Each time next is called,
+    the method peruses the selected input source until it finds the next token.
 *** Create Lexer Object Method(s)
-    Creates a new Lexer object which contains a reference to a String and the
-    current text index.
+    Creates a new Lexer object which supports the methods in this section.
+    There will be two implementations of this method. One will create a lexer
+    from a String, the other from a file name.
 
     Make this a Stack variable if at all possible.
-
-    Optional: Create alternative form that creates Lexer from file handle.
 *** Free Lexer Object Method
-    Frees any memory associated with the Lexer Object
+    Frees any memory associated with the Lexer Object and closes the input
+    file if there is one.
 *** Next Token Method
-    Returns the next token string from this lexer if successful, returns NULL
-    if error occurs. Calls Set Lexer Error Method and sets the last error value
-    to UNTERMINATED_STRING if unmatched quotes occur.
+**** Description
+     Returns the next token string from this lexer if successful, returns NULL
+     if error occurs. Calls Set Lexer Error Method and sets the last error value
+     to UNTERMINATED_STRING if unmatched quotes occur.
 
-    Passes line number of current Token out too somehow. Implementation specific
+     Passes line number of current Token out too somehow. Implementation specific
 
-    Tokens are Strings made from
-    the object's initialization String, split up into the following things:
-    - String :: Each block of text surrounded by quotes is considered to be a
+     Tokens are Strings made from
+     the object's initialization String, split up into the following things:
+     - String :: Each block of text surrounded by quotes is considered to be a
 		String.
-    - Operators :: Each +,-,/,*,% +=, -=, *=, /=, %=, ==, <=, >=, ==, <, >,
+     - Operators :: Each +,-,/,*,% +=, -=, *=, /=, %=, ==, <=, >=, ==, <, >,
 		   /*, */, //, /n (newline), !=
-    - Symbols :: Each (, ), , {, }, [, ], ;
-    - Keywords/Variables :: Each word is treated as a token.
+     - Symbols :: Each (, ), , {, }, [, ], ;
+     - Keywords/Variables :: Each word is treated as a token.
+**** Pseudo Code
 *** Current Token Method
 **** Description
      Returns the last token output by the next token method.
@@ -188,7 +194,14 @@ GunderScript Application Blueprints and Layout
 ** Parser Object
 *** Description
     The Parser will follow a recursive parsing model, with separate parsers for
-    each set of Token types.
+    each set of Token types. Each subparser looks at the current token. If the
+    current token is related, for example, if the Function Declaration Parser
+    is run and it finds the currentToken to be "function" then it knows that it
+    it is its turn to handle tokens. Function Declaration Parser then advances
+    the token iterator until it reaches the end of the code structure that it
+    handles. In Function Declaration Parser, for example, the parser starts when
+    it sees "function" and then handles the function declaration, and returns
+    when it encounters a "}".
 *** Parse Set Error Method
     Accepts 2 params, line number, and error code from error enum.
     Will probably be a private method.
@@ -207,6 +220,9 @@ GunderScript Application Blueprints and Layout
     - EXPECTED_PARAM_NAME :: Set if a function parameter name was expected, but
 	 was missing.
     - EXPECTED_ARG_DELIM :: Returned if a comma was expected, but was missing.
+    - EXPECTED_END_STATEMENT :: Returned if a semicolon was expected, but an
+	 unexpected token was found instead.
+    - END_OF_FILE :: Unexpected end of file.
     - SUCCESS :: No error has occurred.
 *** Parse Get Error Method
     Gets the last error encountered by the parser while parsing the script file.
@@ -268,6 +284,7 @@ GunderScript Application Blueprints and Layout
      Sub parser should return true if it does something useful so that the
      Parse Method knows to loop again. If it doesn't do anything useful,
      it returns false and the Parse Method tries the next possible option.
+
 **** Pseudo Code
      // lexer is an instance of the iterable lexer
      // error is an output value of each subparser
@@ -361,6 +378,8 @@ GunderScript Application Blueprints and Layout
 
      // record arguments
      // TODO: Simplify these statements
+     // TODO: add stop condition for missing close parenth
+     // so we don't iterate to end of document
      If currentToken == "(" Then
        While currentToken != ")"
          If there are no more tokens Then
@@ -393,6 +412,7 @@ GunderScript Application Blueprints and Layout
 	 EndIf
        EndWhile
 
+       // Parse variable declarations
        // TODO: Check if iterator increment is necessary here
        If currentToken == "{" Then
          While more tokens remain and currentToken != "}"
@@ -404,8 +424,12 @@ GunderScript Application Blueprints and Layout
              If error != SUCCESS Then
 	       // handle error
 	     EndIf
+	   ElseIf ParseVariableDeclarations(lexer, error) == true Then
+             If error != SUCCESS Then
+	       // handle error
+	     EndIf
 	   ElseIf
-	     ...parse others
+	     ...parse valid code
 	   EndIf
 	 EndWhile
        EndIf
@@ -440,48 +464,35 @@ GunderScript Application Blueprints and Layout
          // error, unknown expression
        EndIf
      EndWhile
-*** Lex Code Method
+*** Parse Variable Declaration
 **** Description
-   Removes all comments, tokenizes the String containing the code and then
-   builds list of "token" nodes.
-**** Pseudo Code
-    Perform First Pass.
-    Perform Second Pass.
-*** First Pass Method
-**** Description
-     Potentially deprecated
-     -------------------OLD STUFF-------------------------------
-   Performs first lexographic pass, splitting code into simplified tokens that
-   are differentiated only by the following:
-   - Operators :: +, -, /, *, etc.
-   - Literals :: Constant numeric expressions
-   - Strings :: Values enclosed by quotes
-   - Keywords :: Any text not contained in quotes. e.g.: function, exported,
-		 varname, etc.
-   - Comments ::  must decide whether to exclude them, or simple tokenize them
+     This method handles the declaration of variables, usually in functions or
+     other code blocks that are executed on a new stack frame.
 **** Pseudo Code
 
-*** Second Pass Method
-**** Description
-    Iterates through tokens created by the first pass method and reorganizes
-    them based on the following tree structure:
-    Tokens
-    - Function Declarations :: A Token containing all the tokens
-	 for a specific method.
-	 + Arguments :: List of arguments accepted by the Function.
-	 + Modifiers :: List of modifier keywords to apply to this function.
-	 + Variable Declarations :: List of variables used within this function.
-	 + Tokens :: The Tokens describing the actions performed by this
-		     Function.
-    - Function Call :: A Token containing a function call and the parameters to
-		       provide to the function.
-** Compiler Object
-*** Compile Expression Method
-  Accepts a String containing GunderScript code. Performs compile of the script
-  to an assembly-like intermediate code which can be turned into bytecode.
-*** Assemble Expression Method
-   Assembles the provided opcodes into VM executable byte code.
+     While currentToken is "var"
+       advance currentToken iterator
+       If currentToken is not in variables hashtable Then
+         add currentToken to bytecode as var declaration...
+	 add currentToken to variables hashtable as key, \
+	   with the variable's index in the frame as the value
+       EndIf
 
+       // advance to next token
+       If tokensRemain Then
+         advance currentToken iterator
+       Else
+         Parser.setError END_OF_FILE
+       EndIf
+
+       // handle no semicolon case
+       If currentToken is not ";" then
+
+         // expected an end statement, but got invalid token
+         Parser.setError EXPECTED_END_STATEMENT
+       EndIf
+     EndWhile
+     
 ** Virtual Machine Object
 *** Description
     GunderScript Virtual Machine is a stack base byte code executing VM that
@@ -526,7 +537,7 @@ GunderScript Application Blueprints and Layout
    - STK_LT :: Performs less than comparison on previous two values, pops them and pushes result.
    - STK_GT :: Performs greater than comparision on previous two values on stack
    - STK_LTE :: Performs less than or equal to comparision of previous two values.
-   - STK_GTE :: Performs greater than or equal to comparison operation.
+n   - STK_GTE :: Performs greater than or equal to comparison operation.
    - GOTO [address:4] :: Moves control to the specified byte, where index is a 32 bit 0 based index
 	representing a position in the bytecode buffer array.
    - STK_BOOL_PUSH [truefalse:1] :: Pushes a new boolean value to the stack. If truefalse is 1,
