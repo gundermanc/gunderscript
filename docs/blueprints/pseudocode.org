@@ -488,48 +488,81 @@ GunderScript Application Blueprints and Layout
     is constructed with a stack of stack frame objects. Each stack frame object
     contains, among other things, a stack for execution of the current frame's
     code, and a buffer for local variables and function parameters.
+
+    The basic intention for the VM is to simplify the overall implementation of
+    the programming language by having a unified byte code that can be compiled to.
+    In this interest, the byte code will have muliple variations.
+    - System Independent :: This byte code refers to functions in native function
+	 calls by their String names. This strategy is less efficient, because the
+	 function address then has to be looked up in a hash table, however, it is 
+	 system independent.
+    - Function Call Optimized :: This optimization is a run time optimization that
+	 runs before code execution and replaces all function calls using CALL_STR_N
+	 with CALL_PTR_N, replacing the String names to functions with their function
+	 pointers from the hashtable in the Gunderscript instance.
+    - Condensation Optimization :: This MAY be implemented in future versions. At the
+	 moment, GunderScript depends highly on unneccessary stack operations to
+	 simplify the instruction set. This optimization makes use of an extended
+	 instruction set that combines multiple operations into one instruction.
 *** Byte Code Specification
-   - STK_VAR_PUSH [index] :: pushes a variable read from a specified Frame Stack index,
-		 and memory address index to the current Byte Code stack.
-   - STK_VAR_STOR [index] :: pops a variable from the top of the stack and stores it in the
-		specified Frame Stack index.
+    Below is the entire byte code specification indended for the first milestone
+    release of GunderScript. The all caps name is the enum value that will be used
+    to refer to this instruction. The values in brackets after the instruction are
+    the "arguments" to the instruction and are implemented by entering them in the
+    remaining bytes after the instruction. The number after the colon in the brackets
+    represents the number of the bytes for the specific instruction.
+   - STK_VAR_PUSH [index:2] [addr:2] :: pushes a variable read from a specified Frame Stack index,
+	and memory address index to the current Byte Code stack.
+   - STK_VAR_STOR [index:2] [addr:2] :: pops a variable from the top of the stack and stores it in the
+		specified Frame Stack index, addr, in the stack frame specified with index.
    - STKFRM_PUSH [slot varMemory] :: Pushes a new stack frame to the stack with
 	specified number of variable slots.
    - STKFRM_POP :: Pops a stack from from the stack.
-   - STK_ADD :: Adds previous two values on the stack.
-   - STK_SUB :: Subtracts previous two values on the stack.
-   - STK_MUL :: Multiplies previous two values on the stack.
-   - STK_DIV :: Divides previous two values on the stack.
-   - STK_MOD :: Performs modulus operation on previous two values.
-   - STK_LT :: Performs less than comparison on previous two values.
+   - STK_ADD :: Pops previous two values from stack. Adds them and pushes back.
+   - STK_SUB :: Subtracts previous two values on the stack, pops them and pushes result.
+   - STK_MUL :: Multiplies previous two values on the stack and pushes result.
+   - STK_DIV :: Divides previous two values on the stack and pushes result.
+   - STK_MOD :: Performs modulus operation on previous two values and pushes result.
+   - STK_LT :: Performs less than comparison on previous two values, pops them and pushes result.
    - STK_GT :: Performs greater than comparision on previous two values on stack
    - STK_LTE :: Performs less than or equal to comparision of previous two values.
    - STK_GTE :: Performs greater than or equal to comparison operation.
-   - GOTO :: Moves control to the specified byte.
-   - STK_BOOL_PUSH :: Pushes a new boolean value to the stack.
-   - STK_NUM_PUSH :: Pushes a new number value to the stack.
+   - GOTO [address:4] :: Moves control to the specified byte, where index is a 32 bit 0 based index
+	representing a position in the bytecode buffer array.
+   - STK_BOOL_PUSH [truefalse:1] :: Pushes a new boolean value to the stack. If truefalse is 1,
+	new stack value is true. If truefalse is 0, new stack value is false.
+   - STK_NUM_PUSH [number:8] :: Pushes a new number value to the stack. number is the
+	8 bits after the STK_NUM_PUSH instruction and should be a double value.
    - STK_EQUALS :: Compares the previous two values on the stack to see if they are
-	       equal. If so, true is pushed onto the stack. If not, false is
-	       pushed onto the stack.
+		   equal by popping them off. If they are equal, true is pushed onto the
+		   stack. If not, false is pushed onto the stack.
    - VM_EXIT :: Quick and dirty exit command. Terminates virtual machine. Not
-	     compiled from GunderScript code, but might be implemented to
-	     facilitate embedding of data within bytecode.
-   - STK_STR_PUSH :: Pushes a new string to the stack.
-   - CALL_STR_N :: Calls the native method who's name is specified in the String
-	       at the top of the stack.
-   - CALL_PTR_N :: Calls the native method who's pointer is the value at the top
-		   of the stack.
+		compiled from GunderScript code, but might be implemented to
+		facilitate embedding of data within bytecode. This is a big
+		maybe at the moment, since it causes more problems than it solves.
+   - STK_STR_PUSH [strlen:2] [string:...] :: Pushes a new string to the stack.
+	strlen is the length of the string, encoded as an unsigned 2 byte short.
+	string is the string to push and must be strlen chars long.
+   - CALL_STR_N [args:1] :: Calls the native method who's name is specified in the String
+	at the top of the stack. args is the number of stack items beneath the
+	function name string at the top of the stack to treat as arguments to this function
+	call.
+   - CALL_PTR_N [args:1] :: Calls the native method who's pointer is the value at the top
+	of the stack. args is the number of additional stack items to treat as arguments.
    - CALL_B [numargs] [addr] :: Calls a method in the byte code. When this instruction
 	is encountered, a new stack frame is pushed to the frame stack.
    - STK_NOT :: Inverts the boolean at the top of the stack and repushes it.
-   - COND_GOTO :: Transfers control to the specified byte when the previous
+   - COND_GOTO :: Transfers control to the specified byte when the top
 		  boolean on the stack is true.
-   - STK_NOT_EQUALS :: Returns true if the previous item on the stack is not equal
-		   to the current item.
-   - STK_CLR :: Clears this stack frame's execution stack.
-   - STK_POP [prevdownstack] :: Pops the top item from this stack frame's execution stack.
+   - STK_NOT_EQUALS :: Pushes true if the previous item on the stack is not equal
+		   to the current item. Pops both items.
+   - STK_CLR :: Clears this stack frame's execution stack. This instruction is used
+		at the end of each "line" of code to clear opcodes that are no
+		longer neccessary.
+   - STK_POP [prevdownstack:1] :: Pops the top item from this stack frame's execution stack.
 	If prevdownstack byte is 1, the next item down on the stack is then saved, and
-	placed on the stack of the next stack frame after this frame has been popped.
+	placed on the stack of the next stack frame after this frame has been popped. If
+	prevdownstack is 0, no value is returned for this block close.
 
 *** Create VM Object Method
    Creates a new Virtual Machine Instance variable and returns it if successful,
@@ -538,7 +571,11 @@ GunderScript Application Blueprints and Layout
 *** Destroy VM Object Method
    Destroys the specfied VM Object.
 *** Execute Byte Code Method
-   Interprets the provided bytecode.
+**** Description
+     Interprets the provided bytecode. Constructed of a long switch case that
+     evaluates each of the possible values of the byte code specification.
+     Operations are then performed upon either the Frame Stack, or the
+     smaller stack, resident inside the top-most frame.
 
 *** Frame Stack Object Field
 **** Description
