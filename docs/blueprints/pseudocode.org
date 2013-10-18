@@ -4,6 +4,9 @@
 This document is an Emacs Org-mode document. Open with emacs to use advanced
 features and collapsing of function descriptions.
 
+Read Project Information Sections for description of project, its goals, and
+basic implementation details.
+
 * Project Information
 ** Project Requirements
    Below are listed the basic parameters and features that are anticipated to be in
@@ -27,6 +30,17 @@ features and collapsing of function descriptions.
      + Native C Custom :: Used by native developers to create file contexts, etc.
    - Auto conversion between types
    - Compiles to system independent bytecode. Runs on built in stack based VM.
+     Byte code comes in two variations:
+     + System Independent :: Refers to native functions in byte code by their
+	  string names. This byte code is slower, however, it can be executed on
+	  any GunderScript VM machine.
+     + Optimized :: Refers to native functions in byte code by a pointer to their
+		    current location in memory. This byte code is only valid for
+		    the current execution of GunderScript, since pointers change
+		    every execution. However, this bytecode is much faster since
+		    it doesn't require looking up a function from its name in a
+		    hashtable. This bytecode can be generated from system
+		    independent bytecode right before execution.
    - While loops
    - Return Statements
    - For loops
