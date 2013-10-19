@@ -1,0 +1,3 @@
+[submodule "c-datastructs"]
+	path = c-datastructs
+	url = git://github.com/gundermanc/c-datastructs
