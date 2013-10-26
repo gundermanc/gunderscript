@@ -59,6 +59,7 @@ Lexer * lexer_new(LexerInput inputType, char * inputFn, size_t inputFnLen) {
     }
 
     strncpy(lexer->input, inputFn, inputFnLen);
+    lexer->inputLen = inputFnLen;
     return lexer;
   }
   return NULL;
@@ -78,23 +79,43 @@ bool lexer_has_next(Lexer * l) {
   return 0;
 }
 
-static bool next_parse_whitespace(char * input, int * i, size_t len) {
-  if(input[*i] == ' ') {
+static bool next_parse_whitespace(Lexer * l) {
+
+  if(l->input[l->index] == ' ') {
+
     /* skip all whitespace characters */
-    for(; *i < len && (input[i] == ' '); i++);
+    for(; l->index < l->inputLen && l->input[l->index] == ' '; l->index++);
 
     return true;
   }
+
   return false;
 }
 
-bool next_parse_strings(char * input, int * i, size_t len, LexerErr * err) {
+bool next_parse_strings(Lexer * l) {
 
   /* this is the beginning of a string */
-  if(input[*i] == '"') {
-    /* skip all whitespace characters */
-    for(; *i < len && input[i] != '"'; i++);
+  if(l->input[l->index] == '"') {
+    int beginStrIndex = l->index;
+
+    /* add characters to the string */
+    for(; l->index < l->inputLen; l->index++) {
+
+      /* encountered end of string, return it */
+      if(l->input[l->index] == '"') {
+	l->currTokenLen = l->index - beginStrIndex;
+	l->currToken = l->input + beginStrIndex;
+	l->err = LEXERERR_SUCCESS;
+	return true;
+      }
+    }
+
+    /* error occurred, set token to null and quit */
+    l->currToken = NULL;
+    l->err = LEXERERR_UNTERMINATED_STRING;
+    return true;
   }
+  return false;
 }
 
 /**
@@ -114,16 +135,18 @@ bool next_parse_strings(char * input, int * i, size_t len, LexerErr * err) {
  *  - Keywords/Variables :: Each word is treated as a token.
  */
 char * lexer_next(Lexer * l, size_t * len) {
-  int i;
   LexerErr err;
 
   /* loop through characters one by one */
-  for(i = 0; i < len; i++) {
+  for(; l->index < l->inputLen; l->index++) {
 
     /* skip all whitespace characters */
-    next_parse_whitespace(input, i, len);
+    next_parse_whitespace(l);
 
-    
+    if(next_parse_strings(l)) {
+      *len = l->currTokenLen;
+      return l->currToken;
+    }
   }
   return NULL;
 }
