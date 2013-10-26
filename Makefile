@@ -51,7 +51,7 @@ buildfs:
 	mkdir -p $(OBJDIR)
 
 # build c-datastructs module
-c-datastructs-build: $(DATASTRUCTSDIR)/lib.a
+c-datastructs-build:
 	$(MAKE) -C $(DATASTRUCTSDIR)
 
 c-datastructs-clean:

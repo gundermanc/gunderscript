@@ -141,15 +141,22 @@ GunderScript Application Blueprints and Layout
     This object acts to unify the interface for acquiring new tokens. The object
     can be initialized using either a file, or String. Each time next is called,
     the method peruses the selected input source until it finds the next token.
-*** Create Lexer Object Method(s)
+*** Fields
+    - Input :: A String containing either a file name or input text.
+    - FileStream :: Non-null if input is a file.
+    - ErrorCode :: The error code set by Set Lexer Error method.
+    - Index :: Current index in the text.
+*** lexer_new() Method()
     Creates a new Lexer object which supports the methods in this section.
     There will be two implementations of this method. One will create a lexer
     from a String, the other from a file name.
 
     Make this a Stack variable if at all possible.
-*** Free Lexer Object Method
+*** lexer_free() Method
     Frees any memory associated with the Lexer Object and closes the input
     file if there is one.
+*** lexer_has_next() Method
+    Returns true if more tokens remain, false if none remain.
 *** Next Token Method
 **** Description
      Returns the next token string from this lexer if successful, returns NULL
@@ -167,6 +174,16 @@ GunderScript Application Blueprints and Layout
      - Symbols :: Each (, ), , {, }, [, ], ;
      - Keywords/Variables :: Each word is treated as a token.
 **** Pseudo Code
+     Function nextToken(), in context of lexer object
+
+       /* loop through one character at a time */
+       ForEach character in the input, c
+
+         If !isWhitespace(c) Then
+	   
+	 EndIf
+       EndForEach
+     EndFunction
 *** Current Token Method
 **** Description
      Returns the last token output by the next token method.
@@ -177,7 +194,11 @@ GunderScript Application Blueprints and Layout
     be private. The following error codes
     are supported, and should be placed in an enum:
     - UNTERMINATED_STRING :: There is a String with unmatched end quotes.
+    - UNTERMINATED_COMMENT :: There is a comment that has not been terminated.
     - SUCCESS :: No errors have occurred.
+*** Get Current Line Number
+**** Description
+     Gets the line number of the current tokens.
 *** Get Lexer Error Method
     Gets the last error that occurred in this lexer object. Use this method if
     Next Token Method returns NULL. This method should return one of the values
