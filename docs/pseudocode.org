@@ -96,6 +96,7 @@ GunderScript Application Blueprints and Layout
     * Modified by: [contributors]
     * Author Email: gundermanc@gmail.com
     * Modifier Email:
+    * Description
     *
     * This program is free software: you can redistribute it and/or modify
     * it under the terms of the GNU General Public License as published by

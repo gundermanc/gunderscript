@@ -31,12 +31,27 @@ DATASTRUCTSDIR = c-datastructs
 
 all: c-datastructs-build buildfs
 
+# builds everything!!
+all: testapp
+
+# builds the testing application
+testapp: library
+	$(CC) $(CFLAGS) -o testapp test_app.c gunderscript.a
+
+# build just the static library
+library: lexer.o
+	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o
+
+# build lexer object
+lexer.o: c-datastructs-build  $(SRCDIR)/lexer.c
+	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/lexer.c
+
 # build the file system
 buildfs:
 	mkdir -p $(OBJDIR)
 
 # build c-datastructs module
-c-datastructs-build:
+c-datastructs-build: $(DATASTRUCTSDIR)/lib.a
 	$(MAKE) -C $(DATASTRUCTSDIR)
 
 c-datastructs-clean:
