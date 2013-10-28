@@ -11,11 +11,11 @@
  * are low level, non-language-specific patterns in text, such as symbols, (, )
  * {, }, etc. For more information on the Lexer's behavior, see
  * the Next Token method's description.
-
+ *
  * This object acts to unify the interface for acquiring new tokens. The object
  * can be initialized using either a file, or String. Each time next is called,
  * the method peruses the selected input source until it finds the next token.
-
+ *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
  * the Free Software Foundation, either version 3 of the License, or
@@ -31,6 +31,8 @@
  */
 
 #include "lexer.h"
+#include <string.h>
+#include "gsbool.h"
 
 /**
  * Creates a new lexer object.
@@ -42,27 +44,22 @@
  * inputFnLen: The length of inputFn. No hand holding is done here. This value
  * must be a positive value, <= the size of the buffer.
  */
-Lexer * lexer_new(LexerInput inputType, char * inputFn, size_t inputFnLen) {
+Lexer * lexer_new(char * input, size_t inputLen) {
 
-  /* handle string inputs */
-  if(inputType == LEXERINPUT_STRING) {
-
-    Lexer * lexer = calloc(1, sizeof(Lexer));
-    if(lexer == NULL) {
-      return NULL;
-    }
-
-    lexer->input = calloc(inputFnLen + 1, sizeof(char));
-    if(lexer->input == NULL) {
-      free(lexer);
-      return NULL;
-    }
-
-    strncpy(lexer->input, inputFn, inputFnLen);
-    lexer->inputLen = inputFnLen;
-    return lexer;
+  Lexer * lexer = calloc(1, sizeof(Lexer));
+  if(lexer == NULL) {
+    return NULL;
   }
-  return NULL;
+
+  lexer->input = calloc(inputLen + 1, sizeof(char));
+  if(lexer->input == NULL) {
+    free(lexer);
+    return NULL;
+  }
+
+  strncpy(lexer->input, input, inputLen);
+  lexer->inputLen = inputLen;
+  return lexer;
 }
 
 /**
@@ -79,14 +76,92 @@ bool lexer_has_next(Lexer * l) {
   return 0;
 }
 
+static bool is_white_space(char c) {
+
+  switch(c) {
+  case ' ':
+  case '\t':
+  case '\r':
+  case '\n':
+    return true;
+  }
+
+  return false;
+}
+
+static void advance_char(Lexer * l) {
+  l->index++;
+}
+
+static char next_char(Lexer * l, bool advance) {
+
+  if(advance) {
+    advance_char(l);
+  }
+
+  return l->input[l->index];
+}
+
+static char prev_char(Lexer * l) {
+  return l->input[l->index - 1];
+}
+
+static char peek_char(Lexer * l) {
+  return l->input[l->index + 1];
+}
+
+/**
+ * Gets the number of characters remaining in the buffer
+ */
+static int remaining_chars(Lexer * l) {
+  return l->inputLen - l->index;
+}
+
 static bool next_parse_whitespace(Lexer * l) {
 
-  if(l->input[l->index] == ' ') {
+  if(is_white_space(l->input[l->index])) {
 
     /* skip all whitespace characters */
-    for(; l->index < l->inputLen && l->input[l->index] == ' '; l->index++);
+    while(remaining_chars(l) > 0 && is_white_space(next_char(l, true)));
 
     return true;
+  }
+
+  return false;
+}
+
+static bool next_parse_comments(Lexer * l) {
+
+  /* if there is another character after this one, check this one and the next one to see if
+   * they are single line comment characters: "//". If so, skip the comment characters.
+   */
+  if(remaining_chars(l) > 0
+     && next_char(l, false) == '/'
+     && peek_char(l) == '/') {
+
+    while(remaining_chars(l) > 0 && next_char(l, true) != '\n');
+
+    return true;
+  }
+
+  /* if there is another character after the current one, check it to see if they
+   * are single line line comment characters: "/*". If so, skip the comment chars.
+   */
+  if(remaining_chars(l) > 0
+     && next_char(l, false) == '/'
+     && peek_char(l) == '*') {
+
+    while(remaining_chars(l) > 0) {
+      if(prev_char(l) == '*' && next_char(l, false) == '/') {
+
+	/* prevent the closing / from being re-evaluated next iteration */
+	advance_char(l);
+	return true;
+      }
+      advance_char(l);
+    }
+
+    l->err = LEXERERR_UNTERMINATED_COMMENT;
   }
 
   return false;
@@ -95,19 +170,32 @@ static bool next_parse_whitespace(Lexer * l) {
 bool next_parse_strings(Lexer * l) {
 
   /* this is the beginning of a string */
-  if(l->input[l->index] == '"') {
+  if(next_char(l, false) == '"') {
     int beginStrIndex = l->index;
 
     /* add characters to the string */
-    for(; l->index < l->inputLen; l->index++) {
+    l->index++;
+    for(; remaining_chars(l) > 0; advance_char(l)) {
 
-      /* encountered end of string, return it */
-      if(l->input[l->index] == '"') {
-	l->currTokenLen = l->index - beginStrIndex;
+      /* encountered end of string, return it along with the quotes*/
+      if(next_char(l, false) == '"' && prev_char(l) != '\\') {
+	l->currTokenLen = (l->index - beginStrIndex) + 1;
 	l->currToken = l->input + beginStrIndex;
 	l->err = LEXERERR_SUCCESS;
+
+	/* increment index again to prevent the end quote from being evaluated
+	 * next iteration.
+	 */
+	advance_char(l);
 	return true;
       }
+
+      /* prevent newlines from being put in strings */
+      if(next_char(l, false) == '\n') {
+	l->err = LEXERERR_NEWLINE_IN_STRING;
+	return true;
+      }
+    
     }
 
     /* error occurred, set token to null and quit */
@@ -137,17 +225,32 @@ bool next_parse_strings(Lexer * l) {
 char * lexer_next(Lexer * l, size_t * len) {
   LexerErr err;
 
-  /* loop through characters one by one */
-  for(; l->index < l->inputLen; l->index++) {
+  /* lexer loop */
+  for(; remaining_chars(l) > 0; ) {
 
-    /* skip all whitespace characters */
-    next_parse_whitespace(l);
 
-    if(next_parse_strings(l)) {
+    /* begin parsing code */
+    if(next_parse_whitespace(l)) {
+      /* do nothing, but discontinue if/else chain when whitespace is detected */
+    } else if(next_parse_comments(l)) {
+      if(l->err != LEXERERR_SUCCESS) {
+	break;
+      }
+    } else if(next_parse_strings(l)) {
       *len = l->currTokenLen;
       return l->currToken;
+    } else {
+ 
+      /* temporary warning that helps with debugging */
+      printf("WARNING: Control reached end of Recursive Parse Loop\n");
+      break;
     }
   }
+
+  /* if control reaches this point, either an error occurred, or there are no
+   *   more tokens left. finalize lexer and prevent any more next requests 
+   */
+  l->index = l->inputLen;
   return NULL;
 }
 
