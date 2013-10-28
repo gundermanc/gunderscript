@@ -35,6 +35,32 @@
 #include "gsbool.h"
 
 /**
+ * Operators Array
+ * Each operator must be at most 3 characters long, and must be NULL terminated.
+ */
+const char * gc_operatorsArray[] = {"+\0", "-\0", "/\0", "*\0", "%\0", "+=", "-=", "/=", "*=",
+				     "==", "<=", ">=", ">\0", "<\0", "!=", NULL}; 
+
+/**
+ * Creates a set of operators
+ */
+bool initialize_operator_set(Lexer * l) {
+  int i;
+  l->operatorSet = set_new();
+
+  /* add operators to set to allow for quick checking against them */
+  for(i = 0; gc_operatorsArray[i]; i++) {
+    set_add(l->operatorSet, gc_operatorsArray[i], strlen(gc_operatorsArray[i]));
+    printf("Indx: %i", i);
+  }
+
+  printf("\n\nContains? : %i\n\n", set_contains(l->operatorSet, "+=", 2));
+
+  /* TODO: Add error checking */
+  return true;
+}
+
+/**
  * Creates a new lexer object.
  * inputType: an enum value specifying the input source for the lexer. Can be
  * STRING, or FILE.
@@ -59,6 +85,9 @@ Lexer * lexer_new(char * input, size_t inputLen) {
 
   strncpy(lexer->input, input, inputLen);
   lexer->inputLen = inputLen;
+
+  initialize_operator_set(lexer);
+
   return lexer;
 }
 

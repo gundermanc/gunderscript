@@ -25,6 +25,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "gsbool.h"
+#include "set.h"
 
 typedef enum {
   LEXERERR_SUCCESS,
@@ -46,4 +47,5 @@ typedef struct Lexer {
   LexerErr err;
   int index;
   int lineNum;
+  Set * operatorSet;
 } Lexer;

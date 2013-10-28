@@ -22,11 +22,11 @@ AR = ar
 ARFLAGS = rcs
 INCDIR = include
 OBJDIR = objs
-CFLAGS  = -g -Wall -I include
+DATASTRUCTSDIR = c-datastructs
+CFLAGS  = -g -Wall -I $(INCDIR) -I $(DATASTRUCTSDIR)/include
 LIBCFLAGS = $(CFLAGS) -o $(OBJDIR)/$@
 SRCDIR = src
 DOCSDIR = docs
-DATASTRUCTSDIR = c-datastructs
 
 
 all: c-datastructs-build buildfs
@@ -36,7 +36,7 @@ all: testapp
 
 # builds the testing application
 testapp: library
-	$(CC) $(CFLAGS) -o testapp test_app.c gunderscript.a
+	$(CC) $(CFLAGS) -o testapp test_app.c gunderscript.a $(DATASTRUCTSDIR)/lib.a
 
 # build just the static library
 library: lexer.o
