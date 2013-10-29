@@ -46,7 +46,7 @@ char * print_next_token(Lexer * l) {
 }
 
 int main() {
-  char * foo = "3. + 4";
+  char * foo = "3. ++++++++++ 4";
   Lexer * l = lexer_new(foo, strlen(foo));
  
   print_next_token(l);

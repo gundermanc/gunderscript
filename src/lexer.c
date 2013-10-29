@@ -34,12 +34,14 @@
 #include <string.h>
 #include "gsbool.h"
 
+/* TODO: decide whether or not to remove operator checking...leave for compiler to do?? */
 /**
- * Operators Array
- * Each operator must be at most 3 characters long, and must be NULL terminated.
+ * Operators Array. This array contains the operators that are considered to be valid
+ * while lexing.
+ * Each operator can be any length in characters, but the array must be NULL terminated.
  */
-const static char * gc_operatorsArray[] = {"+\0", "-\0", "/\0", "*\0", "%\0", "+=", "-=", "/=", "*=",
-				     "==", "<=", ">=", ">\0", "<\0", "!=", NULL}; 
+const static char * gc_operatorsArray[] = {"+", "-", "/", "*", "%", "+=", "-=", "/=", "*=",
+				     "==", "<=", ">=", ">", "<", "!=", NULL}; 
 
 /**
  * Creates a set of operators with constant time lookup that will be used to
@@ -108,7 +110,7 @@ Lexer * lexer_new(char * input, size_t inputLen) {
 
   /* create operator set and allocate input storage string and handle failure */
   lexer->input = calloc(inputLen + 1, sizeof(char));
-  if(!initialize_operator_set(lexer) || lexer->input == NULL) {
+  if(/*!initialize_operator_set(lexer) ||*/ lexer->input == NULL) {
 
     /* TODO: this NULL check is here. Make sure it works. */
     free(lexer);
@@ -126,15 +128,11 @@ Lexer * lexer_new(char * input, size_t inputLen) {
  * Frees any memory associated with the Lexer Object and closes the input
  * file if there is one.
  * l: the lexer object to free.
- */
+ */ 
 void lexer_free(Lexer * l) {
-  kill_operator_set(l);
+  /*kill_operator_set(l);*/
   free(l->input);
   free(l);
-}
-
-bool lexer_has_next(Lexer * l) {
-  return 0;
 }
 
 static bool is_white_space(char c) {
@@ -390,12 +388,16 @@ static bool next_parse_operators(Lexer * l) {
     tokenLen = (l->index - beginStrIndex);
     token  = l->input + beginStrIndex;
 
+    /* TODO: either add an error code for invalid operator, or 
+     * remove operator checking and leave this task to the the
+     * compiler.
+     */
     /* make sure symbol is in the operator set */
-    if(set_contains(l->operatorSet, token, tokenLen)) {
+    /*   if(set_contains(l->operatorSet, token, tokenLen)) {*/
       l->currToken = token;
       l->currTokenLen = tokenLen;
       l->err = LEXERERR_SUCCESS;
-    }
+      /* }*/
 
     return true;
   }
@@ -422,13 +424,34 @@ static bool next_parse_operators(Lexer * l) {
 char * lexer_next(Lexer * l, size_t * len) {
   LexerErr err;
 
-  /* lexer loop */
+  /* Recursive Descent Parsing Loop:
+   * Each iteration, the lexer attempts to handle the current set of characters
+   * by feeding the current, previous, and next characters into a sub parser.
+   * The sub parser will then look at the current character and decide whether
+   * or not it can handle the current situation. For example, if the whitespace
+   * parser sees a whitespace character, it will move the iterator index forward
+   * until no more remain. It then returns true to signify that it could handle
+   * the current situation, and the if/else chain restarts from the top. Lets say
+   * the next symbol is a digit. The whitespace parser will be called again. Since
+   * it doesn't know how to handle digits, it returns false and the digit is passed
+   * down the chain until it reaches the number parser that can handle it.
+   */
   for(; remaining_chars(l) > 0; ) {
 
 
-    /* begin parsing code */
+    /* Recursive Descent Chain:
+     * I know the McCabe's complexity is CRAZY high, but in this I case, I
+     * believe that it is excusible because it greatly simplifies the rest of
+     * the code document and makes the code much more understandable...the 
+     * primary goal of good computer science.
+     *
+     * Basically, control just cascades down until it finds a method that
+     * can handle the data.
+     */
     if(next_parse_whitespace(l)) {
+
       /* do nothing, but restart if/else chain when whitespace is detected */
+
     } else if(next_parse_comments(l)) {
       if(l->err != LEXERERR_SUCCESS) {
 	break;
@@ -446,7 +469,8 @@ char * lexer_next(Lexer * l, size_t * len) {
       *len = l->currTokenLen;
       return l->currToken;
     } else {
- 
+
+      /* none of the parsers can handle the current situation */
       /* temporary warning that helps with debugging */
       printf("WARNING: Control reached end of Recursive Parse Loop\n");
       break;
@@ -456,12 +480,9 @@ char * lexer_next(Lexer * l, size_t * len) {
 }
 
 char * lexer_current_token(Lexer * l, size_t * len) {
-  return NULL;
+  *len = l->currTokenLen;
+  return l->currToken;
 
-}
-
-void lexer_set_err(Lexer * l, LexerErr err) {
-  l->err = err;
 }
 
 LexerErr lexer_get_err(Lexer * l) {
@@ -473,9 +494,14 @@ LexerErr lexer_line_num(Lexer * l) {
 }
 
 LexerType lexer_token_type(char * token, size_t len) {
-  /*
-  if(token[0] == '"' && token[len-1] == '"') {
-    return STRING;
-    } else if(*/
-  return LEXERTYPE_STRING;
+
+  if(is_operator(token[0])) {
+    if(token[len-1] == '"') {
+      return LEXERTYPE_STRING;
+    } else {
+      
+    }
+  }
+
+  return LEXERTYPE_UNKNOWN;
 }

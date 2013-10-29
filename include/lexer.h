@@ -37,7 +37,11 @@ typedef enum {
 } LexerErr;
 
 typedef enum {
-  LEXERTYPE_STRING
+  LEXERTYPE_STRING,
+  LEXERTYPE_NUMBER,
+  LEXERTYPE_KEYVAR,
+  LEXERTYPE_OPERATOR,
+  LEXERTYPE_UNKNOWN
 } LexerType;
 
 typedef struct Lexer {
@@ -50,3 +54,18 @@ typedef struct Lexer {
   int lineNum;
   Set * operatorSet;
 } Lexer;
+
+
+Lexer * lexer_new(char * input, size_t inputLen);
+
+void lexer_free(Lexer * l);
+
+char * lexer_next(Lexer * l, size_t * len);
+
+char * lexer_current_token(Lexer * l, size_t * len);
+
+LexerErr lexer_get_err(Lexer * l);
+
+LexerErr lexer_line_num(Lexer * l);
+
+LexerType lexer_token_type(char * token, size_t len);
