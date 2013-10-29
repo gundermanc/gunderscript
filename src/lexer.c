@@ -81,6 +81,11 @@ static void kill_operator_set(Lexer * l) {
   set_free(l->operatorSet);
 }
 
+/* prevents and subsequent lexer_next calls */ 
+static void finalize_lexer(Lexer * l) {
+  l->index = l->input;
+}
+
 
 
 /**
@@ -218,6 +223,7 @@ static bool next_parse_comments(Lexer * l) {
     }
 
     l->err = LEXERERR_UNTERMINATED_COMMENT;
+    finalize_lexer(l);
   }
 
   return false;
@@ -249,6 +255,7 @@ bool next_parse_strings(Lexer * l) {
       /* prevent newlines from being put in strings */
       if(next_char(l, false) == '\n') {
 	l->err = LEXERERR_NEWLINE_IN_STRING;
+	finalize_lexer(l);
 	return true;
       }
     
@@ -257,6 +264,7 @@ bool next_parse_strings(Lexer * l) {
     /* error occurred, set token to null and quit */
     l->currToken = NULL;
     l->err = LEXERERR_UNTERMINATED_STRING;
+    finalize_lexer(l);
     return true;
   }
   return false;
@@ -314,7 +322,6 @@ static bool next_parse_keyvars(Lexer * l) {
     l->currToken = l->input + beginStrIndex;
     l->err = LEXERERR_SUCCESS;
 
-    printf("\n\nFinal index: %i\n\n", l->index);
     return true;
   }
 
@@ -326,10 +333,25 @@ static bool next_parse_numbers(Lexer * l) {
 
   if(is_digit(next_char(l, false))) {
     int beginStrIndex = l->index;
+    bool decimalDetected = false;
 
     /* move index to end of number */
     while(remaining_chars(l) > 0 
-	  && is_digit(next_char(l, false))) {
+	  && (is_digit(next_char(l, false)) || next_char(l, false) == '.')) {
+
+      /* prevent multiple decimal points in one number */
+      if(next_char(l, false) == '.') {
+
+
+	if(decimalDetected) {
+	  l->err = LEXERERR_DUPLICATE_DECIMAL_PT;
+	  finalize_lexer(l);
+	  l->currToken = NULL;
+	  l->currTokenLen = 0;
+	  return true;
+	}
+	decimalDetected = true;
+      }
       advance_char(l);
     }
 
@@ -338,7 +360,6 @@ static bool next_parse_numbers(Lexer * l) {
     l->currToken = l->input + beginStrIndex;
     l->err = LEXERERR_SUCCESS;
 
-    printf("\n\nFinal index: %i\n\n", l->index);
     return true;
   }
 
@@ -356,7 +377,6 @@ static bool is_operator(char c) {
 static bool next_parse_operators(Lexer * l) {
 
   if(is_operator(next_char(l, false))) {
-    printf("FFFFFFFFFFFFFFFF");
     int beginStrIndex = l->index;
     char * token;
     size_t tokenLen;
@@ -377,7 +397,6 @@ static bool next_parse_operators(Lexer * l) {
       l->err = LEXERERR_SUCCESS;
     }
 
-    printf("\n\nFinal index: %i\n\n", l->index);
     return true;
   }
 
@@ -433,11 +452,6 @@ char * lexer_next(Lexer * l, size_t * len) {
       break;
     }
   }
-
-  /* if control reaches this point, either an error occurred, or there are no
-   *   more tokens left. finalize lexer and prevent any more next requests 
-   */
-  l->index = l->inputLen;
   return NULL;
 }
 
