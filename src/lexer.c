@@ -38,27 +38,50 @@
  * Operators Array
  * Each operator must be at most 3 characters long, and must be NULL terminated.
  */
-const char * gc_operatorsArray[] = {"+\0", "-\0", "/\0", "*\0", "%\0", "+=", "-=", "/=", "*=",
+const static char * gc_operatorsArray[] = {"+\0", "-\0", "/\0", "*\0", "%\0", "+=", "-=", "/=", "*=",
 				     "==", "<=", ">=", ">\0", "<\0", "!=", NULL}; 
 
 /**
- * Creates a set of operators
+ * Creates a set of operators with constant time lookup that will be used to
+ * lex operators.
+ * l: the current lexer instance
+ * returns: true if the initialization is successful, and false if initialization
+ * fails due to malloc errors.
  */
-bool initialize_operator_set(Lexer * l) {
+static bool initialize_operator_set(Lexer * l) {
   int i;
   l->operatorSet = set_new();
 
-  /* add operators to set to allow for quick checking against them */
-  for(i = 0; gc_operatorsArray[i]; i++) {
-    set_add(l->operatorSet, gc_operatorsArray[i], strlen(gc_operatorsArray[i]));
-    printf("Indx: %i", i);
+  /* if memory error allocating set, return error. */
+  if(l->operatorSet == NULL) {
+    return false;
   }
 
-  printf("\n\nContains? : %i\n\n", set_contains(l->operatorSet, "+=", 2));
+  /* return false;*/
 
-  /* TODO: Add error checking */
+  /* add operators to set to allow for quick checking against them */
+   for(i = 0; gc_operatorsArray[i] != NULL; i++) {
+
+    /* if malloc error occurs, exit */
+    if(!set_add(l->operatorSet, gc_operatorsArray[i], 
+		strlen(gc_operatorsArray[i]), NULL)) {
+      set_free(l->operatorSet);
+      return false;
+    }
+  }
+
   return true;
 }
+
+/**
+ * Frees the operator set for the provided lexer instance.
+ * l: the lexer instance who's operator set should be freed.
+ */
+static void kill_operator_set(Lexer * l) {
+  set_free(l->operatorSet);
+}
+
+
 
 /**
  * Creates a new lexer object.
@@ -72,21 +95,24 @@ bool initialize_operator_set(Lexer * l) {
  */
 Lexer * lexer_new(char * input, size_t inputLen) {
 
+  /* allocate lexer, return NULL if fails */
   Lexer * lexer = calloc(1, sizeof(Lexer));
   if(lexer == NULL) {
     return NULL;
   }
 
+  /* create operator set and allocate input storage string and handle failure */
   lexer->input = calloc(inputLen + 1, sizeof(char));
-  if(lexer->input == NULL) {
+  if(!initialize_operator_set(lexer) || lexer->input == NULL) {
+
+    /* TODO: this NULL check is here. Make sure it works. */
     free(lexer);
     return NULL;
   }
 
+  
   strncpy(lexer->input, input, inputLen);
   lexer->inputLen = inputLen;
-
-  initialize_operator_set(lexer);
 
   return lexer;
 }
@@ -97,6 +123,7 @@ Lexer * lexer_new(char * input, size_t inputLen) {
  * l: the lexer object to free.
  */
 void lexer_free(Lexer * l) {
+  kill_operator_set(l);
   free(l->input);
   free(l);
 }
@@ -235,6 +262,128 @@ bool next_parse_strings(Lexer * l) {
   return false;
 }
 
+static bool is_letter(char c) {
+  return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
+}
+
+static bool is_digit(char c) {
+  return (c >= '0' && c <= '9');
+}
+
+/**
+ * Returns whether or not a string is possibly a keyword, variable, or function
+ * name. For a string to be a keyword or function name, it must start with a
+ * letter (A-Z, a-z) and all characters within it must be either a letter or a
+ * digit.
+ */
+/* TODO: perhaps remove this */
+static bool is_valid_keyvar(char * input, size_t inputLen) {
+
+  int i = 0;
+
+  if(inputLen < 1) {
+    return false;
+  }
+
+  if(!is_letter(input[0])) {
+    return false;
+  }
+
+  for(i = 0; i < inputLen; i++) {
+    if(!is_digit(input[i]) && !is_letter(input[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/* extract contiguous bodies of letters */
+static bool next_parse_keyvars(Lexer * l) {
+
+  if(is_letter(next_char(l, false))) {
+    int beginStrIndex = l->index;
+
+    /* extract entire word */
+    while(remaining_chars(l) > 0 
+	  && (is_letter(next_char(l, false)) || is_digit(next_char(l, false)))) {
+      advance_char(l);
+    }
+
+    l->currTokenLen = (l->index - beginStrIndex);
+    l->currToken = l->input + beginStrIndex;
+    l->err = LEXERERR_SUCCESS;
+
+    printf("\n\nFinal index: %i\n\n", l->index);
+    return true;
+  }
+
+  return false;
+}
+
+/* extract contiguous bodies of letters */
+static bool next_parse_numbers(Lexer * l) {
+
+  if(is_digit(next_char(l, false))) {
+    int beginStrIndex = l->index;
+
+    /* move index to end of number */
+    while(remaining_chars(l) > 0 
+	  && is_digit(next_char(l, false))) {
+      advance_char(l);
+    }
+
+    /* save number to currentToken pointer */
+    l->currTokenLen = (l->index - beginStrIndex);
+    l->currToken = l->input + beginStrIndex;
+    l->err = LEXERERR_SUCCESS;
+
+    printf("\n\nFinal index: %i\n\n", l->index);
+    return true;
+  }
+
+  return false;
+}
+
+/* superficially decides if this character is is of the "operator" type. Basically,
+ * its not whitespace, letter, or digit.
+ */
+static bool is_operator(char c) {
+  return (!is_digit(c) && !is_letter(c) && !is_white_space(c));
+}
+
+/* extract contiguous bodies of letters */
+static bool next_parse_operators(Lexer * l) {
+
+  if(is_operator(next_char(l, false))) {
+    printf("FFFFFFFFFFFFFFFF");
+    int beginStrIndex = l->index;
+    char * token;
+    size_t tokenLen;
+
+    /* move index to end of symbols */
+    while(remaining_chars(l) > 0 
+	  && is_operator(next_char(l, false))) {
+      advance_char(l);
+    }
+
+    tokenLen = (l->index - beginStrIndex);
+    token  = l->input + beginStrIndex;
+
+    /* make sure symbol is in the operator set */
+    if(set_contains(l->operatorSet, token, tokenLen)) {
+      l->currToken = token;
+      l->currTokenLen = tokenLen;
+      l->err = LEXERERR_SUCCESS;
+    }
+
+    printf("\n\nFinal index: %i\n\n", l->index);
+    return true;
+  }
+
+  return false;
+}
+
 /**
  * Returns the next token string from this lexer if successful, returns NULL
  * if error occurs. Calls Set Lexer Error Method and sets the last error value
@@ -260,12 +409,21 @@ char * lexer_next(Lexer * l, size_t * len) {
 
     /* begin parsing code */
     if(next_parse_whitespace(l)) {
-      /* do nothing, but discontinue if/else chain when whitespace is detected */
+      /* do nothing, but restart if/else chain when whitespace is detected */
     } else if(next_parse_comments(l)) {
       if(l->err != LEXERERR_SUCCESS) {
 	break;
       }
     } else if(next_parse_strings(l)) {
+      *len = l->currTokenLen;
+      return l->currToken;
+    } else if(next_parse_keyvars(l)){
+      *len = l->currTokenLen;
+      return l->currToken;
+    } else if(next_parse_numbers(l)){
+      *len = l->currTokenLen;
+      return l->currToken;
+    } else if(next_parse_operators(l)){
       *len = l->currTokenLen;
       return l->currToken;
     } else {

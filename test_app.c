@@ -26,7 +26,7 @@
 #include "lexer.h"
 #include <string.h>
 
-void print_next_token(Lexer * l) {
+char * print_next_token(Lexer * l) {
   size_t tokenLen;
   int i = 0;
   
@@ -41,14 +41,29 @@ void print_next_token(Lexer * l) {
     printf("%c", token[i]);
   }
   printf("\n");
+
+  return token;
 }
 
 int main() {
-  char * foo = "// ";
+  char * foo = "3+=+=";
   Lexer * l = lexer_new(foo, strlen(foo));
  
   print_next_token(l);
+
   print_next_token(l);
+
+  print_next_token(l);
+
+  print_next_token(l);
+
+  print_next_token(l);
+
+  print_next_token(l);
+
+  print_next_token(l);
+
+
   printf("Error code: %i", l->err);
 
   lexer_free(l);
