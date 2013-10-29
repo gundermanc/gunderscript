@@ -1,4 +1,4 @@
-#
+#!/bin/sh
 # Gunderscript Submodules Initializer
 # (C) 2013 Christian Gunderman
 #
