@@ -50,8 +50,10 @@ char * print_next_token(Lexer * l) {
 
 int main() {
   char * foo = "function exported gunderscript_main(args, argsLen) {\n"
-               ""
-               "}";
+    ""
+    "}";
+ 
+    
   Lexer * l = lexer_new(foo, strlen(foo));
  
   while(print_next_token(l) != NULL);

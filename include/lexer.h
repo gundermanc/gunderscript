@@ -26,6 +26,7 @@
 #include <stdio.h>
 #include "gsbool.h"
 
+/* Lexer Error Codes */
 typedef enum {
   LEXERERR_SUCCESS,
   LEXERERR_UNTERMINATED_STRING,
@@ -35,6 +36,7 @@ typedef enum {
   LEXERERR_TRAILING_DECIMAL_PT
 } LexerErr;
 
+/* Lexer Token Types */
 typedef enum {
   LEXERTYPE_STRING,
   LEXERTYPE_NUMBER,
@@ -43,6 +45,7 @@ typedef enum {
   LEXERTYPE_UNKNOWN
 } LexerType;
 
+/* Lexer Instance Struct */
 typedef struct Lexer {
   char * input;
   size_t inputLen;
