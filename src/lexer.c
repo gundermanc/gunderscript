@@ -34,58 +34,12 @@
 #include <string.h>
 #include "gsbool.h"
 
-/* TODO: decide whether or not to remove operator checking...leave for compiler to do?? */
 /**
- * Operators Array. This array contains the operators that are considered to be valid
- * while lexing.
- * Each operator can be any length in characters, but the array must be NULL terminated.
+ * Prevents subsequent lexer_next() calls, finalizing the lexer.
+ * l: a lexer object instance.
  */
-const static char * gc_operatorsArray[] = {"+", "-", "/", "*", "%", "+=", "-=", "/=", "*=",
-				     "==", "<=", ">=", ">", "<", "!=", NULL}; 
-
-/**
- * Creates a set of operators with constant time lookup that will be used to
- * lex operators.
- * l: the current lexer instance
- * returns: true if the initialization is successful, and false if initialization
- * fails due to malloc errors.
- */
-static bool initialize_operator_set(Lexer * l) {
-  int i;
-  l->operatorSet = set_new();
-
-  /* if memory error allocating set, return error. */
-  if(l->operatorSet == NULL) {
-    return false;
-  }
-
-  /* return false;*/
-
-  /* add operators to set to allow for quick checking against them */
-   for(i = 0; gc_operatorsArray[i] != NULL; i++) {
-
-    /* if malloc error occurs, exit */
-    if(!set_add(l->operatorSet, gc_operatorsArray[i], 
-		strlen(gc_operatorsArray[i]), NULL)) {
-      set_free(l->operatorSet);
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
- * Frees the operator set for the provided lexer instance.
- * l: the lexer instance who's operator set should be freed.
- */
-static void kill_operator_set(Lexer * l) {
-  set_free(l->operatorSet);
-}
-
-/* prevents and subsequent lexer_next calls */ 
 static void finalize_lexer(Lexer * l) {
-  l->index = l->input;
+  l->index = l->inputLen;
 }
 
 
@@ -120,6 +74,7 @@ Lexer * lexer_new(char * input, size_t inputLen) {
   
   strncpy(lexer->input, input, inputLen);
   lexer->inputLen = inputLen;
+  lexer->lineNum = 1;
 
   return lexer;
 }
@@ -130,11 +85,16 @@ Lexer * lexer_new(char * input, size_t inputLen) {
  * l: the lexer object to free.
  */ 
 void lexer_free(Lexer * l) {
-  /*kill_operator_set(l);*/
   free(l->input);
   free(l);
 }
 
+/**
+ * Checks to see if character is a whitespace character, such as end line,
+ * return carriage, tab, or space.
+ * c: a char value to check.
+ * returns: true if c is a whitespace char, and false if not.
+ */
 static bool is_white_space(char c) {
 
   switch(c) {
@@ -148,40 +108,77 @@ static bool is_white_space(char c) {
   return false;
 }
 
-static void advance_char(Lexer * l) {
-  l->index++;
-}
-
-static char next_char(Lexer * l, bool advance) {
-
-  if(advance) {
-    advance_char(l);
-  }
-
+/**
+ * Returns the next char in the input string. This wrapper is for convenience.
+ * Warning: this method does not do bounds checking.
+ * l: an instance of lexer.
+ * returns: the next char from the input.
+ */
+static char next_char(Lexer * l) {
   return l->input[l->index];
 }
 
+/**
+ * Advances the next_char index to the next char in the input string.
+ * Warning: this method does no bounds checking.
+ * l: an instance of lexer.
+ */
+static void advance_char(Lexer * l) {
+
+  /* if new line, increment line number */
+  if(next_char(l) == '\n') {
+    l->lineNum++;
+  }
+
+  l->index++;
+}
+
+/**
+ * Gets the previous character in the input string.
+ * Warning: this method does not do bounds checking.
+ * l: an instance of lexer.
+ * returns: the previous character.
+ */
 static char prev_char(Lexer * l) {
   return l->input[l->index - 1];
 }
 
+/**
+ * Returns the next character in the input string without advancing current char
+ * iterator.
+ * l: an instance of lexer.
+ * returns: the char in the sequence after the current char.
+ */
 static char peek_char(Lexer * l) {
   return l->input[l->index + 1];
 }
 
 /**
- * Gets the number of characters remaining in the buffer
+ * Gets the number of uniterated characters remaining in the input string.
+ * l: an instance of lexer
+ * returns: the number of characters remaining.
  */
 static int remaining_chars(Lexer * l) {
   return l->inputLen - l->index;
 }
 
+/**
+ * lexer_next() whitespace subparser.
+ * Advances current character index until current contiguous block of whitespace
+ * has been passed completed.
+ * l: an instance of lexer object.
+ * returns: true if current character was a whitespace char when subparser was
+ * first called, or false if the current character was not a whitespace
+ * character.
+ */
 static bool next_parse_whitespace(Lexer * l) {
 
-  if(is_white_space(l->input[l->index])) {
+  if(is_white_space(next_char(l))) {
 
     /* skip all whitespace characters */
-    while(remaining_chars(l) > 0 && is_white_space(next_char(l, true)));
+    while(remaining_chars(l) > 0 && is_white_space(next_char(l))) {
+      advance_char(l);
+    }
 
     return true;
   }
@@ -189,29 +186,44 @@ static bool next_parse_whitespace(Lexer * l) {
   return false;
 }
 
+/**
+ * lexer_next() comments subparser.
+ * Whenever a comment start operator is encountered, advances current char index
+ * until the matching comment terminator is encountered. If a multiline comment
+ * is encountered, but it does not have a matching terminator, the l->err flag
+ * is set to LEXERERR_UNTERMINATED_COMMENT, the next l->currToken is set to NULL
+ * but method still returns true.
+ * l: a lexer object.
+ * returns: true if this subparser was called when first chars were a start
+ * comment operator, and returns false if current character was not comment
+ * related and nothing was done.
+ */
 static bool next_parse_comments(Lexer * l) {
 
-  /* if there is another character after this one, check this one and the next one to see if
-   * they are single line comment characters: "//". If so, skip the comment characters.
+  /* if there is another character after this one, check this one and the next
+   * one to see if they are single line comment characters: "//". If so, skip the
+   * comment characters.
    */
   if(remaining_chars(l) > 0
-     && next_char(l, false) == '/'
+     && next_char(l) == '/'
      && peek_char(l) == '/') {
 
-    while(remaining_chars(l) > 0 && next_char(l, true) != '\n');
+    while(remaining_chars(l) > 0 && next_char(l) != '\n') {
+      advance_char(l);
+    }
 
     return true;
   }
 
   /* if there is another character after the current one, check it to see if they
-   * are single line line comment characters: "/*". If so, skip the comment chars.
+   * are single line line comment characters: "/*". If so, skip the comment chars
    */
   if(remaining_chars(l) > 0
-     && next_char(l, false) == '/'
+     && next_char(l) == '/'
      && peek_char(l) == '*') {
 
     while(remaining_chars(l) > 0) {
-      if(prev_char(l) == '*' && next_char(l, false) == '/') {
+      if(prev_char(l) == '*' && next_char(l) == '/') {
 
 	/* prevent the closing / from being re-evaluated next iteration */
 	advance_char(l);
@@ -227,10 +239,22 @@ static bool next_parse_comments(Lexer * l) {
   return false;
 }
 
+/**
+ * lexer_next() strings subparser.
+ * If current character is a quotation mark, ", this function begins parsing to
+ * find the matching end quotation mark. Upon finding it, the l->currToken
+ * pointer is set to point to the beginning of the string, and l->currTokenLen is
+ * set to the length of the string. If no end quotation mark is encountered,
+ * l->err is set to LEXERERR_UNTERMINATED_STRING and l->currToken is set to NULL,
+ * but function returns true;
+ * l: an instance of lexer.
+ * returns: true if the first character the lexer encountered was a quotation
+ * mark, and false if not.
+ */
 bool next_parse_strings(Lexer * l) {
 
   /* this is the beginning of a string */
-  if(next_char(l, false) == '"') {
+  if(next_char(l) == '"') {
     int beginStrIndex = l->index;
 
     /* add characters to the string */
@@ -238,7 +262,7 @@ bool next_parse_strings(Lexer * l) {
     for(; remaining_chars(l) > 0; advance_char(l)) {
 
       /* encountered end of string, return it along with the quotes*/
-      if(next_char(l, false) == '"' && prev_char(l) != '\\') {
+      if(next_char(l) == '"' && prev_char(l) != '\\') {
 	l->currTokenLen = (l->index - beginStrIndex) + 1;
 	l->currToken = l->input + beginStrIndex;
 	l->err = LEXERERR_SUCCESS;
@@ -251,7 +275,7 @@ bool next_parse_strings(Lexer * l) {
       }
 
       /* prevent newlines from being put in strings */
-      if(next_char(l, false) == '\n') {
+      if(next_char(l) == '\n') {
 	l->err = LEXERERR_NEWLINE_IN_STRING;
 	finalize_lexer(l);
 	return true;
@@ -268,10 +292,20 @@ bool next_parse_strings(Lexer * l) {
   return false;
 }
 
+/**
+ * Checks to determine if the character is a letter.
+ * c: the letter to check.
+ * returns: true if a letter, and false if not.
+ */
 static bool is_letter(char c) {
   return (c >= 'a' && c <= 'z') || (c >= 'A' && c <= 'Z');
 }
 
+/**
+ * Checks if is digit.
+ * c: digit to check.
+ * returns: true if is digit, false if not.
+ */
 static bool is_digit(char c) {
   return (c >= '0' && c <= '9');
 }
@@ -304,15 +338,23 @@ static bool is_valid_keyvar(char * input, size_t inputLen) {
   return true;
 }
 
-/* extract contiguous bodies of letters */
+/**
+ * lexer_next() keyvars subparser.
+ * If current character is a letter, this method parses to the end of the
+ * contiguous body of letters and numbers and then sets l->currToken to the
+ * start of the keyword or variable, and l->currTokenLen to the the length
+ * of the keyword or variable.
+ * l: an instance of lexer.
+ * returns: true if the first char was a letter, and false if not.
+ */
 static bool next_parse_keyvars(Lexer * l) {
 
-  if(is_letter(next_char(l, false))) {
+  if(is_letter(next_char(l))) {
     int beginStrIndex = l->index;
 
     /* extract entire word */
     while(remaining_chars(l) > 0 
-	  && (is_letter(next_char(l, false)) || is_digit(next_char(l, false)))) {
+	  && (is_letter(next_char(l)) || is_digit(next_char(l)))) {
       advance_char(l);
     }
 
@@ -326,19 +368,29 @@ static bool next_parse_keyvars(Lexer * l) {
   return false;
 }
 
-/* extract contiguous bodies of letters */
+/**
+ * lexer_next() numbers subparser.
+ * If current character is a digit, begins parsing until end of digits is reached
+ * making note of decimal points along the way. If more than one decimal point is
+ * encountered, l->err is set to LEXERERR_DUPLICATE_DECIMAL_PT, l->currToken is
+ * set to NULL, and the function returns true. Otherwise, the function sets
+ * l->currToken to the pointer to the first digit in the number, and l->tokenLen
+ * to the number of digits in the number (plus one if there is a decimal pt).
+ * l: an instance of lexer.
+ * returns: true if the first character encountered is a digit, and false if not.
+ */
 static bool next_parse_numbers(Lexer * l) {
 
-  if(is_digit(next_char(l, false))) {
+  if(is_digit(next_char(l))) {
     int beginStrIndex = l->index;
     bool decimalDetected = false;
 
     /* move index to end of number */
     while(remaining_chars(l) > 0 
-	  && (is_digit(next_char(l, false)) || next_char(l, false) == '.')) {
+	  && (is_digit(next_char(l)) || next_char(l) == '.')) {
 
       /* prevent multiple decimal points in one number */
-      if(next_char(l, false) == '.') {
+      if(next_char(l) == '.') {
 
 
 	if(decimalDetected) {
@@ -364,40 +416,44 @@ static bool next_parse_numbers(Lexer * l) {
   return false;
 }
 
-/* superficially decides if this character is is of the "operator" type. Basically,
- * its not whitespace, letter, or digit.
+/**
+ * Superficially decides if character is an operator character (not a letter,
+ * digit, or whitespace).
+ * c: the char to check.
+ * returns: true if c is an operator, false if not.
  */
 static bool is_operator(char c) {
   return (!is_digit(c) && !is_letter(c) && !is_white_space(c));
 }
 
-/* extract contiguous bodies of letters */
+/**
+ * lexer_next() operators subparser.
+ * If current character is an operator char (see is_operator()), function copies
+ * current character and all characters following operator that are operators
+ * to the l->currToken pointer, and sets l->currTokenLen to the length of this
+ * multicharacter operator.
+ * l: an instance of lexer.
+ * returns: true if the first character is an operator, and false if not.
+ */
 static bool next_parse_operators(Lexer * l) {
 
-  if(is_operator(next_char(l, false))) {
+  if(is_operator(next_char(l))) {
     int beginStrIndex = l->index;
     char * token;
     size_t tokenLen;
 
     /* move index to end of symbols */
     while(remaining_chars(l) > 0 
-	  && is_operator(next_char(l, false))) {
+	  && is_operator(next_char(l))) {
       advance_char(l);
     }
 
     tokenLen = (l->index - beginStrIndex);
     token  = l->input + beginStrIndex;
 
-    /* TODO: either add an error code for invalid operator, or 
-     * remove operator checking and leave this task to the the
-     * compiler.
-     */
-    /* make sure symbol is in the operator set */
-    /*   if(set_contains(l->operatorSet, token, tokenLen)) {*/
-      l->currToken = token;
-      l->currTokenLen = tokenLen;
-      l->err = LEXERERR_SUCCESS;
-      /* }*/
+    l->currToken = token;
+    l->currTokenLen = tokenLen;
+    l->err = LEXERERR_SUCCESS;
 
     return true;
   }
@@ -406,23 +462,21 @@ static bool next_parse_operators(Lexer * l) {
 }
 
 /**
- * Returns the next token string from this lexer if successful, returns NULL
- * if error occurs. Calls Set Lexer Error Method and sets the last error value
- * to UNTERMINATED_STRING if unmatched quotes occur.
- *
- * Passes line number of current Token out too somehow. Implementation specific
- *
- * Tokens are Strings made from
- * the object's initialization String, split up into the following things:
- * - String :: Each block of text surrounded by quotes is considered to be a
- *             String.
- * - Operators :: Each +,-,/,*,% +=, -=, *=, /=, %=, ==, <=, >=, ==, <, >,
- *                /*, [end comment], //, /n (newline), !=
- * - Symbols :: Each (, ), , {, }, [, ], ;
- *  - Keywords/Variables :: Each word is treated as a token.
+ * Returns the next token string from this lexer. Characters are tokenized into:
+ * - Strings: surrounded by quotes.
+ * - Numbers: contiguous blocks of digits with up to one decimal pt.
+ * - Comments: begin with slash star, end with star slash or begin with // end
+ *             newline, and are removed during tokenization.
+ * - Keywords/vars: any contiguous block of characters starting with a letter
+ *                  and ending with letters or numbers.
+ * - Operators: any contiguous blocks of characters that aren't whitespace,
+ *              letters, or digits.
+ * l: an instance of lexer.
+ * len: the length of the string being returned.
+ * returns: a string containing the next token. Note: this string is not NULL
+ * terminated.
  */
 char * lexer_next(Lexer * l, size_t * len) {
-  LexerErr err;
 
   /* Recursive Descent Parsing Loop:
    * Each iteration, the lexer attempts to handle the current set of characters
@@ -479,20 +533,45 @@ char * lexer_next(Lexer * l, size_t * len) {
   return NULL;
 }
 
+/**
+ * Gets the token returned by the previous call to lexer_next.
+ * l: an instance of lexer.
+ * len: the length of the token string.
+ * returns: a string containing the token. Note: this string is not null
+ * terminated, but instead requires use of the length provided through the
+ * len parameter to ensure that only the characters from this token are compared.
+ */
 char * lexer_current_token(Lexer * l, size_t * len) {
   *len = l->currTokenLen;
   return l->currToken;
 
 }
 
+/**
+ * Gets the last error experienced by lexer. If lexer_next() returns NULL,
+ * call this method to find out the cause of the error. LEXERERR_SUCCESS means
+ * that the operation succeeded. Any other code describes syntax errors in the
+ * input.
+ * l: an instnace of lexer.
+ * returns: the last error experienced by lexer_next().
+ */
 LexerErr lexer_get_err(Lexer * l) {
   return l->err;
 }
 
-LexerErr lexer_line_num(Lexer * l) {
+/**
+ * Gets the line number of the current token. This can be used to find out
+ * which line caused an error while lexing scripts, or just to find current line.
+ * l: an instance of lexer.
+ * returns: line number of current token.
+ */
+int lexer_line_num(Lexer * l) {
   return l->lineNum;
 }
 
+/**
+ * Gets the type of a token.
+ */
 LexerType lexer_token_type(char * token, size_t len) {
 
   if(is_operator(token[0])) {

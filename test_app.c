@@ -46,7 +46,7 @@ char * print_next_token(Lexer * l) {
 }
 
 int main() {
-  char * foo = "3. ++++++++++ 4";
+  char * foo = "3. ++++\n++++++ 4";
   Lexer * l = lexer_new(foo, strlen(foo));
  
   print_next_token(l);
@@ -65,6 +65,7 @@ int main() {
 
 
   printf("Error code: %i", l->err);
+  printf("\nLine: %i\n", lexer_line_num(l));
 
   lexer_free(l);
   return 0;

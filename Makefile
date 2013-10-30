@@ -43,7 +43,7 @@ library: lexer.o
 	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o
 
 # build lexer object
-lexer.o: c-datastructs-build  $(SRCDIR)/lexer.c
+lexer.o: buildfs c-datastructs-build  $(SRCDIR)/lexer.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/lexer.c
 
 # build the file system
