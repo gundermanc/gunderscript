@@ -311,34 +311,6 @@ static bool is_digit(char c) {
 }
 
 /**
- * Returns whether or not a string is possibly a keyword, variable, or function
- * name. For a string to be a keyword or function name, it must start with a
- * letter (A-Z, a-z) and all characters within it must be either a letter or a
- * digit.
- */
-/* TODO: perhaps remove this */
-static bool is_valid_keyvar(char * input, size_t inputLen) {
-
-  int i = 0;
-
-  if(inputLen < 1) {
-    return false;
-  }
-
-  if(!is_letter(input[0])) {
-    return false;
-  }
-
-  for(i = 0; i < inputLen; i++) {
-    if(!is_digit(input[i]) && !is_letter(input[i])) {
-      return false;
-    }
-  }
-
-  return true;
-}
-
-/**
  * lexer_next() keyvars subparser.
  * If current character is a letter, this method parses to the end of the
  * contiguous body of letters and numbers and then sets l->currToken to the
@@ -354,7 +326,7 @@ static bool next_parse_keyvars(Lexer * l) {
 
     /* extract entire word */
     while(remaining_chars(l) > 0 
-	  && (is_letter(next_char(l)) || is_digit(next_char(l)))) {
+	  && (is_letter(next_char(l)) || is_digit(next_char(l)) || next_char(l) == '_')) {
       advance_char(l);
     }
 
@@ -392,7 +364,6 @@ static bool next_parse_numbers(Lexer * l) {
       /* prevent multiple decimal points in one number */
       if(next_char(l) == '.') {
 
-
 	if(decimalDetected) {
 	  l->err = LEXERERR_DUPLICATE_DECIMAL_PT;
 	  finalize_lexer(l);
@@ -400,12 +371,25 @@ static bool next_parse_numbers(Lexer * l) {
 	  l->currTokenLen = 0;
 	  return true;
 	}
+
 	decimalDetected = true;
       }
+
       advance_char(l);
     }
 
-    /* save number to currentToken pointer */
+    /* if last character in digit grouping is a '.' throw a fit.
+     * Numbers must start and end with digits.
+     */
+    if(prev_char(l) == '.') {
+      l->err = LEXERERR_TRAILING_DECIMAL_PT;
+      finalize_lexer(l);
+      l->currToken = NULL;
+      l->currTokenLen = 0;
+      return true;
+    }
+
+    /* success, save number to currentToken pointer */
     l->currTokenLen = (l->index - beginStrIndex);
     l->currToken = l->input + beginStrIndex;
     l->err = LEXERERR_SUCCESS;
@@ -570,17 +554,170 @@ int lexer_line_num(Lexer * l) {
 }
 
 /**
- * Gets the type of a token.
+ * Checks a string to make sure that it is composed entirely of operator characters.
+ * input: a string.
+ * len: the number of characters to compare.
+ * definitive: if true, method iterates entire token length to make sure that it is
+ * valid. If false, it uses clues, such as quotes and first and last character type
+ * to make a quick judgement. All tokens coming from lexer_next() will be valid, so
+ * this argument can be false with lexer_next() generated tokens.
+ * returns: true if the string is composed entirely of characters that are not letters,
+ * digits, or whitespace.
  */
-LexerType lexer_token_type(char * token, size_t len) {
+static bool is_valid_operator(char * input, size_t len, bool definitive) {
+  int i = 0;
 
-  if(is_operator(token[0])) {
-    if(token[len-1] == '"') {
-      return LEXERTYPE_STRING;
+  if(!definitive) {
+    if(is_operator(input[0]) && is_operator(input[len-1])) {
+      return true;
     } else {
-      
+      return false;
     }
   }
 
-  return LEXERTYPE_UNKNOWN;
+  /* for each character, if not an operator character, return false */
+  for(i = 0; i < len; i++) {
+    if(!is_operator(input[i])) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Checks a string to make sure that it is a string token.
+ * input: a string.
+ * len: the number of characters to compare.
+ * definitive: if true, method iterates entire token length to make sure that it is
+ * valid. If false, it uses clues, such as quotes and first and last character type
+ * to make a quick judgement. All tokens coming from lexer_next() will be valid, so
+ * this argument can be false with lexer_next() generated tokens.
+ * returns: true if the string is enclosed by quotes and does not contain any \n, or
+ * unescaped '"'.
+ */
+static bool is_valid_string(char * input, size_t len, bool definitive) {
+  int i = 0;
+
+  if(!definitive) {
+    if(input[0] == '"' && input[len-1] == '"') {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /* for each character, if an unescaped quotation mark, or \n, return false */
+  for(i = 0; i < len; i++) {
+    if((i > 0 && input[i] == '"' && input[i-1] != '\\')
+       || (input[i] == '\n')) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Checks a string to make sure that it is a valid number token.
+ * input: a string.
+ * len: the number of characters to compare.
+ * definitive: if true, method iterates entire token length to make sure that it is
+ * valid. If false, it uses clues, such as quotes and first and last character type
+ * to make a quick judgement. All tokens coming from lexer_next() will be valid, so
+ * this argument can be false with lexer_next() generated tokens.
+ * returns: true if the string is made up of numbers with only one decimal place.
+ */
+static bool is_valid_number(char * input, size_t len, bool definitive) {
+  int i = 0;
+  bool decPtEncountered = false;
+
+  if(!definitive) {
+    if(is_digit(input[0]) && is_digit(input[len-1])) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  /* for each character, if not a digit or a decimal pt, return false*/
+  for(i = 0; i < len; i++) {
+
+    if(!decPtEncountered && input[i] == '.') {
+      decPtEncountered = true;
+    } else {
+      return false;
+    }
+
+    if(!is_digit(input[i])
+       && (input[i] != '.' || decPtEncountered)) {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Checks a string to make sure that it is a valid keyvar token.
+ * input: a string.
+ * len: the number of characters to compare.
+ * definitive: if true, method iterates entire token length to make sure that it is
+ * valid. If false, it uses clues, such as quotes and first and last character type
+ * to make a quick judgement. All tokens coming from lexer_next() will be valid, so
+ * this argument can be false with lexer_next() generated tokens.
+ * returns: true if the string starts with a letter and contains only letters and
+ * numbers.
+ */
+static bool is_valid_keyvar(char * input, size_t len, bool definitive) {
+  int i = 0;
+
+  if(!definitive) {
+    if(is_letter(input[0]) && (is_letter(input[len-1]) || is_digit(input[i-1]))) {
+      return true;
+    } else {
+      return false;
+    }
+  }
+
+  if(!is_letter(input[0]) || !is_digit(input[0])) {
+    return false;
+  }
+
+  /* for each character, if not a letter or an underscore, return false */
+  for(i = 0; i < len; i++) {
+    if(!is_letter(input[i]) && input[i] != '_') {
+      return false;
+    }
+  }
+
+  return true;
+}
+
+/**
+ * Determines a token string's type.
+ * input: a string.
+ * len: the number of characters to compare.
+ * definitive: if true, method iterates entire token length to make sure that it is
+ * valid. If false, it uses clues, such as quotes and first and last character type
+ * to make a quick judgement. All tokens coming from lexer_next() will be valid, so
+ * this argument can be false with lexer_next() generated tokens.
+ * returns: the LexerType of the token, or LEXERTYPE_UNKNOWN if the token is not a
+ * valid type.
+ */
+LexerType lexer_token_type(char * token, size_t len, bool definitive) {
+
+  LexerType type = LEXERTYPE_UNKNOWN;
+
+  if(is_valid_string(token, len, definitive)) {
+    type = LEXERTYPE_STRING;
+  } else if(is_valid_operator(token, len, definitive)) {
+    type = LEXERTYPE_OPERATOR;
+  } else if(is_valid_number(token, len, definitive)) {
+    type = LEXERTYPE_NUMBER;
+  } else if(is_valid_keyvar(token, len, definitive)) {
+    type = LEXERTYPE_KEYVAR;
+  }
+
+  return type;
 }

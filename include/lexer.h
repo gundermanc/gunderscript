@@ -32,7 +32,7 @@ typedef enum {
   LEXERERR_UNTERMINATED_COMMENT,
   LEXERERR_NEWLINE_IN_STRING,
   LEXERERR_DUPLICATE_DECIMAL_PT,
-  /*  LEXERERR_SYNTAX_ERROR, */
+  LEXERERR_TRAILING_DECIMAL_PT
 } LexerErr;
 
 typedef enum {
@@ -66,4 +66,4 @@ LexerErr lexer_get_err(Lexer * l);
 
 int lexer_line_num(Lexer * l);
 
-LexerType lexer_token_type(char * token, size_t len);
+LexerType lexer_token_type(char * token, size_t len, bool definitive);

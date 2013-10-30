@@ -34,34 +34,27 @@ char * print_next_token(Lexer * l) {
 
   if(token == NULL) {
     printf("NULL\n");
-    return;
+    return token;
   }
 
   for(i = 0; i < tokenLen; i++) {
     printf("%c", token[i]);
   }
+  printf("\n\t");
+
+  printf("Token type: %i", lexer_token_type(token, tokenLen, false));
   printf("\n");
 
   return token;
 }
 
 int main() {
-  char * foo = "3. ++++\n++++++ 4";
+  char * foo = "function exported gunderscript_main(args, argsLen) {\n"
+               ""
+               "}";
   Lexer * l = lexer_new(foo, strlen(foo));
  
-  print_next_token(l);
-
-  print_next_token(l);
-
-  print_next_token(l);
-
-  print_next_token(l);
-
-  print_next_token(l);
-
-  print_next_token(l);
-
-  print_next_token(l);
+  while(print_next_token(l) != NULL);
 
 
   printf("Error code: %i", l->err);
