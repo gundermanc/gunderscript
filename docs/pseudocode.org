@@ -131,6 +131,8 @@ GunderScript Application Blueprints and Layout
   GunderScript Object.
 
 ** Lexer Object
+NOTE: This object is now implemented. This section of the document is now
+officially out of date, but will be left here for reference.
 *** Description
     The Lexer object simply caches the initialization String and a current index
     and returns the next "token" when the Next Token method is called. Tokens
@@ -174,16 +176,7 @@ GunderScript Application Blueprints and Layout
      - Symbols :: Each (, ), , {, }, [, ], ;
      - Keywords/Variables :: Each word is treated as a token.
 **** Pseudo Code
-     Function nextToken(), in context of lexer object
-
-       /* loop through one character at a time */
-       ForEach character in the input, c
-
-         If !isWhitespace(c) Then
-	   
-	 EndIf
-       EndForEach
-     EndFunction
+     ... see actual code
 *** Current Token Method
 **** Description
      Returns the last token output by the next token method.
