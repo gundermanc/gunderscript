@@ -627,6 +627,14 @@ officially out of date, but will be left here for reference.
      entered (if, while, else, for, etc.) a new frame is pushed to the frame
      stack. Each frame contains a frame header that is
 **** Architecture
+     Frame Stack Object:
+     A struct containing:
+     - Buffer :: A preallocated buffer that contains the "stack," actually
+		 a stack and embedded substack in each frame.
+     - numFrames :: Number of frames in the stack.
+     - topFrameHeaderAddr :: address of the top of the frame.
+     - freeSpaceAddr :: address at the VERY top of the stack.
+
      Frame Header:
      A struct containing:
      - Return Address :: address in bytecode where control should jump upon
@@ -634,14 +642,52 @@ officially out of date, but will be left here for reference.
      - Variable Count :: Number of bytes after the struct that are arguments
 			 or variables.
      - Top Address :: The address of the top of the stack.
-     - Nested stack depth :: The number of bytes above the Frame Header that
+     - Substack Depth :: The number of bytes above the Frame Header that
 	  are being used for byte code operations.
 
      ...Followed by Variable Count nuumber of bytes for variable storage.
      ...and then followed by the byte code stack.
 
-     Frame Stack:
-     For each push, has a Frame header + additional bytes for each variable.
+     Illustrated in the diagram below:
+     FrameStack {
+
+
+       // Begin Frame 2 /////////////////////////////////////
+       SubStack {
+         // variable number of stack items in bytes
+       }
+       VariableBytes {
+         // variable number of bytes used to store variables
+       }
+       Frame {
+         Header {
+	   returnAddr
+	   varCount
+	   topAddr
+	   subStackDepth
+         }
+       }
+       // End Frame 2 ///////////////////////////////////////
+
+
+       // Begin Frame 1 /////////////////////////////////////
+       SubStack {
+         // variable number of stack items in bytes
+       }
+       VariableBytes {
+         // variable number of bytes used to store variables
+       }
+       Frame {
+         Header {
+	   returnAddr
+	   varCount
+	   topAddr
+	   subStackDepth
+         }
+       }
+       // End Frame 1 ////////////////////////////////////////
+     }
+
 **** framestack_new() method
      Creates a new framestack object, accepting parameters to specify the number
      of bytes that the Stack should be initialized to. This stack is going to be

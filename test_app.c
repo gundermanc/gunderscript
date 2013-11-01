@@ -49,9 +49,15 @@ char * print_next_token(Lexer * l) {
 }
 
 int main() {
-  char * foo = "function exported gunderscript_main(args, argsLen) {\n"
-    ""
-    "}";
+  char * foo = "function main(args, argsLen) {\n"
+               "  print(\"Hello\"); "
+               "  return 0;"
+               "}"
+
+               "function print(text) {"
+               "  out(text);"
+               "  return true;"
+               "}";
  
     
   Lexer * l = lexer_new(foo, strlen(foo));

@@ -407,7 +407,8 @@ static bool next_parse_numbers(Lexer * l) {
  * returns: true if c is an operator, false if not.
  */
 static bool is_operator(char c) {
-  return (!is_digit(c) && !is_letter(c) && !is_white_space(c));
+  return (!is_digit(c) && !is_letter(c) && !is_white_space(c)
+	  && c != '"' && c != ';');
 }
 
 /**
@@ -441,7 +442,23 @@ static bool next_parse_operators(Lexer * l) {
 
     return true;
   }
+  return false;
+}
 
+/**
+ * lexer_next() end statement subparser. If current character is an endstatement
+ * character, function returns true and sets l->currToken to the current character.
+ * l: an instance of lexer.
+ * returns: true if current character is an endstatement.
+ */
+static bool next_parse_endstatement(Lexer * l) {
+  if(next_char(l) == ';') {
+    l->currToken = l->input + l->index;
+    l->currTokenLen = 1;
+    l->err = LEXERERR_SUCCESS;
+    advance_char(l);
+    return true;
+  }
   return false;
 }
 
@@ -504,6 +521,9 @@ char * lexer_next(Lexer * l, size_t * len) {
       *len = l->currTokenLen;
       return l->currToken;
     } else if(next_parse_operators(l)){
+      *len = l->currTokenLen;
+      return l->currToken;
+    } else if(next_parse_endstatement(l)) {
       *len = l->currTokenLen;
       return l->currToken;
     } else {
@@ -717,6 +737,8 @@ LexerType lexer_token_type(char * token, size_t len, bool definitive) {
     type = LEXERTYPE_NUMBER;
   } else if(is_valid_keyvar(token, len, definitive)) {
     type = LEXERTYPE_KEYVAR;
+  } else if(len == 1 && token[0] == ';') {
+    type = LEXERTYPE_ENDSTATEMENT;
   }
 
   return type;
