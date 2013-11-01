@@ -474,7 +474,7 @@ char * lexer_next(Lexer * l, size_t * len) {
    * it doesn't know how to handle digits, it returns false and the digit is passed
    * down the chain until it reaches the number parser that can handle it.
    */
-  for(; remaining_chars(l) > 0; ) {
+  while(remaining_chars(l) > 0) {
 
 
     /* Recursive Descent Chain:

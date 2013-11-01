@@ -511,9 +511,25 @@ officially out of date, but will be left here for reference.
 ** Virtual Machine Object
 *** Description
     GunderScript Virtual Machine is a stack base byte code executing VM that
-    is constructed with a stack of stack frame objects. Each stack frame object
-    contains, among other things, a stack for execution of the current frame's
-    code, and a buffer for local variables and function parameters.
+    is constructed of multiple stacks:
+
+    - Frame Stack :: A stack of variable length frames that store the state of the
+		     current logical block. Every time a function is called, or a
+		     block is entered (control enters code between curly braces),
+		     a new frame is pushed to stack. This frame contains a return
+		     address for the current block or function, a variable that
+		     distinguishes between local blocks (if, else, while, etc.)
+		     and function calls, and a variable size buffer for the
+		     function parameters and variables. Each frame also contains
+		     an index for the height of the Nesting Stack upon push. This
+		     this value is used to clear a function's left over function
+		     call results when execution of the function has completed.
+
+    - Nesting Stack :: A stack capable of holding blocks of bytes of different sizes.
+		       This stack is where all computations occur. The compiler takes
+		       care of all type handling ahead of time. Only basic error
+		       checking occurs for operations in this stack. This stack is
+		       on the Frame stack.
 
     The basic intention for the VM is to simplify the overall implementation of
     the programming language by having a unified byte code that can be compiled to.
@@ -545,6 +561,7 @@ officially out of date, but will be left here for reference.
 	specified number of variable slots.
    - STKFRM_POP :: Pops a stack from from the stack.
    - STK_ADD :: Pops previous two values from stack. Adds them and pushes back.
+   - STK_CONCAT :: Pops previous two strings from stack, concats them and pushes back.
    - STK_SUB :: Subtracts previous two values on the stack, pops them and pushes result.
    - STK_MUL :: Multiplies previous two values on the stack and pushes result.
    - STK_DIV :: Divides previous two values on the stack and pushes result.
@@ -552,7 +569,7 @@ officially out of date, but will be left here for reference.
    - STK_LT :: Performs less than comparison on previous two values, pops them and pushes result.
    - STK_GT :: Performs greater than comparision on previous two values on stack
    - STK_LTE :: Performs less than or equal to comparision of previous two values.
-n   - STK_GTE :: Performs greater than or equal to comparison operation.
+   - STK_GTE :: Performs greater than or equal to comparison operation.
    - GOTO [address:4] :: Moves control to the specified byte, where index is a 32 bit 0 based index
 	representing a position in the bytecode buffer array.
    - STK_BOOL_PUSH [truefalse:1] :: Pushes a new boolean value to the stack. If truefalse is 1,
@@ -585,7 +602,7 @@ n   - STK_GTE :: Performs greater than or equal to comparison operation.
    - STK_CLR :: Clears this stack frame's execution stack. This instruction is used
 		at the end of each "line" of code to clear opcodes that are no
 		longer neccessary.
-   - STK_POP [prevdownstack:1] :: Pops the top item from this stack frame's execution stack.
+   - STKFRM_POP [prevdownstack:1] :: Pops the top item from this stack frame's execution stack.
 	If prevdownstack byte is 1, the next item down on the stack is then saved, and
 	placed on the stack of the next stack frame after this frame has been popped. If
 	prevdownstack is 0, no value is returned for this block close.
@@ -603,20 +620,86 @@ n   - STK_GTE :: Performs greater than or equal to comparison operation.
      Operations are then performed upon either the Frame Stack, or the
      smaller stack, resident inside the top-most frame.
 
-*** Frame Stack Object Field
+*** Frame Stack Object
 **** Description
-    The stack is a stack data structure where all VM operations take place,
-    containing Frame Stack Objects. Each Stack Frame represents one execution
-    block and is used to isolate private variables. The Stack within the frame
-    is where all byte code execution happens.
+     The frame stack is a data structure that stores the state of the current
+     logical block. Each time a function call is made, or a logical block is
+     entered (if, while, else, for, etc.) a new frame is pushed to the frame
+     stack. Each frame contains a frame header that is
+**** Architecture
+     Frame Header:
+     A struct containing:
+     - Return Address :: address in bytecode where control should jump upon
+			 frame pop.
+     - Variable Count :: Number of bytes after the struct that are arguments
+			 or variables.
+     - Top Address :: The address of the top of the stack.
+     - Nested stack depth :: The number of bytes above the Frame Header that
+	  are being used for byte code operations.
 
-    Byte code execution occurs by using the Frame Stack Object's peek method to
-    get the top-most frame, and push the byte code bytes to that frame's stack.
+     ...Followed by Variable Count nuumber of bytes for variable storage.
+     ...and then followed by the byte code stack.
 
-    Every time a function is called, a loop is executed, or an if statement, or
-    other compound statement is evaluated, a new Stack Frame is pushed to the
-    Frame Stack.
+     Frame Stack:
+     For each push, has a Frame header + additional bytes for each variable.
+**** framestack_new() method
+     Creates a new framestack object, accepting parameters to specify the number
+     of bytes that the Stack should be initialized to. This stack is going to be
+     preallocated and will not be expandable.
+**** framestack_free() method
+     Frees a framestack.
+**** framestack_push() method
+***** Description
+      Pushes a new Stack frame to the frame stack, using bytes preallocated on the
+      stack. This method should use NO dynamic allocation.
 
+      TODO: The current architecture requires iteration through all nested logical
+      blocks each time a deeply nested block is called for with framestack_var_addr().
+      Evaluate changing this to constant time look up. The advantage of the current
+      setup is that there is only one stack memory value that has to be allocated.
+***** Pseudo Code
+      Function framestack_push(FrameStack fs, ReturnAddress addr, size_t varBytes)
+        Get frame pointer, frame, by getting address of top of 
+	  stack + sizeof(FrameHeader) + varBytes;
+	Assign f's topStackAddress to frame.
+	Get variables pointer by getting topStackAddress - sizeof(FrameHeader)
+      EndFunction
+**** framestack_var_addr() method
+***** Description
+      Gets the address of a variable of a frame on the stack. It is the
+      responsiblity of the caller to NOT overwrite other variables and to do
+      size checks when writing to this pointer.
+***** Pseudo Code
+      Function framestack_var_addr(int stackDepth, int arg)
+        For each FrameHeader
+          Move forward sizeof(FrameHeader) + current frame's number of bytes
+            until reached desired stack frame depth.
+        EndFor
+
+        return ptr at i;
+      EndFunction
+**** framestack_pop() method
+***** Description
+      Pops a frame from the frame stack.
+
+**** framestack_return_addr() method
+***** Description
+      Gets the return address that control should jump to when this frame is
+      popped.
+***** Pseudo Code
+      Function framestack_return_addr(FrameStack fs)
+        Get FrameHeader struct at top of stack
+	return frameHeader's returnAddr
+      EndFunction
+*** Nesting Stack Object
+**** Description
+     The logic and nested function call stack for the VM. This stack is used to hold
+     all operators and data used in a single line of code. Items are pushed or popped
+     from the stack as neccessary to perform recursive, nested operations, and then
+     cleared at the end of the line of code.
+
+     All frames share the same nesting stack and are expected to clear their unused
+     tokens at the end of their execution.
 *** Stack Frame Object
 **** Description
     Defines a frame on the stack. A frame is an individual execution state that
