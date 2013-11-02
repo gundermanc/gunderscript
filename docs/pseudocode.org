@@ -599,9 +599,7 @@ officially out of date, but will be left here for reference.
 		  boolean on the stack is true.
    - STK_NOT_EQUALS :: Pushes true if the previous item on the stack is not equal
 		   to the current item. Pops both items.
-   - STK_CLR :: Clears this stack frame's execution stack. This instruction is used
-		at the end of each "line" of code to clear opcodes that are no
-		longer neccessary.
+   - STK_POP :: Pops the top most item off of the nesting stack.
    - STKFRM_POP [prevdownstack:1] :: Pops the top item from this stack frame's execution stack.
 	If prevdownstack byte is 1, the next item down on the stack is then saved, and
 	placed on the stack of the next stack frame after this frame has been popped. If
@@ -625,7 +623,11 @@ officially out of date, but will be left here for reference.
      The frame stack is a data structure that stores the state of the current
      logical block. Each time a function call is made, or a logical block is
      entered (if, while, else, for, etc.) a new frame is pushed to the frame
-     stack. Each frame contains a frame header that is
+     stack. Each frame contains a frame header that is a set size and stores
+     the block return address, number of bytes in this frame for variables,
+     and below the header in the stack, a variable number of bytes for storing
+     localized variables. It is the responsibility of the calling methods to
+     manage the size of the data that they copy in and out of the framestack.
 **** Architecture
      Frame Stack Object:
      A struct containing:

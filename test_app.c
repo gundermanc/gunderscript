@@ -24,8 +24,10 @@
  */
 
 #include "lexer.h"
+#include "frmstk.h"
 #include <string.h>
 
+/*
 char * print_next_token(Lexer * l) {
   size_t tokenLen;
   int i = 0;
@@ -69,5 +71,14 @@ int main() {
   printf("\nLine: %i\n", lexer_line_num(l));
 
   lexer_free(l);
+  return 0;
+}
+*/
+
+int main() {
+  FrmStk * fs = frmstk_new(1000000);
+  frmstk_push(fs, 32, 1);
+  ((char*)frmstk_var_addr(fs, 0, 0))[0] = 0;
+  frmstk_free(fs);
   return 0;
 }
