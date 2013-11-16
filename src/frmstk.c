@@ -7,13 +7,15 @@
  *
  * Description:
  * The frame stack is a data structure that stores the state of the current
- * logical block. Each time a function call is made, or a logical block is
+ * logical block. Each time a function call is made or a logical block is
  * entered (if, while, else, for, etc.) a new frame is pushed to the frame
  * stack. Each frame contains a frame header that is a set size and stores
- * the block return address, number of bytes in this frame for variables,
- * and below the header in the stack, a variable number of bytes for storing
- * localized variables. It is the responsibility of the calling methods to
- * manage the size of the data that they copy in and out of the framestack.
+ * the block return address and number of variables/arguments in this frame.
+ * Below the header is a buffer of bytes that is (64 bits) * (num. of varargs)
+ * in size. Obviously, this implementation means that all variables require
+ * 64 bits to be stored. This is because x86_64 pointers and doubles are both
+ * 64 bits in length. Unfortunately, this means that Booleans also take up
+ * 64 bits. We memory for constant time lookup.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +34,9 @@
 #include <string.h>
 #include "frmstk.h"
 
+/* number of bytes for each object */
+static const size_t argSize = 8;
+
 FrmStk * frmstk_new(size_t stackSize) {
   FrmStk * fs = calloc(1, sizeof(FrmStk));
 
@@ -49,21 +54,22 @@ FrmStk * frmstk_new(size_t stackSize) {
   return NULL;
 }
 
-bool frmstk_push(FrmStk * fs, size_t returnAddr, size_t varBytes) {
+bool frmstk_push(FrmStk * fs, size_t returnAddr, int numVarArgs) {
+  size_t varArgsSize = (argSize * numVarArgs);
+  size_t newFrameSize = sizeof(FrameHeader) + varArgsSize;
 
-  /* if there is enough memory left to place the new frame, do it */
-  size_t frameSize = varBytes + sizeof(FrameHeader);
-  if(fs->stackSize >= (fs->usedStack + frameSize)) {
-    FrameHeader * header = fs->buffer + fs->usedStack + varBytes;
+  /* if there is enough free space, create the frame */
+  if((fs->stackSize - fs->usedStack) >= newFrameSize
+     && numVarArgs >= 0) {
+    FrameHeader * header = fs->buffer + fs->usedStack + varArgsSize;
+    memset(fs->buffer + fs->usedStack, 0, varArgsSize);
+
     header->returnAddr = returnAddr;
-    header->varBytes = varBytes;
+    header->numVarArgs = numVarArgs;
 
-    printf("FrameSize: %i", frameSize);
-
-    /* clear mem before header to be used for local variables */
-    memset(fs->buffer + fs->usedStack, 0, varBytes);
-
-    fs->usedStack += frameSize;
+    fs->usedStack += newFrameSize;
+    fs->stackDepth++;
+    
     return true;
   }
 
@@ -73,33 +79,61 @@ bool frmstk_push(FrmStk * fs, size_t returnAddr, size_t varBytes) {
 bool frmstk_pop(FrmStk * fs) {
   if(fs->usedStack > 0) {
     FrameHeader * header = fs->buffer + fs->usedStack - sizeof(FrameHeader);
-    fs->usedStack -= (header->varBytes + sizeof(FrameHeader));
+    size_t frameSize = sizeof(FrameHeader) + (header->numVarArgs * argSize);
+
+    fs->usedStack -= frameSize;
+    fs->stackDepth--;
     return true;
   }
 
   return false;
 }
 
-void * frmstk_var_addr(FrmStk * fs, int stackDepth, size_t argAddr) {
-  size_t headerPos = fs->usedStack - sizeof(FrameHeader);
-  int depth = 0;
+void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
 
-  /* find proper frame */
-  while(depth < stackDepth) {
-    FrameHeader * header = fs->buffer + headerPos;
-    if(headerPos < 0) {
-      return NULL;
+  /* check stack goes deep enough */
+  if(fs->stackDepth >= 1 && stackDepth < fs->stackDepth) {
+    int i;
+    FrameHeader * header = fs->buffer + fs->usedStack - sizeof(FrameHeader);
+ 
+    /* iterate to the requested frame in the stack */
+    for(i = 0; i < stackDepth; i++) {
+      header = (void*)(header - sizeof(FrameHeader) + (header->numVarArgs * argSize));
     }
-    headerPos -= header->varBytes;
-  }
-
-  /* get frame's variable */
-  headerPos -= argAddr;
-  if(headerPos >= 0) {
-    return fs->buffer + headerPos;
+ 
+    /* return the pointer to the requested argument in the frame */
+    if(varArgsIndex < header->numVarArgs) {
+      return (void*)(header - (argSize * varArgsIndex));
+    }
   }
 
   return NULL;
+}
+
+bool frmstk_var_write(FrmStk * fs, int stackDepth, int varArgsIndex,
+		      void * value, size_t valueSize) {
+  if(valueSize > 0 && valueSize <= argSize) {
+    void * outPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
+
+    if(outPtr != NULL) {
+      memcpy(outPtr, value, valueSize);
+      return true;
+    }
+  }
+  return false;
+}
+
+bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
+		     void * outValue, size_t outValueSize) {
+  if(outValueSize > 0 && outValueSize <= argSize) {
+    void * inPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
+
+    if(inPtr != NULL) {
+      memcpy(outValue, inPtr, outValueSize);
+      return true;
+    }
+  }
+  return false;
 }
 
 size_t frmstk_ret_addr(FrmStk * fs) {
@@ -109,6 +143,10 @@ size_t frmstk_ret_addr(FrmStk * fs) {
   }
 
   return 0;
+}
+
+int frmstk_depth(FrmStk * fs) {
+  return fs->stackDepth;
 }
 
 void frmstk_free(FrmStk * fs) {
