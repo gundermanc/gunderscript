@@ -86,7 +86,7 @@ int main() {
   frmstk_pop(fs);
   printf("stuff");
   frmstk_var_write(fs, 1, 0, &f, sizeof(double));
-  //frmstk_var_read(fs, 0, 0, &o, sizeof(double));
+  frmstk_var_read(fs, 0, 0, &o, sizeof(double));
   printf("Return Addr: %f", o);
   frmstk_free(fs);
   return 0;

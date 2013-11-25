@@ -56,6 +56,10 @@ FrmStk * frmstk_new(size_t stackSize) {
   return NULL;
 }
 
+static size_t free_space(FrmStk * fs) {
+  return fs->stackSize - fs->usedStack;
+}
+
 bool frmstk_push(FrmStk * fs, size_t returnAddr, int numVarArgs) {
   size_t varArgsSize = (argSize * numVarArgs);
   size_t newFrameSize = sizeof(FrameHeader) + varArgsSize;
@@ -65,7 +69,7 @@ bool frmstk_push(FrmStk * fs, size_t returnAddr, int numVarArgs) {
   assert(numVarArgs >= 0);
 
   /* if there is enough free space, create the frame */
-  if((fs->stackSize - fs->usedStack) >= newFrameSize
+  if(free_space(fs) >= newFrameSize
      && numVarArgs >= 0) {
     FrameHeader * header = fs->buffer + fs->usedStack + varArgsSize;
     memset(fs->buffer + fs->usedStack, 0, varArgsSize);
@@ -109,9 +113,14 @@ void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
     FrameHeader * header = fs->buffer + fs->usedStack - sizeof(FrameHeader);
  
     /* iterate to the requested frame in the stack */
+    printf("Header: %i", (int)header);
     for(i = 0; i < stackDepth; i++) {
-      header = (void*)(header - sizeof(FrameHeader) + (header->numVarArgs * argSize));
+      printf("\n\nDOWN");
+      header == (void*)((size_t)header - (sizeof(FrameHeader) + (header->numVarArgs * argSize)));
+      printf("Foo: %i", (sizeof(FrameHeader) + (header->numVarArgs * argSize)));
     }
+    printf("FinalHeader: %i", (int)header);
+    exit(0);
  
     /* return the pointer to the requested argument in the frame */
     if(varArgsIndex < header->numVarArgs) {
@@ -131,10 +140,13 @@ bool frmstk_var_write(FrmStk * fs, int stackDepth, int varArgsIndex,
   assert(value != NULL);
   assert(valueSize > 0);
 
+  printf("WriteStackDepth: %i", stackDepth);
+
   if(valueSize > 0 && valueSize <= argSize) {
     void * outPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
 
     if(outPtr != NULL) {
+      printf("OutPtr: %i", (int)outPtr);
       memcpy(outPtr, value, valueSize);
       return true;
     }
@@ -151,10 +163,13 @@ bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
   assert(outValue != NULL);
   assert(outValueSize > 0);
 
+  printf("ReadStackDepth: %i", stackDepth);
+
   if(outValueSize > 0 && outValueSize <= argSize) {
     void * inPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
 
     if(inPtr != NULL) {
+      printf("InPtr: %i", (int)inPtr);
       memcpy(outValue, inPtr, outValueSize);
       return true;
     }
