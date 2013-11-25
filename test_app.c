@@ -76,18 +76,11 @@ int main() {
 */
 
 int main() {
-  FrmStk * fs = frmstk_new(1000);
+  FrmStk * fs = frmstk_new(32);
   double f = 23424;
   double o = 0;
   frmstk_push(fs, 5, 2);
-  frmstk_push(fs, 35, 2);
-  frmstk_push(fs, 4554, 2);
-  frmstk_push(fs, 225, 2);
-  frmstk_pop(fs);
-  printf("stuff");
-  frmstk_var_write(fs, 1, 0, &f, sizeof(double));
-  frmstk_var_read(fs, 0, 0, &o, sizeof(double));
-  printf("Return Addr: %f", o);
+  printf("Write Succeed: %i\n", frmstk_push(fs, 10, 2));
   frmstk_free(fs);
   return 0;
 }

@@ -38,6 +38,11 @@
 /* number of bytes for each object */
 static const size_t argSize = 8;
 
+/**
+ * Creates new instance of a frmstk with a preallocated buffer.
+ * stackSize: Number of bytes in preallocated buffer.
+ * returns: new FrmStk* object, or NULL if allocation fails.
+ */
 FrmStk * frmstk_new(size_t stackSize) {
   FrmStk * fs = calloc(1, sizeof(FrmStk));
 
@@ -109,22 +114,26 @@ void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
 
   /* check stack goes deep enough */
   if(fs->stackDepth >= 1 && stackDepth < fs->stackDepth) {
+    /*
+     * Allow me to RANT a moment:
+     * C standards don't allow pointer arithmetic upon void* pointers because
+     * they have no "object" property, and therefore, no size. Because of this
+     * we have to typecast to a buffer of unsigned chars (bytes) and do our op
+     * in terms of bytes.
+     */
+    /* TODO: Do this another way, if possible! */
     int i;
-    FrameHeader * header = fs->buffer + fs->usedStack - sizeof(FrameHeader);
- 
+    unsigned char * buffer = fs->buffer + fs->usedStack - sizeof(FrameHeader);
+
     /* iterate to the requested frame in the stack */
-    printf("Header: %i", (int)header);
     for(i = 0; i < stackDepth; i++) {
-      printf("\n\nDOWN");
-      header == (void*)((size_t)header - (sizeof(FrameHeader) + (header->numVarArgs * argSize)));
-      printf("Foo: %i", (sizeof(FrameHeader) + (header->numVarArgs * argSize)));
+      buffer -= (sizeof(FrameHeader) + (((FrameHeader*)buffer)->numVarArgs
+					* argSize));
     }
-    printf("FinalHeader: %i", (int)header);
-    exit(0);
  
     /* return the pointer to the requested argument in the frame */
-    if(varArgsIndex < header->numVarArgs) {
-      return (void*)(header - (argSize * varArgsIndex));
+    if(varArgsIndex < ((FrameHeader*)buffer)->numVarArgs) {
+      return (void*)(buffer - (argSize * varArgsIndex));
     }
   }
 
@@ -140,13 +149,10 @@ bool frmstk_var_write(FrmStk * fs, int stackDepth, int varArgsIndex,
   assert(value != NULL);
   assert(valueSize > 0);
 
-  printf("WriteStackDepth: %i", stackDepth);
-
   if(valueSize > 0 && valueSize <= argSize) {
     void * outPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
 
     if(outPtr != NULL) {
-      printf("OutPtr: %i", (int)outPtr);
       memcpy(outPtr, value, valueSize);
       return true;
     }
@@ -163,13 +169,10 @@ bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
   assert(outValue != NULL);
   assert(outValueSize > 0);
 
-  printf("ReadStackDepth: %i", stackDepth);
-
   if(outValueSize > 0 && outValueSize <= argSize) {
     void * inPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
 
     if(inPtr != NULL) {
-      printf("InPtr: %i", (int)inPtr);
       memcpy(outValue, inPtr, outValueSize);
       return true;
     }
