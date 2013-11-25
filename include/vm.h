@@ -29,7 +29,8 @@
 #include "stk.h"
 
 typedef enum {
-  VMERR_SUCCESS;
+  VMERR_SUCCESS,
+  VMERR_INVALID_OPCODE
 } VMErr;
 
 typedef struct VM {
@@ -37,5 +38,19 @@ typedef struct VM {
   Stk * opStk;
   VMErr err;
 }VM;
+
+
+
+VM * vm_new(size_t stackSize);
+
+bool vm_exec(VM * vm, unsigned char * byteCode,
+	     size_t byteCodeLen, size_t startIndex);
+
+void vm_set_err(VM * vm, VMErr err);
+
+VMErr vm_get_err(VM * vm);
+
+VM * vm_free(VM * vm);
+
 
 #endif // VM__H__

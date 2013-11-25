@@ -25,6 +25,7 @@
 
 #include "lexer.h"
 #include "frmstk.h"
+#include "vm.h"
 #include <string.h>
 
 /*
@@ -76,11 +77,8 @@ int main() {
 */
 
 int main() {
-  FrmStk * fs = frmstk_new(32);
-  double f = 23424;
-  double o = 0;
-  frmstk_push(fs, 23, 2);
-  printf("Success: %i", frmstk_var_addr(fs, 0, 3));
-  frmstk_free(fs);
+  VM * vm = vm_new(10000000);
+
+  vm_free(vm);
   return 0;
 }
