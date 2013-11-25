@@ -15,7 +15,7 @@
  * in size. Obviously, this implementation means that all variables require
  * 64 bits to be stored. This is because x86_64 pointers and doubles are both
  * 64 bits in length. Unfortunately, this means that Booleans also take up
- * 64 bits. We memory for constant time lookup.
+ * 64 bits. We trade memory for constant time lookup.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -32,6 +32,7 @@
  */
 
 #include <string.h>
+#include <assert.h>
 #include "frmstk.h"
 
 /* number of bytes for each object */
@@ -40,10 +41,11 @@ static const size_t argSize = 8;
 FrmStk * frmstk_new(size_t stackSize) {
   FrmStk * fs = calloc(1, sizeof(FrmStk));
 
+  assert(stackSize > 0);
+
   if(fs != NULL) {
 
     fs->buffer = calloc(1, stackSize);
-
     if(fs->buffer != NULL) {
       fs->stackSize = stackSize;
       return fs;
@@ -57,6 +59,10 @@ FrmStk * frmstk_new(size_t stackSize) {
 bool frmstk_push(FrmStk * fs, size_t returnAddr, int numVarArgs) {
   size_t varArgsSize = (argSize * numVarArgs);
   size_t newFrameSize = sizeof(FrameHeader) + varArgsSize;
+
+  assert(fs != NULL);
+  assert(returnAddr > 0);
+  assert(numVarArgs >= 0);
 
   /* if there is enough free space, create the frame */
   if((fs->stackSize - fs->usedStack) >= newFrameSize
@@ -77,6 +83,8 @@ bool frmstk_push(FrmStk * fs, size_t returnAddr, int numVarArgs) {
 }
 
 bool frmstk_pop(FrmStk * fs) {
+  assert(fs != NULL);
+
   if(fs->usedStack > 0) {
     FrameHeader * header = fs->buffer + fs->usedStack - sizeof(FrameHeader);
     size_t frameSize = sizeof(FrameHeader) + (header->numVarArgs * argSize);
@@ -90,6 +98,10 @@ bool frmstk_pop(FrmStk * fs) {
 }
 
 void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
+
+  assert(fs != NULL);
+  assert(stackDepth >= 0);
+  assert(varArgsIndex >= 0);
 
   /* check stack goes deep enough */
   if(fs->stackDepth >= 1 && stackDepth < fs->stackDepth) {
@@ -112,6 +124,13 @@ void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
 
 bool frmstk_var_write(FrmStk * fs, int stackDepth, int varArgsIndex,
 		      void * value, size_t valueSize) {
+
+  assert(fs != NULL);
+  assert(stackDepth >= 0);
+  assert(varArgsIndex >= 0);
+  assert(value != NULL);
+  assert(valueSize > 0);
+
   if(valueSize > 0 && valueSize <= argSize) {
     void * outPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
 
@@ -125,6 +144,13 @@ bool frmstk_var_write(FrmStk * fs, int stackDepth, int varArgsIndex,
 
 bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
 		     void * outValue, size_t outValueSize) {
+
+  assert(fs != NULL);
+  assert(stackDepth >= 0);
+  assert(varArgsIndex >= 0);
+  assert(outValue != NULL);
+  assert(outValueSize > 0);
+
   if(outValueSize > 0 && outValueSize <= argSize) {
     void * inPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
 
@@ -137,6 +163,9 @@ bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
 }
 
 size_t frmstk_ret_addr(FrmStk * fs) {
+
+  assert(fs != NULL);
+
   if(fs->usedStack > 0) {
     FrameHeader * header = fs->buffer + fs->usedStack - sizeof(FrameHeader);
     return header->returnAddr;
@@ -146,10 +175,14 @@ size_t frmstk_ret_addr(FrmStk * fs) {
 }
 
 int frmstk_depth(FrmStk * fs) {
+  assert(fs != NULL);
   return fs->stackDepth;
 }
 
 void frmstk_free(FrmStk * fs) {
+  assert(fs != NULL);
+  assert(fs->buffer != NULL);
+
   free(fs->buffer);
   free(fs);
 }
