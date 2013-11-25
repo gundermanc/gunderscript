@@ -49,7 +49,6 @@ FrmStk * frmstk_new(size_t stackSize) {
   assert(stackSize > 0);
 
   if(fs != NULL) {
-
     fs->buffer = calloc(1, stackSize);
     if(fs->buffer != NULL) {
       fs->stackSize = stackSize;
@@ -61,6 +60,10 @@ FrmStk * frmstk_new(size_t stackSize) {
   return NULL;
 }
 
+/**
+ * Gets the number of free bytes in the frmstk's preallocated buffer
+ * returns: free bytes.
+ */
 static size_t free_space(FrmStk * fs) {
   return fs->stackSize - fs->usedStack;
 }
