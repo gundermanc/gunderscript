@@ -21,3 +21,21 @@
  * You should have received a copy of the GNU General Public License
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
+
+#ifndef VM__H__
+#define VM__H__
+
+#include "frmstk.h"
+#include "stk.h"
+
+typedef enum {
+  VMERR_SUCCESS;
+} VMErr;
+
+typedef struct VM {
+  FrmStk * frmStk;
+  Stk * opStk;
+  VMErr err;
+}VM;
+
+#endif // VM__H__

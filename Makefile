@@ -39,12 +39,16 @@ testapp: library
 	$(CC) $(CFLAGS) -o testapp test_app.c gunderscript.a $(DATASTRUCTSDIR)/lib.a
 
 # build just the static library
-library: lexer.o frmstk.o
-	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/frmstk.o
+library: lexer.o frmstk.o vm.o
+	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o
 
 # build lexer object
 lexer.o: buildfs $(SRCDIR)/lexer.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/lexer.c
+
+# build vm object
+vm.o: buildfs c-datastructs-build frmstk.o $(SRCDIR)/vm.c
+	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/vm.c
 
 # build framestack object
 frmstk.o: buildfs c-datastructs-build $(SRCDIR)/frmstk.c
