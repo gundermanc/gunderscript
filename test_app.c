@@ -79,8 +79,8 @@ int main() {
   FrmStk * fs = frmstk_new(32);
   double f = 23424;
   double o = 0;
-  frmstk_push(fs, 5, 2);
-  printf("Write Succeed: %i\n", frmstk_push(fs, 10, 2));
+  frmstk_push(fs, 23, 2);
+  printf("Success: %i", frmstk_var_addr(fs, 0, 3));
   frmstk_free(fs);
   return 0;
 }
