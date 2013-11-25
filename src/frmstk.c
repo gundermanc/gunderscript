@@ -112,7 +112,7 @@ bool frmstk_push(FrmStk * fs, size_t returnAddr, int numVarArgs) {
 bool frmstk_pop(FrmStk * fs) {
   assert(fs != NULL);
 
-  if(fs->usedStack > 0) {
+  if(fs->stackDepth > 0) {
     FrameHeader * header = fs->buffer + fs->usedStack - sizeof(FrameHeader);
     size_t frameSize = sizeof(FrameHeader) + (header->numVarArgs * argSize);
 
