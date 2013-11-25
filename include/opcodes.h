@@ -1,12 +1,12 @@
 /**
- * vm.h
+ * opcodes.h
  * (C) 2013 Christian Gunderman
  * Modified by:
  * Author Email: gundermanc@gmail.com
  * Modifier Email:
  *
  * Description:
- * See vm.c for full description.
+ * Contains definitions for the VM opcodes.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,35 +22,11 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef VM__H__
-#define VM__H__
-
-#include "frmstk.h"
-#include "stk.h"
+#ifndef OPCODES__H__
+#define OPCODES__H__
 
 typedef enum {
-  VMERR_SUCCESS,
-  VMERR_INVALID_OPCODE
-} VMErr;
+  
+} StkOpCode;
 
-typedef struct VM {
-  FrmStk * frmStk;
-  Stk * opStk;
-  VMErr err;
-}VM;
-
-
-
-VM * vm_new(size_t stackSize);
-
-bool vm_exec(VM * vm, unsigned char * byteCode,
-	     size_t byteCodeLen, size_t startIndex);
-
-void vm_set_err(VM * vm, VMErr err);
-
-VMErr vm_get_err(VM * vm);
-
-VM * vm_free(VM * vm);
-
-
-#endif /* VM__H__ */
+#endif /* OPCODES__H__ */

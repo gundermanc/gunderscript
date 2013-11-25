@@ -23,7 +23,7 @@ ARFLAGS = rcs
 INCDIR = include
 OBJDIR = objs
 DATASTRUCTSDIR = c-datastructs
-CFLAGS  = -g -Wall -I $(INCDIR) -I $(DATASTRUCTSDIR)/include
+CFLAGS  = -g -std=c89 -Wall -I $(INCDIR) -I $(DATASTRUCTSDIR)/include
 LIBCFLAGS = $(CFLAGS) -o $(OBJDIR)/$@
 SRCDIR = src
 DOCSDIR = docs
