@@ -79,14 +79,22 @@ int main() {
 
 int main() {
   VM * vm = vm_new(10000000);
-  unsigned char foo[45];
+  char foo[45];
+  DSValue val;
 
-  foo[0] = OP_FRM_PUSH;
-  foo[1] = 0;
-  foo[2] = OP_FRM_POP;
-  foo[3] = 1;
+  foo[0] = OP_STR_PUSH;
+  foo[1] = 2;
+  foo[2] = 'H';
+  foo[3] = 'i';
+  foo[4] = OP_FRM_PUSH;
+  foo[5] = 1;
 
-  printf("Success: %i", vm_exec(vm, foo, 3, 0));
+  printf("Stack Depth: %i\n", stk_size(vm->opStk));
+  printf("Success: %i\n", vm_exec(vm, foo, 6, 0));
+  printf("Error: %i", vm_get_err(vm));
+
+  stk_peek(vm->opStk, &val);
+  printf((char*)val.pointerVal);
 
   vm_free(vm);
   return 0;

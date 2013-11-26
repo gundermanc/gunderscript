@@ -33,6 +33,8 @@ typedef enum {
   VMERR_INVALID_OPCODE,
   VMERR_STACK_OVERFLOW,
   VMERR_STACK_EMPTY,
+  VMERR_ALLOC_FAILED,
+  VMERR_UNEXPECTED_END_OF_OPCODES,
 } VMErr;
 
 typedef struct VM {
@@ -45,14 +47,14 @@ typedef struct VM {
 
 VM * vm_new(size_t stackSize);
 
-bool vm_exec(VM * vm, unsigned char * byteCode,
+bool vm_exec(VM * vm, char * byteCode,
 	     size_t byteCodeLen, size_t startIndex);
 
 void vm_set_err(VM * vm, VMErr err);
 
 VMErr vm_get_err(VM * vm);
 
-VM * vm_free(VM * vm);
+void vm_free(VM * vm);
 
 
 #endif /* VM__H__ */
