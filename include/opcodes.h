@@ -26,7 +26,33 @@
 #define OPCODES__H__
 
 typedef enum {
-  
-} StkOpCode;
+  OP_VAR_PUSH,
+  OP_VAR_STOR,
+  OP_FRM_PUSH,
+  OP_FRM_POP,
+  OP_ADD,
+  OP_CONCAT,
+  OP_SUB,
+  OP_MUL,
+  OP_DIV,
+  OP_MOD,
+  OP_LT,
+  OP_GT,
+  OP_LTE,
+  OP_GTE,
+  OP_GOTO,
+  OP_BOOL_PUSH,
+  OP_NUM_PUSH,
+  OP_EQUALS,
+  OP_EXIT,
+  OP_STR_PUSH,
+  OP_CALL_STR_N,
+  OP_CALL_PTR_N,
+  OP_CALL_B,
+  OP_NOT,
+  OP_COND_GOTO,
+  OP_NOT_EQUALS,
+  OP_POP,
+} OpCode;
 
 #endif /* OPCODES__H__ */

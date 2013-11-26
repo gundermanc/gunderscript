@@ -26,6 +26,7 @@
 #include "lexer.h"
 #include "frmstk.h"
 #include "vm.h"
+#include "opcodes.h"
 #include <string.h>
 
 /*
@@ -78,6 +79,14 @@ int main() {
 
 int main() {
   VM * vm = vm_new(10000000);
+  unsigned char foo[45];
+
+  foo[0] = OP_FRM_PUSH;
+  foo[1] = 0;
+  foo[2] = OP_FRM_POP;
+  foo[3] = 1;
+
+  printf("Success: %i", vm_exec(vm, foo, 3, 0));
 
   vm_free(vm);
   return 0;
