@@ -52,7 +52,9 @@ typedef enum {
   OP_NOT,
   OP_COND_GOTO,
   OP_NOT_EQUALS,
-  OP_POP,
+  OP_POP_PTR,
+  OP_POP_LITERAL,
+  OP_RETURN
 } OpCode;
 
 #endif /* OPCODES__H__ */

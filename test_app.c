@@ -86,15 +86,20 @@ int main() {
   foo[1] = 2;
   foo[2] = 'H';
   foo[3] = 'i';
-  foo[4] = OP_FRM_PUSH;
-  foo[5] = 1;
+  foo[4] = OP_STR_PUSH;
+  foo[5] = 3;
+  foo[6] = 'C';
+  foo[7] = 'a';
+  foo[8] = 't';
+  foo[9] = OP_CONCAT;
+  foo[10] = OP_POP_PTR;
 
+  printf("Success: %i\n", vm_exec(vm, foo, 11, 0));
   printf("Stack Depth: %i\n", stk_size(vm->opStk));
-  printf("Success: %i\n", vm_exec(vm, foo, 6, 0));
-  printf("Error: %i", vm_get_err(vm));
+  printf("Error: %i\n", vm_get_err(vm));
 
-  stk_peek(vm->opStk, &val);
-  printf((char*)val.pointerVal);
+  /*stk_peek(vm->opStk, &val);
+    printf("Output Addr %i: ", val.pointerVal);*/
 
   vm_free(vm);
   return 0;
