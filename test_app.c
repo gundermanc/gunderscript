@@ -26,7 +26,7 @@
 #include "lexer.h"
 #include "frmstk.h"
 #include "vm.h"
-#include "opcodes.h"
+#include "vmdefs.h"
 #include <string.h>
 
 /*
@@ -77,6 +77,9 @@ int main() {
 }
 */
 
+
+/* VM Test code */
+/*
 int main() {
   VM * vm = vm_new(10000000);
   char foo[45];
@@ -98,9 +101,33 @@ int main() {
   printf("Stack Depth: %i\n", stk_size(vm->opStk));
   printf("Error: %i\n", vm_get_err(vm));
 
-  /*stk_peek(vm->opStk, &val);
-    printf("Output Addr %i: ", val.pointerVal);*/
+
+  Two below were commented out:
+  stk_peek(vm->opStk, &val);
+    printf("Output Addr %i: ", val.pointerVal);
 
   vm_free(vm);
   return 0;
+}*/
+
+int main() {
+  FrmStk * fs = frmstk_new(1000000);
+  double a = 12;
+  double b = 0;
+  VarType type = -1;
+  frmstk_push(fs, 45, 2);
+  frmstk_push(fs, 45, 2);
+
+  frmstk_var_write(fs, 0, 0, &a, sizeof(double), TYPE_NUMBER);
+  a = 44;
+  frmstk_var_write(fs, 0, 1, &a, sizeof(double), TYPE_STRING);
+  frmstk_push(fs, 23, 2);
+  frmstk_var_read(fs, 1, 0, &b, sizeof(double), &type);
+  a = 12;
+  /*frmstk_pop(fs);
+  frmstk_pop(fs);*/
+  frmstk_pop(fs);
+  printf("Output: %f", b);
+  printf("Type: %i", type);
+  frmstk_free(fs);
 }

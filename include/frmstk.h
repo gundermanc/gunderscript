@@ -27,6 +27,7 @@
 
 #include <stdlib.h>
 #include "gsbool.h"
+#include "vmdefs.h"
 
 typedef struct FrameHeader {
   size_t returnAddr;
@@ -49,10 +50,10 @@ bool frmstk_pop(FrmStk * fs);
 void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex);
 
 bool frmstk_var_write(FrmStk * fs, int stackDepth, int varArgsIndex,
-		      void * value, size_t valueSize);
+		      void * value, size_t valueSize, VarType type);
 
 bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
-		     void * outValue, size_t outValueSize);
+		     void * outValue, size_t outValueSize, VarType * outType);
 
 size_t frmstk_ret_addr(FrmStk * fs);
 

@@ -35,8 +35,10 @@
 #include <assert.h>
 #include "frmstk.h"
 
-/* number of bytes for each object */
+/* number of bytes for each variable */
 static const size_t argSize = 8;
+/* number of bytes for variable type field */
+static const size_t typeSize = 1;
 
 /**
  * Creates new instance of a frmstk with a preallocated buffer.
@@ -78,7 +80,7 @@ static size_t free_space(FrmStk * fs) {
  * if it failed...perhaps because there is not enough stack left.
  */
 bool frmstk_push(FrmStk * fs, size_t returnAddr, int numVarArgs) {
-  size_t varArgsSize = (argSize * numVarArgs);
+  size_t varArgsSize = ((argSize + typeSize) * numVarArgs);
   size_t newFrameSize = sizeof(FrameHeader) + varArgsSize;
 
   assert(fs != NULL);
@@ -114,7 +116,8 @@ bool frmstk_pop(FrmStk * fs) {
 
   if(fs->stackDepth > 0) {
     FrameHeader * header = fs->buffer + fs->usedStack - sizeof(FrameHeader);
-    size_t frameSize = sizeof(FrameHeader) + (header->numVarArgs * argSize);
+    size_t frameSize = sizeof(FrameHeader) 
+      + (header->numVarArgs * (argSize + typeSize));
 
     fs->usedStack -= frameSize;
     fs->stackDepth--;
@@ -135,7 +138,9 @@ bool frmstk_pop(FrmStk * fs) {
  * varArgsIndex: The index of the argument to get from the specified frame.
  * returns: An address to the variable, or NULL if the stack does not go as
  * deep as stackDepth, or if there are not varArgsIndex arguments in the
- * selected stack frame.
+ * selected stack frame. First 1 byte of this address is reserved for specifying
+ * the type of the data. The last argSize bytes of this address are the buffer
+ * for storing the variable's data.
  */
 void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
 
@@ -159,12 +164,12 @@ void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
     /* iterate to the requested frame in the stack */
     for(i = 0; i < stackDepth; i++) {
       buffer -= (sizeof(FrameHeader) + (((FrameHeader*)buffer)->numVarArgs
-					* argSize));
+					* (argSize + typeSize)));
     }
  
     /* return the pointer to the requested argument in the frame */
     if(varArgsIndex < ((FrameHeader*)buffer)->numVarArgs) {
-      return (void*)(buffer - (argSize * varArgsIndex));
+      return (void*)(buffer - ((argSize + typeSize) * varArgsIndex));
     }
   }
 
@@ -181,11 +186,12 @@ void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
  * variable.
  * valueSize: The number of bytes to read from value and write to the variable.
  * This value can be any number > 0 and < argSize;
+ * type: Specifies the variable type of the variable being written.
  * returns: True if the variable was written, or false if the operation
  * failed.
  */
 bool frmstk_var_write(FrmStk * fs, int stackDepth, int varArgsIndex,
-		      void * value, size_t valueSize) {
+		      void * value, size_t valueSize, VarType type) {
 
   assert(fs != NULL);
   assert(stackDepth >= 0);
@@ -197,6 +203,11 @@ bool frmstk_var_write(FrmStk * fs, int stackDepth, int varArgsIndex,
     void * outPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
 
     if(outPtr != NULL) {
+      /* store type in the first byte */
+      *((char*)outPtr) = (char)type;
+
+      /* advance the pointer past the one byte type byte and store data */
+      outPtr = (char*)outPtr + 1;
       memcpy(outPtr, value, valueSize);
       return true;
     }
@@ -214,12 +225,14 @@ bool frmstk_var_write(FrmStk * fs, int stackDepth, int varArgsIndex,
  * outValue: a pointer to a buffer to recv. the output.
  * outValueSize: The number of bytes to be read to the output. This can
  * be a value > 1 and < argSize bytes.
+ * outType: a pointer to a VarType that recv. the type of the variable
+ * stored at the specified location.
  * returns: true if the operation succeeds, and false if the stack does
  * not go as deep as stackDepth, the selected frame has less than varArgsIndex
  * arguments, or the outValueSize is larger than argSize.
  */
 bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
-		     void * outValue, size_t outValueSize) {
+		     void * outValue, size_t outValueSize, VarType * outType) {
 
   assert(fs != NULL);
   assert(stackDepth >= 0);
@@ -231,6 +244,12 @@ bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
     void * inPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
 
     if(inPtr != NULL) {
+
+      /* read the type byte and store in outType buffer */
+      *outType = *((char*)inPtr);
+
+      /* advance pointer past type byte and write data */
+      inPtr = (char*)inPtr + 1;
       memcpy(outValue, inPtr, outValueSize);
       return true;
     }

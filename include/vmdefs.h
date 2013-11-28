@@ -28,11 +28,11 @@
 
 /* variable datatypes */
 typedef enum {
-  TYPE_STRING,
-  TYPE_NUMBER,
   TYPE_BOOLEAN,
+  TYPE_NUMBER,
+  TYPE_STRING,
   TYPE_USERDATA,
-}Type;
+}VarType;
 
 /* VM OP Code values */
 typedef enum {
