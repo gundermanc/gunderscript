@@ -1,12 +1,13 @@
 /**
- * opcodes.h
+ * vmdefs.h
  * (C) 2013 Christian Gunderman
  * Modified by:
  * Author Email: gundermanc@gmail.com
  * Modifier Email:
  *
  * Description:
- * Contains definitions for the VM opcodes.
+ * Contains definitions for the VM opcodes as well as the various scripting
+ * types.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -22,9 +23,18 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef OPCODES__H__
-#define OPCODES__H__
+#ifndef VMDEFS__H__
+#define VMDEFS__H__
 
+/* variable datatypes */
+typedef enum {
+  TYPE_STRING,
+  TYPE_NUMBER,
+  TYPE_BOOLEAN,
+  TYPE_USERDATA,
+}Type;
+
+/* VM OP Code values */
 typedef enum {
   OP_VAR_PUSH,
   OP_VAR_STOR,
@@ -57,4 +67,4 @@ typedef enum {
   OP_RETURN
 } OpCode;
 
-#endif /* OPCODES__H__ */
+#endif /* VMDEFS__H__ */
