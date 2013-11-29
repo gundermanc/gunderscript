@@ -80,11 +80,11 @@ int main() {
 
 
 /* VM Test code */
-/*
 int main() {
   VM * vm = vm_new(10000000);
   char foo[45];
-  DSValue val;
+  void * value;
+  VarType type;
 
   foo[0] = OP_STR_PUSH;
   foo[1] = 2;
@@ -96,37 +96,16 @@ int main() {
   foo[7] = 'a';
   foo[8] = 't';
   foo[9] = OP_CONCAT;
-  foo[10] = OP_POP_PTR;
+  foo[10] = OP_POP;
 
-  printf("Success: %i\n", vm_exec(vm, foo, 11, 0));
-  printf("Stack Depth: %i\n", stk_size(vm->opStk));
+  printf("Success: %i\n", vm_exec(vm, foo, 10, 0));
+  printf("Stack Depth: %i\n", typestk_size(vm->opStk));
   printf("Error: %i\n", vm_get_err(vm));
 
 
-  Two below were commented out:
-  stk_peek(vm->opStk, &val);
-    printf("Output Addr %i: ", val.pointerVal);
+  typestk_peek(vm->opStk, &value, sizeof(char*), &type);
+    printf("Output Value %s: ", value);
 
   vm_free(vm);
-  return 0;
-}*/
-
-int main() {
-  TypeStk * ts = typestk_new(1, 0);
-  double d = 45;
-  double e = 0;
-  VarType t;
-
-  typestk_push(ts, &d, sizeof(double), TYPE_STRING);
-  d = 10;
-  typestk_push(ts, &d, sizeof(double), TYPE_STRING);
-  d = 15;
-  typestk_push(ts, &d, sizeof(double), TYPE_STRING);
-  typestk_pop(ts, &e, sizeof(double), &t);
-  typestk_pop(ts, &e, sizeof(double), &t);
-  typestk_peek(ts, &e, sizeof(double), &t);
-  printf("Value: %f", e);
-  printf("Type: %i", t);
-  typestk_free(ts);
   return 0;
 }

@@ -26,7 +26,7 @@
 #define VM__H__
 
 #include "frmstk.h"
-#include "stk.h"
+#include "typestk.h"
 
 typedef enum {
   VMERR_SUCCESS,
@@ -35,15 +35,14 @@ typedef enum {
   VMERR_STACK_EMPTY,
   VMERR_ALLOC_FAILED,
   VMERR_UNEXPECTED_END_OF_OPCODES,
+  VMERR_INVALID_TYPE_IN_OPERATION,
 } VMErr;
 
 typedef struct VM {
   FrmStk * frmStk;
-  Stk * opStk;
+  TypeStk * opStk;
   VMErr err;
 }VM;
-
-
 
 VM * vm_new(size_t stackSize);
 

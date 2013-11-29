@@ -67,9 +67,8 @@ typedef enum {
   OP_NOT,
   OP_COND_GOTO,
   OP_NOT_EQUALS,
-  OP_POP_PTR,
-  OP_POP_LITERAL,
-  OP_RETURN
+  OP_POP,
+  OP_RETURN,
 } OpCode;
 
 #endif /* VMDEFS__H__ */
