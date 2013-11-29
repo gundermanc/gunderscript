@@ -27,6 +27,7 @@
 #include "frmstk.h"
 #include "vm.h"
 #include "vmdefs.h"
+#include "typestk.h"
 #include <string.h>
 
 /*
@@ -111,23 +112,21 @@ int main() {
 }*/
 
 int main() {
-  FrmStk * fs = frmstk_new(1000000);
-  double a = 12;
-  double b = 0;
-  VarType type = -1;
-  frmstk_push(fs, 45, 2);
-  frmstk_push(fs, 45, 2);
+  TypeStk * ts = typestk_new(1, 0);
+  double d = 45;
+  double e = 0;
+  VarType t;
 
-  frmstk_var_write(fs, 0, 0, &a, sizeof(double), TYPE_NUMBER);
-  a = 44;
-  frmstk_var_write(fs, 0, 1, &a, sizeof(double), TYPE_STRING);
-  frmstk_push(fs, 23, 2);
-  frmstk_var_read(fs, 1, 0, &b, sizeof(double), &type);
-  a = 12;
-  /*frmstk_pop(fs);
-  frmstk_pop(fs);*/
-  frmstk_pop(fs);
-  printf("Output: %f", b);
-  printf("Type: %i", type);
-  frmstk_free(fs);
+  typestk_push(ts, &d, sizeof(double), TYPE_STRING);
+  d = 10;
+  typestk_push(ts, &d, sizeof(double), TYPE_STRING);
+  d = 15;
+  typestk_push(ts, &d, sizeof(double), TYPE_STRING);
+  typestk_pop(ts, &e, sizeof(double), &t);
+  typestk_pop(ts, &e, sizeof(double), &t);
+  typestk_peek(ts, &e, sizeof(double), &t);
+  printf("Value: %f", e);
+  printf("Type: %i", t);
+  typestk_free(ts);
+  return 0;
 }

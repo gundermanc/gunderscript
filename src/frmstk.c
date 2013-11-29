@@ -35,8 +35,6 @@
 #include <assert.h>
 #include "frmstk.h"
 
-/* number of bytes for each variable */
-static const size_t argSize = 8;
 /* number of bytes for variable type field */
 static const size_t typeSize = 1;
 
@@ -80,7 +78,7 @@ static size_t free_space(FrmStk * fs) {
  * if it failed...perhaps because there is not enough stack left.
  */
 bool frmstk_push(FrmStk * fs, size_t returnAddr, int numVarArgs) {
-  size_t varArgsSize = ((argSize + typeSize) * numVarArgs);
+  size_t varArgsSize = ((VM_VAR_SIZE + typeSize) * numVarArgs);
   size_t newFrameSize = sizeof(FrameHeader) + varArgsSize;
 
   assert(fs != NULL);
@@ -117,7 +115,7 @@ bool frmstk_pop(FrmStk * fs) {
   if(fs->stackDepth > 0) {
     FrameHeader * header = fs->buffer + fs->usedStack - sizeof(FrameHeader);
     size_t frameSize = sizeof(FrameHeader) 
-      + (header->numVarArgs * (argSize + typeSize));
+      + (header->numVarArgs * (VM_VAR_SIZE + typeSize));
 
     fs->usedStack -= frameSize;
     fs->stackDepth--;
@@ -139,7 +137,7 @@ bool frmstk_pop(FrmStk * fs) {
  * returns: An address to the variable, or NULL if the stack does not go as
  * deep as stackDepth, or if there are not varArgsIndex arguments in the
  * selected stack frame. First 1 byte of this address is reserved for specifying
- * the type of the data. The last argSize bytes of this address are the buffer
+ * the type of the data. The last VM_VAR_SIZE bytes of this address are the buffer
  * for storing the variable's data.
  */
 void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
@@ -164,12 +162,12 @@ void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
     /* iterate to the requested frame in the stack */
     for(i = 0; i < stackDepth; i++) {
       buffer -= (sizeof(FrameHeader) + (((FrameHeader*)buffer)->numVarArgs
-					* (argSize + typeSize)));
+					* (VM_VAR_SIZE + typeSize)));
     }
  
     /* return the pointer to the requested argument in the frame */
     if(varArgsIndex < ((FrameHeader*)buffer)->numVarArgs) {
-      return (void*)(buffer - ((argSize + typeSize) * varArgsIndex));
+      return (void*)(buffer - ((VM_VAR_SIZE + typeSize) * varArgsIndex));
     }
   }
 
@@ -185,7 +183,7 @@ void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
  * value: pointer to a buffer that will be read from and written to the
  * variable.
  * valueSize: The number of bytes to read from value and write to the variable.
- * This value can be any number > 0 and < argSize;
+ * This value can be any number > 0 and < VM_VAR_SIZE;
  * type: Specifies the variable type of the variable being written.
  * returns: True if the variable was written, or false if the operation
  * failed.
@@ -199,7 +197,7 @@ bool frmstk_var_write(FrmStk * fs, int stackDepth, int varArgsIndex,
   assert(value != NULL);
   assert(valueSize > 0);
 
-  if(valueSize > 0 && valueSize <= argSize) {
+  if(valueSize > 0 && valueSize <= VM_VAR_SIZE) {
     void * outPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
 
     if(outPtr != NULL) {
@@ -224,12 +222,12 @@ bool frmstk_var_write(FrmStk * fs, int stackDepth, int varArgsIndex,
  * stack frame.
  * outValue: a pointer to a buffer to recv. the output.
  * outValueSize: The number of bytes to be read to the output. This can
- * be a value > 1 and < argSize bytes.
+ * be a value > 1 and < VM_VAR_SIZE bytes.
  * outType: a pointer to a VarType that recv. the type of the variable
  * stored at the specified location.
  * returns: true if the operation succeeds, and false if the stack does
  * not go as deep as stackDepth, the selected frame has less than varArgsIndex
- * arguments, or the outValueSize is larger than argSize.
+ * arguments, or the outValueSize is larger than VM_VAR_SIZE.
  */
 bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
 		     void * outValue, size_t outValueSize, VarType * outType) {
@@ -240,7 +238,7 @@ bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
   assert(outValue != NULL);
   assert(outValueSize > 0);
 
-  if(outValueSize > 0 && outValueSize <= argSize) {
+  if(outValueSize > 0 && outValueSize <= VM_VAR_SIZE) {
     void * inPtr = frmstk_var_addr(fs, stackDepth, varArgsIndex);
 
     if(inPtr != NULL) {

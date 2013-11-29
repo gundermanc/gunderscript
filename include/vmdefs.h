@@ -26,6 +26,11 @@
 #ifndef VMDEFS__H__
 #define VMDEFS__H__
 
+/* size allocated for VM variables on the stack:
+ * largest field is a double which is 8 bytes
+ */
+#define VM_VAR_SIZE          8
+
 /* variable datatypes */
 typedef enum {
   TYPE_BOOLEAN,
