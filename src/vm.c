@@ -7,7 +7,7 @@
  *
  * Description:
  * The basic intention for the VM is to simplify the overall implementation of
- * the programming language by having a unified byte code that can be compiled to.
+ * the programming language by having a unified byte code that can be compiled to
  * In this interest, the byte code will have multiple variations.
  * - System Independent :: This byte code refers to functions in native function
  *    calls by their String names. This strategy is less efficient, because the
@@ -43,6 +43,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <math.h>
 
 /* the initial size of the op stack */
 static const int opStkInitSize = 60;
@@ -150,6 +151,283 @@ static bool op_add(VM * vm,  char * byteCode,
   }
 
   vm_set_err(vm, VMERR_STACK_EMPTY);
+  return false;
+}
+
+static bool op_sub(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if(typestk_size(vm->opStk) >= 2) {
+    double value1;
+    double value2;
+    VarType type1;
+    VarType type2;
+
+    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
+    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    
+    if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    value1 -= value2;
+    typestk_push(vm->opStk, &value1, sizeof(double), TYPE_NUMBER);
+    return true;
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
+static bool op_mul(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if(typestk_size(vm->opStk) >= 2) {
+    double value1;
+    double value2;
+    VarType type1;
+    VarType type2;
+
+    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
+    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    
+    if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    value1 *= value2;
+    typestk_push(vm->opStk, &value1, sizeof(double), TYPE_NUMBER);
+    return true;
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
+static bool op_div(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if(typestk_size(vm->opStk) >= 2) {
+    double value1;
+    double value2;
+    VarType type1;
+    VarType type2;
+
+    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
+    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    
+    /* check data types */
+    if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    /* divide by zero error handler */
+    if(value2 == 0) {
+      vm_set_err(vm, VMERR_DIVIDE_BY_ZERO);
+      return false;
+    }
+
+    value1 /= value2;
+    typestk_push(vm->opStk, &value1, sizeof(double), TYPE_NUMBER);
+    return true;
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
+static bool op_mod(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if(typestk_size(vm->opStk) >= 2) {
+    double value1;
+    double value2;
+    VarType type1;
+    VarType type2;
+
+    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
+    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    
+    /* check data types */
+    if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    /* divide by zero error handler */
+    /*if(value2 == 0) {
+      vm_set_err(vm, VMERR_DIVIDE_BY_ZERO);
+      return false;
+      }*/
+
+    /* TODO: fix linker issue so that this will actually work */
+    /*value1 = fmod(value1, value2);
+      typestk_push(vm->opStk, &value1, sizeof(double), TYPE_NUMBER);*/
+    return true;
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
+static bool op_lt(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if(typestk_size(vm->opStk) >= 2) {
+    double value1;
+    double value2;
+    bool result;
+    VarType type1;
+    VarType type2;
+
+    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
+    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    
+    /* check data types */
+    if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    result = value1 < value2;
+    typestk_push(vm->opStk, &result, sizeof(bool), TYPE_BOOLEAN);
+    return true;
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
+static bool op_lte(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if(typestk_size(vm->opStk) >= 2) {
+    double value1;
+    double value2;
+    bool result;
+    VarType type1;
+    VarType type2;
+
+    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
+    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    
+    /* check data types */
+    if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    result = value1 <= value2;
+    typestk_push(vm->opStk, &result, sizeof(bool), TYPE_BOOLEAN);
+    return true;
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
+static bool op_gte(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if(typestk_size(vm->opStk) >= 2) {
+    double value1;
+    double value2;
+    bool result;
+    VarType type1;
+    VarType type2;
+
+    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
+    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    
+    /* check data types */
+    if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    result = value1 >= value2;
+    typestk_push(vm->opStk, &result, sizeof(bool), TYPE_BOOLEAN);
+    return true;
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
+static bool op_gt(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if(typestk_size(vm->opStk) >= 2) {
+    double value1;
+    double value2;
+    bool result;
+    VarType type1;
+    VarType type2;
+
+    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
+    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    
+    /* check data types */
+    if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    result = value1 > value2;
+    typestk_push(vm->opStk, &result, sizeof(bool), TYPE_BOOLEAN);
+    return true;
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
+static bool op_equals(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if(typestk_size(vm->opStk) >= 2) {
+    double value1;
+    double value2;
+    bool result;
+    VarType type1;
+    VarType type2;
+
+    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
+    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    
+    /* check data types */
+    if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    result = value1 == value2;
+    typestk_push(vm->opStk, &result, sizeof(bool), TYPE_BOOLEAN);
+    return true;
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
+static bool op_not_equals(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if(typestk_size(vm->opStk) >= 2) {
+    double value1;
+    double value2;
+    bool result;
+    VarType type1;
+    VarType type2;
+
+    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
+    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    
+    /* check data types */
+    if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    result = value1 != value2;
+    typestk_push(vm->opStk, &result, sizeof(bool), TYPE_BOOLEAN);
+    return true;
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
   return false;
 }
 
@@ -274,28 +552,44 @@ bool vm_exec(VM * vm, char * byteCode,
       }
       break;
     case OP_SUB:
-      printf("Not yet implemented!");
+      if(!op_sub(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_MUL:
-      printf("Not yet implemented!");
+      if(!op_mul(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_DIV:
-      printf("Not yet implemented!");
+      if(!op_div(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_MOD:
-      printf("Not yet implemented!");
+      if(!op_mod(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_LT:
-      printf("Not yet implemented!");
+      if(!op_lt(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_GT:
-      printf("Not yet implemented!");
+      if(!op_gt(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_LTE:
-      printf("Not yet implemented!");
+      if(!op_lte(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_GTE:
-      printf("Not yet implemented!");
+      if(!op_gte(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_GOTO:
       printf("Not yet implemented!");
@@ -309,7 +603,9 @@ bool vm_exec(VM * vm, char * byteCode,
       }
       break;
     case OP_EQUALS:
-      printf("Not yet implemented!");
+      if(!op_equals(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_EXIT:
       printf("Not yet implemented!");
@@ -335,7 +631,9 @@ bool vm_exec(VM * vm, char * byteCode,
       printf("Not yet implemented!");
       break;
     case OP_NOT_EQUALS:
-      printf("Not yet implemented!");
+      if(!op_not_equals(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_POP:
       if(!op_pop(vm, byteCode, byteCodeLen, &i)) {

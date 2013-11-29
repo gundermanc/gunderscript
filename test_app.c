@@ -84,21 +84,25 @@ int main() {
   VM * vm = vm_new(10000000);
   char foo[45];
   void * value;
-  double d = 23;
-  double e = 0;
+  double d = 6;
+  bool r;
   VarType type;
 
   foo[0] = OP_NUM_PUSH;
   memcpy(foo + 1, &d, sizeof(double));
-  foo[9] = OP_NUM_PUSH;
 
-  printf("Success: %i\n", vm_exec(vm, foo, 9, 0));
+  d = 6;
+  foo[9] = OP_NUM_PUSH;
+  memcpy(foo + 10, &d, sizeof(double));
+  foo[18] = OP_NOT_EQUALS;
+
+  printf("Success: %i\n", vm_exec(vm, foo, 19, 0));
   printf("Stack Depth: %i\n", typestk_size(vm->opStk));
   printf("Error: %i\n", vm_get_err(vm));
 
 
-  typestk_peek(vm->opStk, &e, sizeof(double), &type);
-  /*printf("Output Value %f: ", e); */
+  typestk_peek(vm->opStk, &r, sizeof(bool), &type);
+  printf("Output Value: %i ", r);
 
   vm_free(vm);
   return 0;
