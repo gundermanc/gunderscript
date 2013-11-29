@@ -69,6 +69,86 @@ VM * vm_new(size_t stackSize) {
   return NULL;
 }
 
+/* ------------------- OP Code Handlers ---------------------- */
+
+static bool op_var_stor(VM * vm, char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+
+  /* check that there are enough tokens in the input */
+  if((byteCodeLen - *index) >= 2) {
+    char stackDepth = byteCode[++(*index)];
+    char varArgsIndex = byteCode[++(*index)];
+    char data[VM_VAR_SIZE];
+    VarType type;
+
+    *index += 1;
+
+    /* handle empty op stack error case */
+    if(!(typestk_size(vm->opStk) > 0)) {
+      vm_set_err(vm, VMERR_STACK_EMPTY);
+      return false;
+    }
+
+    /* handle empty frame stack error case */
+    if(!(frmstk_size(vm->frmStk) > 0)) {
+      vm_set_err(vm, VMERR_FRMSTK_EMPTY);
+      return false;
+    }
+
+    typestk_peek(vm->opStk, data, VM_VAR_SIZE, &type);
+
+    if(frmstk_var_write(vm->frmStk, stackDepth, 
+			varArgsIndex, data, VM_VAR_SIZE, type)) {
+      printf("Var stored!\n");
+      return true;
+    } else {
+      vm_set_err(vm, VMERR_FRMSTK_VAR_ACCESS_FAILED);
+      return false;
+    }			 
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
+static bool op_var_push(VM * vm,  char * byteCode, 
+			size_t byteCodeLen, int * index) {
+  /* check that there are enough tokens in the input */
+  if((byteCodeLen - *index) >= 2) {
+    char stackDepth = byteCode[++(*index)];
+    char varArgsIndex = byteCode[++(*index)];
+    char data[VM_VAR_SIZE];
+    VarType type;
+
+    *index += 1;
+
+     /* handle empty frame stack error case */
+    if(!(frmstk_size(vm->frmStk) > 0)) {
+      vm_set_err(vm, VMERR_FRMSTK_EMPTY);
+      return false;
+    }
+
+    /* read value */
+    if(frmstk_var_read(vm->frmStk, stackDepth, 
+			varArgsIndex, data, VM_VAR_SIZE, &type)) {
+    } else {
+      vm_set_err(vm, VMERR_FRMSTK_VAR_ACCESS_FAILED);
+      return false;
+    }
+
+    /* push value to op stack */
+    if(typestk_push(vm->opStk, data, VM_VAR_SIZE, type)) {
+      return true;
+    } else {
+      vm_set_err(vm, VMERR_ALLOC_FAILED);
+      return false;
+    }
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
 static bool op_frame_push(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
 
@@ -110,7 +190,7 @@ static bool op_frame_pop(VM * vm,  char * byteCode,
 /* concats a string */
 static bool op_add(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
-  
+
   if(typestk_size(vm->opStk) >= 2) {
     char * string1;
     char * string2;
@@ -531,10 +611,14 @@ bool vm_exec(VM * vm, char * byteCode,
 
     switch(byteCode[i]) {
     case OP_VAR_PUSH:
-      printf("Not yet implemented!");
+      if(!op_var_push(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_VAR_STOR:
-      printf("Not yet implemented!");
+      if(!op_var_stor(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_FRM_PUSH:
       if(!op_frame_push(vm, byteCode, byteCodeLen, &i)) {

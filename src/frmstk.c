@@ -278,7 +278,7 @@ size_t frmstk_ret_addr(FrmStk * fs) {
  * fs: The current framestack instance.
  * returns: The number of frames on the stack.
  */
-int frmstk_depth(FrmStk * fs) {
+int frmstk_size(FrmStk * fs) {
   assert(fs != NULL);
   return fs->stackDepth;
 }

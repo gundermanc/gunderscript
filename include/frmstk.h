@@ -57,7 +57,7 @@ bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
 
 size_t frmstk_ret_addr(FrmStk * fs);
 
-int frmstk_depth(FrmStk * fs);
+int frmstk_size(FrmStk * fs);
 
 void frmstk_free(FrmStk * fs);
 
