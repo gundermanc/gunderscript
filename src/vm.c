@@ -107,8 +107,9 @@ static bool op_frame_pop(VM * vm,  char * byteCode,
 }
 
 /* concats a string */
-static bool op_concat(VM * vm,  char * byteCode, 
+static bool op_add(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
+  
   if(typestk_size(vm->opStk) >= 2) {
     char * string1;
     char * string2;
@@ -149,6 +150,29 @@ static bool op_concat(VM * vm,  char * byteCode,
   }
 
   vm_set_err(vm, VMERR_STACK_EMPTY);
+  return false;
+}
+
+static bool op_num_push(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+
+  /* check if there are enough bytes left for a double */
+  if((byteCodeLen - *index) >= sizeof(double)) {
+    double value;
+
+    *index += 1;
+    memcpy(&value, byteCode + *index, sizeof(double));
+
+    if(!typestk_push(vm->opStk, &value, sizeof(double), TYPE_NUMBER)) {
+      vm_set_err(vm, VMERR_ALLOC_FAILED);
+      return false;
+    }
+
+    *index += sizeof(double);
+    return true;
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
   return false;
 }
 
@@ -245,10 +269,7 @@ bool vm_exec(VM * vm, char * byteCode,
       }
       break;
     case OP_ADD:
-      printf("Not yet implemented!");
-      break;
-    case OP_CONCAT:
-      if(!op_concat(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_add(vm, byteCode, byteCodeLen, &i)) {
 	return false;
       }
       break;
@@ -283,7 +304,9 @@ bool vm_exec(VM * vm, char * byteCode,
       printf("Not yet implemented!");
       break;
     case OP_NUM_PUSH:
-      printf("Not yet implemented!");
+      if(!op_num_push(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_EQUALS:
       printf("Not yet implemented!");

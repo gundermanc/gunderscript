@@ -46,7 +46,6 @@ typedef enum {
   OP_FRM_PUSH,
   OP_FRM_POP,
   OP_ADD,
-  OP_CONCAT,
   OP_SUB,
   OP_MUL,
   OP_DIV,
