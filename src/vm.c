@@ -45,6 +45,9 @@
 #include <assert.h>
 #include <math.h>
 
+#define VM_TRUE             1
+#define VM_FALSE            0
+
 /* the initial size of the op stack */
 static const int opStkInitSize = 60;
 /* the number of bytes in size the op stack increases in each expansion */
@@ -554,6 +557,36 @@ static bool op_pop(VM * vm,  char * byteCode,
   return false;
 }
 
+static bool op_bool_push(VM * vm,  char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if((byteCodeLen - *index) >= 1) {
+    bool value;
+    VarType type;
+
+    *index += 1;
+
+    value = byteCode[*index];
+
+    *index += 1;
+
+    /* check if value is true or false */
+    if(value != VM_TRUE && value != VM_FALSE) {
+      vm_set_err(vm, VMERR_INVALID_PARAM);
+      return false;
+    }
+
+    if(!typestk_push(vm->opStk, &value, sizeof(bool), TYPE_BOOLEAN)) {
+      vm_set_err(vm, VMERR_ALLOC_FAILED);
+      return false;
+    }
+
+    return true;    
+  }
+
+  vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
 /* TODO: This whole function seems to have semi-redundant checks.
  * clean up and optimize before file is moved to release candidate.
  */
@@ -594,6 +627,30 @@ static bool op_str_push(VM * vm, char * byteCode,
   }
 
   vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+  return false;
+}
+
+static bool op_not(VM * vm, char * byteCode, 
+		   size_t byteCodeLen, int * index) {
+  if(typestk_size(vm->opStk) >= 1) {
+    bool value;
+    VarType type;
+
+    typestk_pop(vm->opStk, &value, sizeof(bool), &type);
+
+    value = !value;
+
+    *index += 1;
+
+    if(typestk_push(vm->opStk, &value, sizeof(bool), type)) {
+      return true;
+    } else {
+      vm_set_err(vm, VMERR_ALLOC_FAILED);
+      return false;
+    }
+  }
+
+  vm_set_err(vm, VMERR_STACK_EMPTY);
   return false;
 }
 
@@ -679,7 +736,9 @@ bool vm_exec(VM * vm, char * byteCode,
       printf("Not yet implemented!");
       break;
     case OP_BOOL_PUSH:
-      printf("Not yet implemented!");
+      if(!op_bool_push(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_NUM_PUSH:
       if(!op_num_push(vm, byteCode, byteCodeLen, &i)) {
@@ -709,7 +768,9 @@ bool vm_exec(VM * vm, char * byteCode,
       printf("Not yet implemented!");
       break;
     case OP_NOT:
-      printf("Not yet implemented!");
+      if(!op_not(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_COND_GOTO:
       printf("Not yet implemented!");
