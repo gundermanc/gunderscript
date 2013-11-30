@@ -31,14 +31,14 @@
 typedef enum {
   VMERR_SUCCESS,
   VMERR_INVALID_OPCODE,
-  VMERR_STACK_OVERFLOW,
-  VMERR_STACK_EMPTY,
+  VMERR_STACK_OVERFLOW,               /* overflowed the frmStk */
+  VMERR_STACK_EMPTY,                  /* no items left in opStk */
   VMERR_ALLOC_FAILED,                 /* an alloc failed */
   VMERR_UNEXPECTED_END_OF_OPCODES,    
   VMERR_INVALID_TYPE_IN_OPERATION,
   VMERR_DIVIDE_BY_ZERO,
   VMERR_FRMSTK_EMPTY,
-  VMERR_FRMSTK_VAR_ACCESS_FAILED,     /* can't writes or invalid arg index */
+  VMERR_FRMSTK_VAR_ACCESS_FAILED,     /* can't alloc or invalid arg index */
   VMERR_INVALID_PARAM,                /* incorrect op code param */
   VMERR_INVALID_ADDR,                 /* address in goto is out of range */
 } VMErr;

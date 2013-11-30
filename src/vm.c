@@ -8,19 +8,19 @@
  * Description:
  * The basic intention for the VM is to simplify the overall implementation of
  * the programming language by having a unified byte code that can be compiled to
- * In this interest, the byte code will have multiple variations.
- * - System Independent :: This byte code refers to functions in native function
- *    calls by their String names. This strategy is less efficient, because the
- *    function address then has to be looked up in a hash table, however, it is 
- *    system independent.
- * - Function Call Optimized :: This optimization is a run time optimization that
- *    runs before code execution and replaces all function calls using CALL_STR_N
- *    with CALL_PTR_N, replacing the String names to functions with their
- *    function pointers from the hashtable in the Gunderscript instance.
- * - Condensation Optimization :: This MAY be implemented in future versions. 
- *    At the moment, GunderScript depends highly on verbose stack operations to
- *    simplify the instruction set. This optimization makes use of an extended
- *    instruction set that combines multiple operations into one instruction.
+ * 
+ * The VM consists of two stacks: an opStk and a frmStk. The opStk is a stack
+ * that holds values that represent individual machine instructions and variables
+ * such as booleans and doubles. The frmStk is a stack of stack frames that are
+ * capable of allocating memory for each logical block (if, else, while, etc.
+ * block). These frames hold a return address and all variables and arguments
+ * to the field.
+ * The OP code is in the form of one byte OP codes (vmdefs.h) followed by a
+ * variable number of bytes containing parameters. For example, to add two
+ * numbers, they are pushed to the stack with OP_NUM_PUSH followed by 8 bytes
+ * of a double. This is done twice, once for each number. Finally, the last
+ * byte is a OP_ADD byte that signals the VM to pop both values, add them,
+ * and push the result.
  *
  * TODO: This file needs to be cleaned up and still needs some OP codes
  * implemented.
