@@ -21,6 +21,9 @@
  *    At the moment, GunderScript depends highly on verbose stack operations to
  *    simplify the instruction set. This optimization makes use of an extended
  *    instruction set that combines multiple operations into one instruction.
+ *
+ * TODO: This file needs to be cleaned up and still needs some OP codes
+ * implemented.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -561,7 +564,6 @@ static bool op_bool_push(VM * vm,  char * byteCode,
 		   size_t byteCodeLen, int * index) {
   if((byteCodeLen - *index) >= 1) {
     bool value;
-    VarType type;
 
     *index += 1;
 
@@ -648,6 +650,53 @@ static bool op_not(VM * vm, char * byteCode,
       vm_set_err(vm, VMERR_ALLOC_FAILED);
       return false;
     }
+  }
+
+  vm_set_err(vm, VMERR_STACK_EMPTY);
+  return false;
+}
+
+static bool op_cond_goto(VM * vm, char * byteCode, 
+			 size_t byteCodeLen, int * index, bool negGoto) {
+  if(typestk_size(vm->opStk) >= 1) {
+    bool value;
+    int addr;
+    VarType type;
+
+    typestk_pop(vm->opStk, &value, sizeof(bool), &type);
+
+    *index += 1;
+
+    /* make sure top item in stack was a boolean */
+    if(type != TYPE_BOOLEAN) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    /* check top boolean for if we should skip goto */
+    if((!value && !negGoto) || (value && negGoto)) {
+      *index += sizeof(int);
+      return true;
+    }
+
+    /* check that there are enough bytes in byte code for the address */
+    if(!((byteCodeLen - *index) >= sizeof(int))) {
+      vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+      return false;
+    }
+
+    memcpy(&addr, byteCode + *index, sizeof(int));
+
+    if(addr < 0 || addr >= byteCodeLen) {
+      printf("Invalid Addr: %i", addr);
+      vm_set_err(vm, VMERR_INVALID_ADDR);
+      return false;
+    }
+ 
+    /* change address */
+    *index = addr;
+
+    return true;
   }
 
   vm_set_err(vm, VMERR_STACK_EMPTY);
@@ -772,8 +821,15 @@ bool vm_exec(VM * vm, char * byteCode,
 	return false;
       }
       break;
-    case OP_COND_GOTO:
-      printf("Not yet implemented!");
+    case OP_TCOND_GOTO:
+      if(!op_cond_goto(vm, byteCode, byteCodeLen, &i, false)) {
+	return false;
+      }
+      break;
+    case OP_FCOND_GOTO:
+      if(!op_cond_goto(vm, byteCode, byteCodeLen, &i, true)) {
+	return false;
+      }
       break;
     case OP_NOT_EQUALS:
       if(!op_not_equals(vm, byteCode, byteCodeLen, &i)) {

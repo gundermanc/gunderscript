@@ -39,7 +39,8 @@ typedef enum {
   VMERR_DIVIDE_BY_ZERO,
   VMERR_FRMSTK_EMPTY,
   VMERR_FRMSTK_VAR_ACCESS_FAILED,     /* can't writes or invalid arg index */
-  VMERR_INVALID_PARAM,                /* incorrect op code param */  
+  VMERR_INVALID_PARAM,                /* incorrect op code param */
+  VMERR_INVALID_ADDR,                 /* address in goto is out of range */
 } VMErr;
 
 typedef struct VM {
