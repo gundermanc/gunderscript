@@ -40,7 +40,7 @@ testapp: library
 
 # build just the static library
 library: lexer.o frmstk.o vm.o
-	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o
+	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o
 
 # build lexer object
 lexer.o: buildfs $(SRCDIR)/lexer.c
@@ -51,8 +51,12 @@ typestk.o: buildfs $(SRCDIR)/typestk.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/typestk.c
 
 # build vm object
-vm.o: buildfs c-datastructs-build frmstk.o typestk.o $(SRCDIR)/vm.c
+vm.o: buildfs c-datastructs-build frmstk.o typestk.o ophandlers.o $(SRCDIR)/vm.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/vm.c
+
+# build vm object
+ophandlers.o: buildfs c-datastructs-build $(SRCDIR)/ophandlers.c
+	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/ophandlers.c
 
 # build framestack object
 frmstk.o: buildfs c-datastructs-build $(SRCDIR)/frmstk.c
