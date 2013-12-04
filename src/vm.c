@@ -703,6 +703,37 @@ static bool op_cond_goto(VM * vm, char * byteCode,
   return false;
 }
 
+static bool op_call_ptr_n(VM * vm, char * byteCode, 
+			 size_t byteCodeLen, int * index) {
+
+  char numArgs = 0;
+  VMCallback callback;
+
+  /* handle not enough bytes in bytecode error case */
+  if((byteCodeLen - *index) < 9) {
+    vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+    return false;
+  }
+
+  numArgs = byteCode[++(*index)];
+  (*index)++;
+
+  /* handle invalid number of args case*/
+  /* TODO: check signedness of char...this might be unneccessary */
+  if(numArgs < 0) {
+    vm_set_err(vm, VMERR_INVALID_PARAM);
+    return false;
+  }
+
+  memcpy(&callback, byteCode + *index, sizeof(void*));
+  printf("Index: %i", *index);
+  *index += sizeof(void*);
+
+  printf("Stored Pointer: %i", callback);
+  
+  return true;
+}
+
 bool vm_exec(VM * vm, char * byteCode, 
 	     size_t byteCodeLen, size_t startIndex) {
   int i = startIndex;
@@ -811,7 +842,9 @@ bool vm_exec(VM * vm, char * byteCode,
       printf("Not yet implemented!");
       break;
     case OP_CALL_PTR_N:
-      printf("Not yet implemented!");
+      if(!op_call_ptr_n(vm, byteCode, byteCodeLen, &i)) {
+	return false;
+      }
       break;
     case OP_CALL_B:
       printf("Not yet implemented!");

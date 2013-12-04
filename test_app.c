@@ -78,6 +78,10 @@ int main() {
 }
 */
 
+bool test(VM * vm, VMArg * arg, int argc) {
+  printf("Test!");
+  return true;
+}
 
 /* VM Test code */
 int main() {
@@ -88,21 +92,25 @@ int main() {
   int a = 0, b = 0;
   bool r;
   VarType type;
+  VMCallback vc;
 
-  foo[0] = OP_BOOL_PUSH;
+  foo[0] = OP_CALL_PTR_N;
   foo[1] = 0;
-  foo[2] = OP_FCOND_GOTO;
-
-  memcpy(foo + 3, &a, sizeof(int));
   
+  printf("Actual Pointer: %p", &test);
+  memcpy(foo, &test, sizeof(VMCallback));
+  memcpy(&vc, test, sizeof(VMCallback));
+  /*vc = &test;*/
+  printf("Extracted: %p", vc);
+  /*  (*vc)(NULL,NULL,0); */
 
-  printf("Success: %i\n", vm_exec(vm, foo, 7, 0));
+  printf("Success: %i\n", vm_exec(vm, foo, 10, 0));
   printf("Stack Depth: %i\n", typestk_size(vm->opStk));
   printf("Error: %i\n", vm_get_err(vm));
 
 
-  typestk_peek(vm->opStk, &b, sizeof(int), &type);
-  printf("Output Value: %i ", b);
+  /*typestk_peek(vm->opStk, &b, sizeof(int), &type);*/
+  /*printf("Output Value: %i ", b);*/
 
   vm_free(vm);
   return 0;

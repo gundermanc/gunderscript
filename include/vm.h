@@ -49,6 +49,13 @@ typedef struct VM {
   VMErr err;
 }VM;
 
+typedef struct VMArg {
+  char data[VM_VAR_SIZE];
+  VarType type;
+} VMArg;
+
+typedef bool (*VMCallback) (VM * vm, VMArg * arg, int argc);
+
 VM * vm_new(size_t stackSize);
 
 bool vm_exec(VM * vm, char * byteCode,
