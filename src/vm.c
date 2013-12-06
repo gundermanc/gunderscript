@@ -54,7 +54,13 @@ static const int opStkInitSize = 60;
 /* the number of bytes in size the op stack increases in each expansion */
 static const int opStkBlockSize = 60;
 
-/* Initialize VM. Returns a new VM instance, or NULL upon failure */
+/**
+ * Initializes a VM with a preallocated maximum frame stack that is stackSize
+ * bytes in size and can have up to callbacksSize callbacks registered to it.
+ * stackSize: size of the frame stack in bytes.
+ * callbacksSize: the maximum number of callbacks that may be registered.
+ * returns: a new VM instance, or NULL if allocation fails.
+ */
 VM * vm_new(size_t stackSize, int callbacksSize) {
 
   assert(stackSize > 0);
@@ -101,6 +107,14 @@ VM * vm_new(size_t stackSize, int callbacksSize) {
   return vm;
 }
 
+/**
+ * Registers a callback function to this VM instance.
+ * vm: an instance of a VM.
+ * name: the text representation of the VM.
+ * nameLen: the length of the name, in characters.
+ * callback: a function pointer to a VMCallback function that will be called
+ * whenever name occurs in code.
+ */
 bool vm_reg_callback(VM * vm, char * name, size_t nameLen, VMCallback callback) {
 
   assert(vm != NULL);
@@ -143,7 +157,14 @@ bool vm_reg_callback(VM * vm, char * name, size_t nameLen, VMCallback callback) 
   return true;
 }
 
-/* returns the callback pointer if success, and NULL if fail */
+/**
+ * Gets a callback function's function pointer from its array index.
+ * vm: an instance of VM.
+ * index: the index of the function to call. You can find out a function's
+ * index using the vm_callback_index() function.
+ * returns: the function's function pointer, or NULL if the specified index does
+ * not exist.
+ */
 VMCallback vm_callback_from_index(VM * vm, int index) {
   assert(vm != NULL);
   assert(index >= 0);
@@ -157,7 +178,14 @@ VMCallback vm_callback_from_index(VM * vm, int index) {
   return vm->callbacks[index];
 }
 
-/* returns the index on success, or -1 on fail */
+/**
+ * Gets the index of a VM callback function from its name.
+ * vm: an instance of VM.
+ * name: the name of the function.
+ * nameLen: the length of name, in chars.
+ * returns: the index of the callback, > 0, or -1 if the operation
+ * fails because the function does not exist.
+ */
 int vm_callback_index(VM * vm, char * name, size_t nameLen) {
   assert(vm != NULL);
   assert(name != NULL);
@@ -175,7 +203,11 @@ int vm_callback_index(VM * vm, char * name, size_t nameLen) {
   return value.intVal;
 }
 
-/* gets number of callbacks */
+/**
+ * Gets the number of callbacks registered with the VM.
+ * vm: an instance of VM.
+ * returns: the number of callbacks registered.
+ */
 int vm_num_callbacks(VM * vm) {
   assert(vm != NULL);
 
@@ -184,8 +216,16 @@ int vm_num_callbacks(VM * vm) {
   return vm->numCallbacks;
 }
 
+/**
+ * Executes a VM bytecode. For more info on the bytecode format, see
+ * ophandlers.c where the opcodes are described and implemented.
+ * vm: an instance of VM.
+ * byteCode: an array of chars that contain VM byte code.
+ * byteCodeLen: the number of bytes to read from byteCode array.
+ * startIndex: the index to start executing from. The entry point.
+ */
 bool vm_exec(VM * vm, char * byteCode, 
-	     size_t byteCodeLen, size_t startIndex) {
+	     size_t byteCodeLen, int startIndex) {
   int i = startIndex;
 
   assert(vm != NULL);
@@ -302,18 +342,34 @@ bool vm_exec(VM * vm, char * byteCode,
   return true;
 }
 
+/**
+ * Sets the current error code in the VM.
+ * vm: an instance of vm.
+ * err: the error code.
+ */
 void vm_set_err(VM * vm, VMErr err) {
   assert(vm != NULL);
 
   vm->err = err;
 }
 
+/**
+ * Gets the current error status of the VM. Call this after calling any public
+ * VM function to get a diagnostic error code.
+ * vm: the VM instance.
+ * returns: the last error triggered. This will be VMERR_SUCCESS (0) if no error
+ * occurred last call.
+ */
 VMErr vm_get_err(VM * vm) {
   assert(vm != NULL);
 
   return vm->err;
 }
 
+/**
+ * Frees a VM instance
+ * vm: a VM instance.
+ */
 void vm_free(VM * vm) {
 
   assert(vm != NULL);
@@ -348,6 +404,9 @@ void vm_free(VM * vm) {
   free(vm);
 }
 
+/**
+ * Gets the type of a VMArg.
+ */
 VarType vmarg_type(VMArg arg) {
   return arg.type;
 }
@@ -356,8 +415,11 @@ VarType vmarg_type(VMArg arg) {
 /* TODO: do this without the pointless memcpy...
  * The following three functions would be better as MACROS
  */
-/* extracts a string pointer from an array of bytes */
-/* NOTE: string args are NOT null terminated. */
+/**
+ * Converts a VMArg to a string.
+ * arg: The arg to convert/
+ * returns: a char*, or NULL if the arg is not a string.
+ */
 char * vmarg_string(VMArg arg) {
 
   if(arg.type == TYPE_STRING) {
@@ -370,8 +432,13 @@ char * vmarg_string(VMArg arg) {
 }
 
 /* TODO: do this without the pointless memcpy */
-/* converts arg to double value.*/
-/* success can be false */
+/**
+ * Converts an argument to a number.
+ * arg: the argument to convert.
+ * success: pointer to a boolean that will receive whether or not the operation
+ * succeeded. It can be NULL. Operation fails if the argument is the wrong type.
+ * returns: the number in the argument.
+ */
 double vmarg_number(VMArg arg, bool * success) {
 
   if(arg.type == TYPE_NUMBER) {
@@ -393,6 +460,13 @@ double vmarg_number(VMArg arg, bool * success) {
 }
 
 /* TODO: do this without the pointless memcpy */
+/**
+ * Converts an argument to a boolean value.
+ * arg: the argument to convert.
+ * success: a pointer to a boolean that receives whether or not the operation
+ * succeeded. It can be NULL. Operation fails if the argument is the wrong type.
+ * returns: the boolean value.
+ */
 bool vmarg_boolean(VMArg arg, bool * success) {
 
   if(arg.type == TYPE_BOOLEAN) {
