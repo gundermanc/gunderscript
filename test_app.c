@@ -79,8 +79,7 @@ int main() {
 */
 
 bool test(VM * vm, VMArg * arg, int argc) {
-  printf("\n\n\nNumArgs: %i\n", argc);
-  printf("String: %p\n", arg[0].data);
+  printf("String: %s\n", vmarg_string(arg[0]));
   return true;
 }
 

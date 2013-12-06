@@ -378,3 +378,68 @@ void vm_free(VM * vm) {
 
   free(vm);
 }
+
+VarType vmarg_type(VMArg arg) {
+  return arg.type;
+}
+
+
+/* TODO: do this without the pointless memcpy...
+ * The following three functions would be better as MACROS
+ */
+/* extracts a string pointer from an array of bytes */
+/* NOTE: string args are NOT null terminated. */
+char * vmarg_string(VMArg arg) {
+
+  if(arg.type == TYPE_STRING) {
+    char * argument;
+    memcpy(&argument, arg.data, sizeof(char*));
+    return argument;
+  }
+
+  return NULL;
+}
+
+/* TODO: do this without the pointless memcpy */
+/* converts arg to double value.*/
+/* success can be false */
+double vmarg_number(VMArg arg, bool * success) {
+
+  if(arg.type == TYPE_NUMBER) {
+    double value;
+    memcpy(&value, arg.data, sizeof(value));
+
+    if(success != NULL) {
+      *success = true;
+    }
+
+    return value;
+  }
+
+  if(success != NULL) {
+      *success = false;
+  }
+
+  return 0;
+}
+
+/* TODO: do this without the pointless memcpy */
+bool vmarg_boolean(VMArg arg, bool * success) {
+
+  if(arg.type == TYPE_BOOLEAN) {
+    bool value;
+    memcpy(&value, arg.data, sizeof(bool));
+
+    if(success != NULL) {
+      *success = true;
+    }
+
+    return value;
+  }
+
+  if(success != NULL) {
+      *success = false;
+  }
+
+  return false;
+}
