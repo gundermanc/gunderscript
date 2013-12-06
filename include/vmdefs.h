@@ -31,6 +31,11 @@
  */
 #define VM_VAR_SIZE          8
 
+/* maximum number of arguments for a native
+ * function
+ */
+#define VM_MAX_NARGS         25
+
 /* variable datatypes */
 typedef enum {
   TYPE_BOOLEAN,

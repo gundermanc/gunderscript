@@ -27,12 +27,13 @@
 
 #include "frmstk.h"
 #include "typestk.h"
+#include "ht.h"
 
 typedef enum {
   VMERR_SUCCESS,
   VMERR_INVALID_OPCODE,
   VMERR_STACK_OVERFLOW,               /* overflowed the frmStk */
-  VMERR_STACK_EMPTY,                  /* no items left in opStk */
+  VMERR_STACK_EMPTY,                  /* not enough items left in opStk */
   VMERR_ALLOC_FAILED,                 /* an alloc failed */
   VMERR_UNEXPECTED_END_OF_OPCODES,    
   VMERR_INVALID_TYPE_IN_OPERATION,
@@ -41,25 +42,43 @@ typedef enum {
   VMERR_FRMSTK_VAR_ACCESS_FAILED,     /* can't alloc or invalid arg index */
   VMERR_INVALID_PARAM,                /* incorrect op code param */
   VMERR_INVALID_ADDR,                 /* address in goto is out of range */
+  VMERR_CALLBACKS_BUFFER_FULL,        /* too many callbacks were registered */
+  VMERR_CALLBACK_EXISTS,              /* a function with this name exists */
+  VMERR_CALLBACK_NOT_EXIST,           /* invalid callback string, or index */
 } VMErr;
-
-typedef struct VM {
-  FrmStk * frmStk;
-  TypeStk * opStk;
-  VMErr err;
-}VM;
 
 typedef struct VMArg {
   char data[VM_VAR_SIZE];
   VarType type;
 } VMArg;
 
+typedef struct VM VM;
+
 typedef bool (*VMCallback) (VM * vm, VMArg * arg, int argc);
 
-VM * vm_new(size_t stackSize);
+struct VM {
+  FrmStk * frmStk;
+  TypeStk * opStk;
+  VMCallback * callbacks;
+  HT * callbacksHT;
+  int callbacksSize;
+  int numCallbacks;
+  VMErr err;
+};
+
+
+VM * vm_new(size_t stackSize, int callbacksSize);
 
 bool vm_exec(VM * vm, char * byteCode,
 	     size_t byteCodeLen, size_t startIndex);
+
+bool vm_reg_callback(VM * vm, char * name, size_t nameLen, VMCallback callback);
+
+VMCallback vm_callback_from_index(VM * vm, int index);
+
+int vm_callback_index(VM * vm, char * name, size_t nameLen);
+
+int vm_num_callbacks(VM * vm);
 
 void vm_set_err(VM * vm, VMErr err);
 

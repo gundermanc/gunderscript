@@ -49,31 +49,139 @@
 #include <assert.h>
 #include <math.h>
 
-#define VM_TRUE             1
-#define VM_FALSE            0
-
 /* the initial size of the op stack */
 static const int opStkInitSize = 60;
 /* the number of bytes in size the op stack increases in each expansion */
 static const int opStkBlockSize = 60;
 
-VM * vm_new(size_t stackSize) {
+/* Initialize VM. Returns a new VM instance, or NULL upon failure */
+VM * vm_new(size_t stackSize, int callbacksSize) {
 
   assert(stackSize > 0);
+  assert(callbacksSize > 0);
 
   VM * vm = calloc(1, sizeof(VM));
 
-  if(vm != NULL) {
-    vm->frmStk = frmstk_new(stackSize);
-    vm->opStk = typestk_new(opStkInitSize, opStkBlockSize);
-
-    if(vm->frmStk != NULL && vm->opStk != NULL) {
-      return vm;
-    }
-    vm_free(vm);
+  if(vm == NULL) {
+    return NULL;
   }
 
-  return NULL;
+  vm->frmStk = frmstk_new(stackSize);
+  if(vm->frmStk == NULL) {
+    free(vm);
+    return NULL;
+  }
+
+  vm->opStk = typestk_new(opStkInitSize, opStkBlockSize);
+  if(vm->opStk == NULL) {
+    frmstk_free(vm->frmStk);
+    free(vm);
+    return NULL;
+  }
+
+  vm->callbacksSize = callbacksSize;
+
+  vm->callbacks = calloc(vm->callbacksSize, sizeof(VMCallback));
+  if(vm->callbacks == NULL) {
+    typestk_free(vm->opStk);
+    frmstk_free(vm->frmStk);
+    free(vm);
+    return NULL;
+  }
+
+  vm->callbacksHT = ht_new(vm->callbacksSize, 10, 1.0);
+  if(vm->callbacksHT == NULL) {
+    free(vm->callbacks);
+    typestk_free(vm->opStk);
+    frmstk_free(vm->frmStk);
+    free(vm);
+    return NULL;
+  }
+
+  return vm;
+}
+
+bool vm_reg_callback(VM * vm, char * name, size_t nameLen, VMCallback callback) {
+
+  assert(vm != NULL);
+  assert(name != NULL);
+  assert(nameLen > 0);
+  assert(callback != NULL);
+
+  bool prevRegistered;
+  DSValue newValue;
+  DSValue oldValue;
+
+  vm_set_err(vm, VMERR_SUCCESS);
+
+  if(vm->numCallbacks >= vm->callbacksSize) {
+    vm_set_err(vm, VMERR_CALLBACKS_BUFFER_FULL);
+    return false;
+  }
+
+  newValue.intVal = vm->numCallbacks;
+  vm->callbacks[vm->numCallbacks] = callback;
+
+  if(!ht_put_raw_key(vm->callbacksHT, name, nameLen, 
+		     &newValue, &oldValue, &prevRegistered)) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
+
+  /* a function with this name was already registered, freak out */
+  if(prevRegistered) {
+
+    /* we changed the value, set it back to what it was */
+    ht_put_raw_key(vm->callbacksHT, name, nameLen,
+		   &oldValue, NULL, NULL);
+
+    vm_set_err(vm, VMERR_CALLBACK_EXISTS);
+    return false;
+  }
+
+  vm->numCallbacks++;
+  return true;
+}
+
+/* returns the callback pointer if success, and NULL if fail */
+VMCallback vm_callback_from_index(VM * vm, int index) {
+  assert(vm != NULL);
+  assert(index >= 0);
+
+  /* handle index is out of range error case */
+  if(index >= vm->numCallbacks) {
+    vm_set_err(vm, VMERR_CALLBACK_NOT_EXIST);
+    return NULL;
+  }
+
+  return vm->callbacks[index];
+}
+
+/* returns the index on success, or -1 on fail */
+int vm_callback_index(VM * vm, char * name, size_t nameLen) {
+  assert(vm != NULL);
+  assert(name != NULL);
+  assert(nameLen > 0);
+  
+  DSValue value;
+
+  vm_set_err(vm, VMERR_SUCCESS);
+
+  if(!ht_get_raw_key(vm->callbacksHT, name, nameLen, &value)) {
+    vm_set_err(vm, VMERR_CALLBACK_NOT_EXIST);
+    return -1;
+  }
+
+  return value.intVal;
+}
+
+/* gets number of callbacks */
+int vm_num_callbacks(VM * vm) {
+  assert(vm != NULL);
+
+  vm_set_err(vm, VMERR_SUCCESS);
+
+  return vm->numCallbacks;
 }
 
 bool vm_exec(VM * vm, char * byteCode, 
@@ -238,6 +346,9 @@ VMErr vm_get_err(VM * vm) {
 }
 
 void vm_free(VM * vm) {
+
+  assert(vm != NULL);
+
   if(vm->opStk != NULL) {
     void * value;
     VarType type;
@@ -255,6 +366,14 @@ void vm_free(VM * vm) {
   if(vm->frmStk != NULL) {
     /* TODO: Free strings in frmstk */
     frmstk_free(vm->frmStk);
+  }
+
+  if(vm->callbacksHT != NULL) {
+    ht_free(vm->callbacksHT);
+  }
+
+  if(vm->callbacks) {
+    free(vm->callbacks);
   }
 
   free(vm);

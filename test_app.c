@@ -79,39 +79,32 @@ int main() {
 */
 
 bool test(VM * vm, VMArg * arg, int argc) {
-  printf("Test!");
+  printf("\n\n\nNumArgs: %i\n", argc);
+  printf("String: %p\n", arg[0].data);
   return true;
 }
 
 /* VM Test code */
 int main() {
-  VM * vm = vm_new(10000000);
-  char foo[45];
-  double d = 6;
-  double q = 0;
-  int a = 0, b = 0;
-  bool r;
-  VarType type;
-  VMCallback vc;
+  char code[200];
+  int index = 0;
+  VM * vm = vm_new(10000000, 24);
+  printf("To storage: %p\n", test);
+  printf("Register Succeed: %i\n", vm_reg_callback(vm, "Hello", 5, test));
+  printf("VM Err: %i\n", vm_get_err(vm));
+  printf("VM # functions: %i\n", vm_num_callbacks(vm));
 
-  foo[0] = OP_CALL_PTR_N;
-  foo[1] = 0;
+  code [0] = OP_STR_PUSH;
+  code [1] = 2;
+  code [2] = 'H';
+  code [3] = 'i';
+  code [4] = OP_CALL_PTR_N;
+  code [5] = 1;
+
+  memcpy(code + 6, &index, sizeof(int));
   
-  printf("Actual Pointer: %p", &test);
-  memcpy(foo, &test, sizeof(VMCallback));
-  memcpy(&vc, test, sizeof(VMCallback));
-  /*vc = &test;*/
-  printf("Extracted: %p", vc);
-  /*  (*vc)(NULL,NULL,0); */
-
-  printf("Success: %i\n", vm_exec(vm, foo, 10, 0));
-  printf("Stack Depth: %i\n", typestk_size(vm->opStk));
-  printf("Error: %i\n", vm_get_err(vm));
-
-
-  /*typestk_peek(vm->opStk, &b, sizeof(int), &type);*/
-  /*printf("Output Value: %i ", b);*/
-
+  printf("VM EXEC: %i", vm_exec(vm, code, 10, 0));
+  
   vm_free(vm);
   return 0;
 }

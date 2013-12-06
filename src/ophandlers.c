@@ -572,6 +572,8 @@ bool op_var_stor(VM * vm, char * byteCode,
       return false;
     }
 
+    printf("string ptr: %p", string);
+
     /* push new string */
     strncpy(string, byteCode + *index, strLen);
     if(!typestk_push(vm->opStk, &string, sizeof(char*), TYPE_STRING)) {
@@ -658,14 +660,16 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_call_ptr_n(VM * vm, char * byteCode, 
-			 size_t byteCodeLen, int * index) {
+bool op_call_ptr_n(VM * vm, char * byteCode, 
+		   size_t byteCodeLen, int * index) {
 
   char numArgs = 0;
+  int callbackIndex, i;
+  VMArg args[VM_MAX_NARGS];
   VMCallback callback;
 
   /* handle not enough bytes in bytecode error case */
-  if((byteCodeLen - *index) < 9) {
+  if((byteCodeLen - *index) < (sizeof(char) + sizeof(int))) {
     vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
     return false;
   }
@@ -673,18 +677,43 @@ bool op_var_stor(VM * vm, char * byteCode,
   numArgs = byteCode[++(*index)];
   (*index)++;
 
+  /* copy callback pointer index from the bytecode */
+  memcpy(&callbackIndex, byteCode + *index, sizeof(int));
+  printf("Index: %i", *index);
+  *index += sizeof(void*);
+
   /* handle invalid number of args case*/
   /* TODO: check signedness of char...this might be unneccessary */
-  if(numArgs < 0) {
+  if(numArgs < 0 || callbackIndex < 0) {
     vm_set_err(vm, VMERR_INVALID_PARAM);
     return false;
   }
 
-  memcpy(&callback, byteCode + *index, sizeof(void*));
-  printf("Index: %i", *index);
-  *index += sizeof(void*);
+  /* lookup callback function pointer */
+  callback = vm_callback_from_index(vm, callbackIndex);
+  
+  /* verify callback function */
+  if(callback == NULL) {
+    vm_set_err(vm, VMERR_CALLBACK_NOT_EXIST);
+    return false;
+  }
 
-  printf("Stored Pointer: %i", callback);
+  /* check there are enough items on stack for args array */
+  if(typestk_size(vm->opStk) < numArgs) {
+    vm_set_err(vm, VMERR_STACK_EMPTY);
+    return false;
+  }
+
+  /* create array of arguments */
+  for(i = 0; i < numArgs; i++) {
+    printf("Pop Success: %i\n", 
+	   typestk_pop(vm->opStk, &args[i].data, VM_VAR_SIZE, &args[i].type));
+  }
+
+  /* call the callback function */
+  (*callback)(vm, args, numArgs);
+
+  printf("Stored Pointer: %p\n", callback);
   
   return true;
 }
