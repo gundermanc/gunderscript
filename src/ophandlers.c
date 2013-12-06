@@ -59,7 +59,7 @@ bool op_var_stor(VM * vm, char * byteCode,
     char data[VM_VAR_SIZE];
     VarType type;
 
-    *index += 1;
+    (*index)++;
 
     /* handle empty op stack error case */
     if(!(typestk_size(vm->opStk) > 0)) {
@@ -103,7 +103,7 @@ bool op_var_push(VM * vm,  char * byteCode,
     char data[VM_VAR_SIZE];
     VarType type;
 
-    *index += 1;
+    (*index)++;
 
      /* handle empty frame stack error case */
     if(!(frmstk_size(vm->frmStk) > 0)) {
@@ -146,9 +146,9 @@ bool op_frame_push(VM * vm,  char * byteCode,
     /* advance index to varargs number byte */
     char numVarArgs = 0;
 
-    *index += 1;
+    (*index)++;
     numVarArgs = byteCode[*index];
-    *index += 1;
+    (*index)++;
 
     /* push new frame with current index as return val */
     if(frmstk_push(vm->frmStk, *index, numVarArgs)) {
@@ -167,7 +167,7 @@ bool op_frame_push(VM * vm,  char * byteCode,
   /* push new frame with current index as return val */
   if(frmstk_pop(vm->frmStk)) {
     printf("Popped!");
-    *index += 1;
+    (*index)++;
     return true;
   }
 
@@ -191,7 +191,7 @@ bool op_frame_push(VM * vm,  char * byteCode,
     VarType type2;
     char * newString;
 
-    *index += 1;
+    (*index)++;
 
     /* pop topmost two strings */
     typestk_pop(vm->opStk, &string1, sizeof(char*), &type1);
@@ -565,7 +565,7 @@ bool op_num_push(VM * vm,  char * byteCode,
   if((byteCodeLen - *index) >= sizeof(double)) {
     double value;
 
-    *index += 1;
+    (*index)++;
     memcpy(&value, byteCode + *index, sizeof(double));
 
     if(!typestk_push(vm->opStk, &value, sizeof(double), TYPE_NUMBER)) {
@@ -594,7 +594,7 @@ bool op_pop(VM * vm,  char * byteCode,
     VarType type;
 
     typestk_pop(vm->opStk, &value, sizeof(char*), &type);
-    *index += 1;
+    (*index)++;
 
     if(type == TYPE_STRING) {
       free(value);
@@ -615,11 +615,11 @@ bool op_pop(VM * vm,  char * byteCode,
   if((byteCodeLen - *index) >= 1) {
     bool value;
 
-    *index += 1;
+    (*index)++;
 
     value = byteCode[*index];
 
-    *index += 1;
+    (*index)++;
 
     /* check if value is true or false */
     if(value != OP_TRUE && value != OP_FALSE) {
@@ -654,9 +654,9 @@ bool op_str_push(VM * vm, char * byteCode,
     char strLen;
     char * string;
 
-    *index += 1;
+    (*index)++;
     strLen = byteCode[*index];
-    *index += 1;
+    (*index)++;
 
     printf("String len: %i\n", strLen);
 
@@ -702,7 +702,7 @@ bool op_not(VM * vm, char * byteCode,
 
     value = !value;
 
-    *index += 1;
+    (*index)++;
 
     if(typestk_push(vm->opStk, &value, sizeof(bool), type)) {
       return true;
@@ -732,7 +732,7 @@ bool op_cond_goto(VM * vm, char * byteCode,
 
     typestk_pop(vm->opStk, &value, sizeof(bool), &type);
 
-    *index += 1;
+    (*index)++;
 
     /* make sure top item in stack was a boolean */
     if(type != TYPE_BOOLEAN) {
