@@ -7,6 +7,9 @@ features and collapsing of function descriptions.
 Read Project Information Sections for description of project, its goals, and
 basic implementation details.
 
+NOTE: Now that project construction has started, this document is not up-to-date
+however, it is still useful for seeing the general idea behind the design.
+
 * Project Information
 ** Project Requirements
    Below are listed the basic parameters and features that are anticipated to be in
@@ -99,14 +102,14 @@ GunderScript Application Blueprints and Layout
     * Description
     *
     * This program is free software: you can redistribute it and/or modify
-    * it under the terms of the GNU General Public License as published by
+    * it under the terms of the GNU Lesser General Public License as published by
     * the Free Software Foundation, either version 3 of the License, or
     * (at your option) any later version.
     *
     * This program is distributed in the hope that it will be useful,
     * but WITHOUT ANY WARRANTY; without even the implied warranty of
     * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    * GNU General Public License for more details.
+    * GNU Lesser General Public License for more details.
     *
     * You should have received a copy of the GNU General Public License
     * along with this program.  If not, see <http://www.gnu.org/licenses/>.
