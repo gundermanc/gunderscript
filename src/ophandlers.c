@@ -32,6 +32,23 @@
 #define OP_TRUE             1
 #define OP_FALSE            0
 
+/**
+ * All OP functions have more or less the same arguments. To save space
+ * commenting, they are all commented here:
+ * vm: An instance of the virtual machine.
+ * byteCode: a char array containing the raw bytecode.
+ * byteCodeLen: the number of bytes/chars in the char array.
+ * index: a pointer to the current index value. Must be dereferenced before
+ * use. Below each function comment is a diagram of the intended usage of the
+ * associated OP code. It is in the format:
+ * OPCODE [data:number_of_bytes] [next_data:number_of_bytes] ....
+ */
+
+/**
+ * Handles OP_VAR_STOR opcode. Stores the top value from the op stack in the
+ * frmstk at the specified stack depth and the specified index.
+ * OP_VAR_STOR [stack_depth:1] [arg_index: 1]
+ */
 bool op_var_stor(VM * vm, char * byteCode, 
 		   size_t byteCodeLen, int * index) {
 
@@ -72,7 +89,12 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_var_push(VM * vm,  char * byteCode, 
+/**
+ * Reads a variable from the specified stack frame depth and index and pushes
+ * it into the op stack.
+ * OP_VAR_PUSH [stack_depth:1] [arg_index:1]
+ */
+bool op_var_push(VM * vm,  char * byteCode, 
 			size_t byteCodeLen, int * index) {
   /* check that there are enough tokens in the input */
   if((byteCodeLen - *index) >= 2) {
@@ -110,14 +132,19 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_frame_push(VM * vm,  char * byteCode, 
+/**
+ * Pushes a frame onto the frame stack. This operation is used at the start
+ * of each function, logical block to enforce a change in scope.
+ * OP_FRM_PUSH [number_of_vars_and_args:1]
+ */
+bool op_frame_push(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
 
   /* check there is at least one byte left for the number of varargs */
   if((byteCodeLen - *index) > 0) {
 
     /* advance index to varargs number byte */
-    uint8_t numVarArgs = 0;
+    char numVarArgs = 0;
 
     *index += 1;
     numVarArgs = byteCode[*index];
@@ -148,7 +175,12 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
-/* concats a string */
+/**
+ * Adds two numeric values, concats two strings, or appends a number to the end
+ * of a string. Operates on previous two values on the OP stack, pops both, and
+ * pushes result.
+ * OP_ADD
+ */
  bool op_add(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
 
@@ -195,6 +227,10 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
+/**
+ * Pops previous two values on the OP stack, subtracts them and pushes result.
+ * OP_SUB
+ */
  bool op_sub(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
   if(typestk_size(vm->opStk) >= 2) {
@@ -220,7 +256,11 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_mul(VM * vm,  char * byteCode, 
+/**
+ * Pops previous two values from OP stack, multiplies them and pushes result.
+ * OP_MUL
+ */
+bool op_mul(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
   if(typestk_size(vm->opStk) >= 2) {
     double value1;
@@ -245,7 +285,11 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_div(VM * vm,  char * byteCode, 
+/**
+ * Pops top two values from OP stack, divides them and pushes result
+ * OP_DIV
+ */
+bool op_div(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
   if(typestk_size(vm->opStk) >= 2) {
     double value1;
@@ -277,8 +321,14 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_mod(VM * vm,  char * byteCode, 
+/**
+ * Pops top two values from OP stack, takes mod of them and pushes
+ * result.
+ * OP_MOD
+ */
+bool op_mod(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
+
   if(typestk_size(vm->opStk) >= 2) {
     double value1;
     double value2;
@@ -310,7 +360,12 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_lt(VM * vm,  char * byteCode, 
+/**
+ * Pops top two values from OP stack and compares them. If first is less than
+ * second, pushes true. Otherwise, pushes false.
+ * OP_LT
+ */
+bool op_lt(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
   if(typestk_size(vm->opStk) >= 2) {
     double value1;
@@ -337,8 +392,14 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_lte(VM * vm,  char * byteCode, 
+/**
+ * Pops top two values from the OP stack, compares them. If the first is less
+ * than or equal to the second, pushes true. Otherwise, pushes false.
+ * OP_LTE
+ */
+bool op_lte(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
+
   if(typestk_size(vm->opStk) >= 2) {
     double value1;
     double value2;
@@ -364,7 +425,12 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_gte(VM * vm,  char * byteCode, 
+/**
+ * Pops top two values from OP stack. If first is greater than or equals to
+ * the second, pushes true. Otherwise, pushes false.
+ * OP_GTE
+ */
+bool op_gte(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
   if(typestk_size(vm->opStk) >= 2) {
     double value1;
@@ -391,8 +457,14 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
+/**
+ * Pops top two values from OP stack. If first is greater than second, pushes
+ * true. Otherwise, pushes false.
+ * OP_GT
+ */
  bool op_gt(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
+
   if(typestk_size(vm->opStk) >= 2) {
     double value1;
     double value2;
@@ -418,7 +490,12 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_equals(VM * vm,  char * byteCode, 
+/**
+ * Pops top two OP stack .values. If they are equal, pushes true. Otherwise,
+ * pushes false.
+ * OP_EQUALS.
+ */
+bool op_equals(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
   if(typestk_size(vm->opStk) >= 2) {
     double value1;
@@ -445,6 +522,11 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
+/**
+ * Pops top two values from OP stack. If they are not equal, pushes true.
+ * Otherwise, pushes false.
+ * OP_NOT_EQUALS
+ */
  bool op_not_equals(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
   if(typestk_size(vm->opStk) >= 2) {
@@ -472,7 +554,11 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_num_push(VM * vm,  char * byteCode, 
+/**
+ * Pushes a number value to the OP stack.
+ * OP_NUM_PUSH [double_number_value:sizeof(double)]
+ */
+bool op_num_push(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
 
   /* check if there are enough bytes left for a double */
@@ -495,7 +581,12 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_pop(VM * vm,  char * byteCode, 
+/**
+ * Pops the top value off of the OP stack. This instruction is used at the end
+ * of each statement to clear the ununsed data off of the stack.
+ * OP_POP
+ */
+bool op_pop(VM * vm,  char * byteCode, 
 	    size_t byteCodeLen, int * index) {
 
   if(typestk_size(vm->opStk) > 0) {
@@ -515,6 +606,10 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
+/**
+ * Pushes a boolean value to the stack. 
+ * OP_BOOL_PUSH [true_or_false:1]
+ */
  bool op_bool_push(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
   if((byteCodeLen - *index) >= 1) {
@@ -544,15 +639,19 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
+/**
+ * Pushes a string to the OP stack.
+ * OP_STR_PUSH [string_length:1] [string_characters:string_length]
+ */
 /* TODO: This whole function seems to have semi-redundant checks.
  * clean up and optimize before file is moved to release candidate.
  */
- bool op_str_push(VM * vm, char * byteCode, 
+bool op_str_push(VM * vm, char * byteCode, 
 		   size_t byteCodeLen, int * index) {
   /* check there is at least one byte left for the string length */
   if((byteCodeLen - *index) > 0) {
 
-    uint8_t strLen;
+    char strLen;
     char * string;
 
     *index += 1;
@@ -589,7 +688,11 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_not(VM * vm, char * byteCode, 
+/**
+ * Pops a boolean value from the top of the OP stack and inverts it.
+ * OP_NOT
+ */
+bool op_not(VM * vm, char * byteCode, 
 		   size_t byteCodeLen, int * index) {
   if(typestk_size(vm->opStk) >= 1) {
     bool value;
@@ -613,8 +716,15 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
- bool op_cond_goto(VM * vm, char * byteCode, 
+/**
+ * Pops top value from OP stack. If true and negGoto is false, or false and
+ * negGoto is true, performs goto operation to specified index in the opcode
+ * buffer. Otherwise, continues to the next instruction without goto-ing.
+ * OP_COND_GOTO [goto_address:sizeof(int)]
+ */
+bool op_cond_goto(VM * vm, char * byteCode, 
 			 size_t byteCodeLen, int * index, bool negGoto) {
+
   if(typestk_size(vm->opStk) >= 1) {
     bool value;
     int addr;
@@ -660,6 +770,12 @@ bool op_var_stor(VM * vm, char * byteCode,
   return false;
 }
 
+/**
+ * Calls the specified native function, using the specified number of values
+ * from the top of the stack as arguments. callback_index is the index where
+ * the desired function is stored in the callbacks array.
+ * OP_CALL_PTR_N [args:1] [callback_index:sizeof(int)]
+ */
 bool op_call_ptr_n(VM * vm, char * byteCode, 
 		   size_t byteCodeLen, int * index) {
 
