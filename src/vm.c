@@ -223,42 +223,20 @@ bool vm_exec(VM * vm, char * byteCode,
       }
       break;
     case OP_SUB:
-      if(!op_sub(vm, byteCode, byteCodeLen, &i)) {
-	return false;
-      }
-      break;
     case OP_MUL:
-      if(!op_mul(vm, byteCode, byteCodeLen, &i)) {
-	return false;
-      }
-      break;
     case OP_DIV:
-      if(!op_div(vm, byteCode, byteCodeLen, &i)) {
-	return false;
-      }
-      break;
     case OP_MOD:
-      if(!op_mod(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_dual_operand_math(vm, byteCode, byteCodeLen, &i, byteCode[i])) {
 	return false;
       }
       break;
     case OP_LT:
-      if(!op_lt(vm, byteCode, byteCodeLen, &i)) {
-	return false;
-      }
-      break;
     case OP_GT:
-      if(!op_gt(vm, byteCode, byteCodeLen, &i)) {
-	return false;
-      }
-      break;
     case OP_LTE:
-      if(!op_lte(vm, byteCode, byteCodeLen, &i)) {
-	return false;
-      }
-      break;
     case OP_GTE:
-      if(!op_gte(vm, byteCode, byteCodeLen, &i)) {
+    case OP_EQUALS:
+    case OP_NOT_EQUALS:
+      if(!op_dual_comparison(vm, byteCode, byteCodeLen, &i, byteCode[i])) {
 	return false;
       }
       break;
@@ -275,11 +253,7 @@ bool vm_exec(VM * vm, char * byteCode,
 	return false;
       }
       break;
-    case OP_EQUALS:
-      if(!op_equals(vm, byteCode, byteCodeLen, &i)) {
-	return false;
-      }
-      break;
+    
     case OP_EXIT:
       printf("Not yet implemented!");
       break;
@@ -311,11 +285,6 @@ bool vm_exec(VM * vm, char * byteCode,
       break;
     case OP_FCOND_GOTO:
       if(!op_cond_goto(vm, byteCode, byteCodeLen, &i, true)) {
-	return false;
-      }
-      break;
-    case OP_NOT_EQUALS:
-      if(!op_not_equals(vm, byteCode, byteCodeLen, &i)) {
 	return false;
       }
       break;

@@ -86,5 +86,14 @@ VMErr vm_get_err(VM * vm);
 
 void vm_free(VM * vm);
 
+VarType vmarg_type(VMArg arg);
+
+char * vmarg_string(VMArg arg);
+
+double vmarg_number(VMArg arg, bool * success);
+
+bool vmarg_boolean(VMArg arg, bool * success);
+
+
 
 #endif /* VM__H__ */

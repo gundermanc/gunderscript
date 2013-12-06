@@ -40,35 +40,11 @@ bool op_frame_pop(VM * vm,  char * byteCode,
 bool op_add(VM * vm,  char * byteCode, 
 	     size_t byteCodeLen, int * index);
 
-bool op_sub(VM * vm,  char * byteCode, 
-	     size_t byteCodeLen, int * index);
+bool op_dual_operand_math(VM * vm,  char * byteCode, 
+			  size_t byteCodeLen, int * index, OpCode code);
 
-bool op_mul(VM * vm,  char * byteCode, 
-	     size_t byteCodeLen, int * index);
-
-bool op_div(VM * vm,  char * byteCode, 
-	     size_t byteCodeLen, int * index);
-
-bool op_mod(VM * vm,  char * byteCode, 
-	     size_t byteCodeLen, int * index);
-
-bool op_lt(VM * vm,  char * byteCode, 
-	    size_t byteCodeLen, int * index);
-
-bool op_lte(VM * vm,  char * byteCode, 
-	     size_t byteCodeLen, int * index);
-
-bool op_gte(VM * vm,  char * byteCode, 
-	     size_t byteCodeLen, int * index);
-
-bool op_gt(VM * vm,  char * byteCode, 
-	    size_t byteCodeLen, int * index);
-
-bool op_equals(VM * vm,  char * byteCode, 
-		size_t byteCodeLen, int * index);
-
-bool op_not_equals(VM * vm,  char * byteCode, 
-		    size_t byteCodeLen, int * index);
+bool op_dual_comparison(VM * vm,  char * byteCode, 
+			size_t byteCodeLen, int * index, OpCode code);
 
 bool op_num_push(VM * vm,  char * byteCode, 
 		  size_t byteCodeLen, int * index);
