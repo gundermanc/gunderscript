@@ -29,6 +29,8 @@
 #include "gsbool.h"
 #include "vmdefs.h"
 
+#define FRMSTK_TOP      0
+
 typedef struct FrameHeader {
   size_t returnAddr;
   int numVarArgs;

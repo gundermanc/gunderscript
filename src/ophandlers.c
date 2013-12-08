@@ -32,6 +32,7 @@
 /* define boolean values used in the op_bool_push function */
 #define OP_TRUE             1
 #define OP_FALSE            0
+#define OP_NO_RETURN        -1
 
 /**
  * All OP functions have more or less the same arguments. To save space
@@ -140,15 +141,21 @@ bool op_var_push(VM * vm,  char * byteCode,
 /**
  * Pushes a frame onto the frame stack. This operation is used at the start
  * of each function, logical block to enforce a change in scope.
+ * functionCall: if true, this frame push acts as a function call instead.
  * OP_FRM_PUSH [number_of_vars_and_args:1]
+ * OP_CALL_B [number_of_vars_and_args:1] [args:1]
+ * args: the number of values to pop from OP stack to treat as arguments.
  */
 bool op_frame_push(VM * vm,  char * byteCode, 
-		   size_t byteCodeLen, int * index) {
+		   size_t byteCodeLen, int * index, bool functionCall) {
 
   char numVarArgs = 0;
+  char args;
+  int i = 0;
 
-  /* check there is at least one byte left for the number of varargs */
-  if((byteCodeLen - *index) <= 0) {
+  /* check there are enough bytes left for the parameters */
+  if((byteCodeLen - *index) < 
+     (functionCall ? (2 * sizeof(char)):((2 * sizeof(char)) + sizeof(int)))) {
     vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
     return false;
   }
@@ -157,10 +164,54 @@ bool op_frame_push(VM * vm,  char * byteCode,
   numVarArgs = byteCode[*index];
   (*index)++;
 
+  /* get number of arguments to pop off of the stack */
+  if(functionCall) {
+    args = byteCode[*index];
+    (*index)++;
+  }
+
   /* push new frame with current index as return val */
-  if(!frmstk_push(vm->frmStk, *index, numVarArgs)) {
+  if(!frmstk_push(vm->frmStk, functionCall ? *index:OP_NO_RETURN, numVarArgs)) {
      vm_set_err(vm, VMERR_STACK_OVERFLOW);
      return false;
+  }
+
+  /* set argument values */
+  if(functionCall) {
+    int addr;
+
+    /* check for enough stack items to do call */
+    if(typestk_size(vm->opStk) < args) {
+      vm_set_err(vm, VMERR_STACK_EMPTY);
+      return false;
+    }
+
+    /* there are more parameters than there is memory allocated in the frame */
+    if(args > numVarArgs) {
+      vm_set_err(vm, VMERR_INVALID_PARAM);
+      return false;
+    }
+
+    /* pop arguments and put them in them in variables on the new frame */
+    for(i = 0; i < args; i++) {
+      char data[VM_VAR_SIZE];
+      VarType type;
+
+      typestk_pop(vm->opStk, &data, VM_VAR_SIZE, &type);
+      frmstk_var_write(vm->frmStk, FRMSTK_TOP, 0, &data, VM_VAR_SIZE, type);
+    }
+
+    /* get goto address */
+    memcpy(&addr, byteCode + *index, sizeof(int));
+
+    /* check address is in valid range */
+    if(addr < 0 || addr > byteCodeLen) {
+      vm_set_err(vm, VMERR_INVALID_ADDR);
+      return false;
+    }
+
+    /* perform goto */
+    *index = addr;
   }
 
   return true;
@@ -385,6 +436,7 @@ bool op_pop(VM * vm,  char * byteCode,
   void * value;
   VarType type;
 
+  printf("Reached.");
   /* check that there is at least one item in the stack to pop */
   if(typestk_size(vm->opStk) <= 0) {
     vm_set_err(vm, VMERR_STACK_EMPTY);
@@ -411,12 +463,11 @@ bool op_bool_push(VM * vm,  char * byteCode,
 
   bool value;
    
+  (*index)++;
   if((byteCodeLen - *index) < 1) {
     vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
     return false;
   }
-
-  (*index)++;
 
   value = byteCode[*index];
 

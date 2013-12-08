@@ -155,7 +155,7 @@ void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
      * we have to typecast to a buffer of unsigned chars (bytes) and do our op
      * in terms of bytes.
      */
-    /* TODO: Do this another way, if possible! */
+    /* TODO: Do this another way, if possible */
     int i;
     unsigned char * buffer = fs->buffer + fs->usedStack - sizeof(FrameHeader);
 
@@ -165,6 +165,7 @@ void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
 					* (VM_VAR_SIZE + typeSize)));
     }
  
+    printf("NumVarArgs: %i\n\n", ((FrameHeader*)buffer)->numVarArgs);
     /* return the pointer to the requested argument in the frame */
     if(varArgsIndex < ((FrameHeader*)buffer)->numVarArgs) {
       return (void*)(buffer - ((VM_VAR_SIZE + typeSize) * varArgsIndex));
@@ -244,7 +245,9 @@ bool frmstk_var_read(FrmStk * fs, int stackDepth, int varArgsIndex,
     if(inPtr != NULL) {
 
       /* read the type byte and store in outType buffer */
-      *outType = *((char*)inPtr);
+      if(outType != NULL) {
+	*outType = *((char*)inPtr);
+      }
 
       /* advance pointer past type byte and write data */
       inPtr = (char*)inPtr + 1;

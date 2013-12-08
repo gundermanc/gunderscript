@@ -83,27 +83,46 @@ bool test(VM * vm, VMArg * arg, int argc) {
   return true;
 }
 
-/* VM Test code */
+/* VM Test code */ /*
 int main() {
+  long b = 0;
   char code[200];
-  int index = 0;
+  int index = 11;
   VM * vm = vm_new(10000000, 24);
-  printf("To storage: %p\n", test);
-  printf("Register Succeed: %i\n", vm_reg_callback(vm, "Hello", 5, test));
-  printf("VM Err: %i\n", vm_get_err(vm));
-  printf("VM # functions: %i\n", vm_num_callbacks(vm));
 
-  code [0] = OP_STR_PUSH;
-  code [1] = 2;
-  code [2] = 'H';
-  code [3] = 'i';
-  code [4] = OP_CALL_PTR_N;
+  code[0] = OP_BOOL_PUSH;
+  code[1] = 1;
+  code[2] = OP_BOOL_PUSH;
+  code[3] = 0;
+  code[4] = OP_CALL_B;
   code [5] = 1;
+  code [6] = 1;
 
-  memcpy(code + 6, &index, sizeof(int));
-  
-  printf("VM EXEC: %i", vm_exec(vm, code, 10, 0));
-  
+  memcpy(code + 7, &index, sizeof(int));
+  code[11] = OP_POP;
+
+  printf("VM Success: %i\n", vm_exec(vm, code, 12, 0));
+  printf("StackDepth: %i\n", typestk_size(vm->opStk)); 
+  printf("FrmStackDepth: %i\n", frmstk_size(vm->frmStk));
+  printf("VM ERR index: %i\n", vm->index);
+  printf("VM ERR: %i\n", vm_get_err(vm));
+
+  printf("Read success: %i\n", 
+	 frmstk_var_read(vm->frmStk, 0, 0, &b, VM_VAR_SIZE, NULL));
+  printf("Stored: %i", b);
   vm_free(vm);
+  return 0;
+}
+*/
+
+int main() {
+  FrmStk * fs;
+  double d = 3;
+  double q;
+  fs = frmstk_new(2000);
+  frmstk_push(fs, 12, 1);
+  printf("Write Success: %i", frmstk_var_write(fs, 0, 0, &d, sizeof(double), 100));
+
+  frmstk_var_read(fs, 0, 0, &d, sizeof(double), NULL);
   return 0;
 }
