@@ -240,7 +240,6 @@ bool op_add(VM * vm,  char * byteCode,
 /**
  * Pops previous two values on the OP stack, performs the requested math
  * operation and pushes the result.
- * OP_SUB
  */
 bool op_dual_operand_math(VM * vm,  char * byteCode, 
 			  size_t byteCodeLen, int * index, OpCode code) {
@@ -273,7 +272,7 @@ bool op_dual_operand_math(VM * vm,  char * byteCode,
     value1 *= value2;
     break;
   case OP_DIV:
-    value1 -= value2;
+    value1 /= value2;
     break;
   case OP_MOD:
     /* TODO: fix linker issue. */
