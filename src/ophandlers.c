@@ -198,7 +198,7 @@ bool op_frame_push(VM * vm,  char * byteCode,
       VarType type;
 
       typestk_pop(vm->opStk, &data, VM_VAR_SIZE, &type);
-      frmstk_var_write(vm->frmStk, FRMSTK_TOP, 0, &data, VM_VAR_SIZE, type);
+      frmstk_var_write(vm->frmStk, FRMSTK_TOP, i, &data, VM_VAR_SIZE, type);
     }
 
     /* get goto address */

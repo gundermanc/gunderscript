@@ -83,20 +83,20 @@ bool test(VM * vm, VMArg * arg, int argc) {
   return true;
 }
 
-/* VM Test code */ /*
+/* VM Test code */
 int main() {
-  long b = 0;
+  long b;
   char code[200];
   int index = 11;
   VM * vm = vm_new(10000000, 24);
 
   code[0] = OP_BOOL_PUSH;
-  code[1] = 1;
+  code[1] = 0;
   code[2] = OP_BOOL_PUSH;
   code[3] = 0;
   code[4] = OP_CALL_B;
-  code [5] = 1;
-  code [6] = 1;
+  code [5] = 2;
+  code [6] = 2;
 
   memcpy(code + 7, &index, sizeof(int));
   code[11] = OP_POP;
@@ -108,21 +108,8 @@ int main() {
   printf("VM ERR: %i\n", vm_get_err(vm));
 
   printf("Read success: %i\n", 
-	 frmstk_var_read(vm->frmStk, 0, 0, &b, VM_VAR_SIZE, NULL));
+	 frmstk_var_read(vm->frmStk, 0, 1, &b, sizeof(bool), NULL));
   printf("Stored: %i", b);
   vm_free(vm);
-  return 0;
-}
-*/
-
-int main() {
-  FrmStk * fs;
-  double d = 3;
-  double q;
-  fs = frmstk_new(2000);
-  frmstk_push(fs, 12, 1);
-  printf("Write Success: %i", frmstk_var_write(fs, 0, 0, &d, sizeof(double), 100));
-
-  frmstk_var_read(fs, 0, 0, &d, sizeof(double), NULL);
   return 0;
 }
