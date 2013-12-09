@@ -72,7 +72,7 @@ as a plugin system.
 
 COMPLETION STATUS:
 C-Datastructs and Hashtable -- c-datastructs/ -- 100%
-VM Stack Frame Stack -- frmstk.c -- 100%
+VM Stack Frame Stack -- frmstk.c -- 90% **FOUND A NEW BUG IN THIS**
 Lexer for Compiler -- lexer.c -- 100%
 Type Aware Stack -- typestk.c -- 100%
 Virtual Machine Object -- vm.c -- 90%
