@@ -63,6 +63,7 @@ struct VM {
   HT * callbacksHT;
   int callbacksSize;
   int numCallbacks;
+  int index;
   VMErr err;
 };
 

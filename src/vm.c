@@ -226,39 +226,40 @@ int vm_num_callbacks(VM * vm) {
  */
 bool vm_exec(VM * vm, char * byteCode, 
 	     size_t byteCodeLen, int startIndex) {
-  int i = startIndex;
 
   assert(vm != NULL);
   assert(startIndex >= 0);
   assert(startIndex < byteCodeLen);
 
-  while(i < byteCodeLen) {
+  vm->index = startIndex;
+
+  while(vm->index < byteCodeLen) {
 
     vm_set_err(vm, VMERR_SUCCESS);
 
-    switch(byteCode[i]) {
+    switch(byteCode[vm->index]) {
     case OP_VAR_PUSH:
-      if(!op_var_push(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_var_push(vm, byteCode, byteCodeLen, &vm->index)) {
 	return false;
       }
       break;
     case OP_VAR_STOR:
-      if(!op_var_stor(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_var_stor(vm, byteCode, byteCodeLen, &vm->index)) {
 	return false;
       }
       break;
     case OP_FRM_PUSH:
-      if(!op_frame_push(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_frame_push(vm, byteCode, byteCodeLen, &vm->index, false)) {
 	return false;
       }
       break;
     case OP_FRM_POP:
-      if(!op_frame_pop(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_frame_pop(vm, byteCode, byteCodeLen, &vm->index)) {
 	return false;
       }
       break;
     case OP_ADD:
-      if(!op_add(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_add(vm, byteCode, byteCodeLen, &vm->index)) {
 	return false;
       }
       break;
@@ -266,7 +267,8 @@ bool vm_exec(VM * vm, char * byteCode,
     case OP_MUL:
     case OP_DIV:
     case OP_MOD:
-      if(!op_dual_operand_math(vm, byteCode, byteCodeLen, &i, byteCode[i])) {
+      if(!op_dual_operand_math(vm, byteCode, byteCodeLen, &vm->index,
+			       byteCode[vm->index])) {
 	return false;
       }
       break;
@@ -276,7 +278,8 @@ bool vm_exec(VM * vm, char * byteCode,
     case OP_GTE:
     case OP_EQUALS:
     case OP_NOT_EQUALS:
-      if(!op_dual_comparison(vm, byteCode, byteCodeLen, &i, byteCode[i])) {
+      if(!op_dual_comparison(vm, byteCode, byteCodeLen,
+			     &vm->index, byteCode[vm->index])) {
 	return false;
       }
       break;
@@ -284,12 +287,12 @@ bool vm_exec(VM * vm, char * byteCode,
       printf("Not yet implemented!");
       break;
     case OP_BOOL_PUSH:
-      if(!op_bool_push(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_bool_push(vm, byteCode, byteCodeLen, &vm->index)) {
 	return false;
       }
       break;
     case OP_NUM_PUSH:
-      if(!op_num_push(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_num_push(vm, byteCode, byteCodeLen, &vm->index)) {
 	return false;
       }
       break;
@@ -298,7 +301,7 @@ bool vm_exec(VM * vm, char * byteCode,
       printf("Not yet implemented!");
       break;
     case OP_STR_PUSH:
-      if(!op_str_push(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_str_push(vm, byteCode, byteCodeLen, &vm->index)) {
 	return false;
       }
       break;
@@ -306,35 +309,37 @@ bool vm_exec(VM * vm, char * byteCode,
       printf("Not yet implemented!");
       break;
     case OP_CALL_PTR_N:
-      if(!op_call_ptr_n(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_call_ptr_n(vm, byteCode, byteCodeLen, &vm->index)) {
 	return false;
       }
       break;
     case OP_CALL_B:
-      printf("Not yet implemented!");
+      if(!op_frame_push(vm, byteCode, byteCodeLen, &vm->index, true)) {
+	return false;
+      }
       break;
     case OP_NOT:
-      if(!op_not(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_not(vm, byteCode, byteCodeLen, &vm->index)) {
 	return false;
       }
       break;
     case OP_TCOND_GOTO:
-      if(!op_cond_goto(vm, byteCode, byteCodeLen, &i, false)) {
+      if(!op_cond_goto(vm, byteCode, byteCodeLen, &vm->index, false)) {
 	return false;
       }
       break;
     case OP_FCOND_GOTO:
-      if(!op_cond_goto(vm, byteCode, byteCodeLen, &i, true)) {
+      if(!op_cond_goto(vm, byteCode, byteCodeLen, &vm->index, true)) {
 	return false;
       }
       break;
     case OP_POP:
-      if(!op_pop(vm, byteCode, byteCodeLen, &i)) {
+      if(!op_pop(vm, byteCode, byteCodeLen, &vm->index)) {
 	return false;
       }
       break;
     default:
-      printf("Invalid OpCode at Index: %i\n", i);
+      printf("Invalid OpCode at Index: %i\n", vm->index);
       vm_set_err(vm, VMERR_INVALID_OPCODE);
       return false;
     }
