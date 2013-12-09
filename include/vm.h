@@ -70,7 +70,7 @@ struct VM {
 VM * vm_new(size_t stackSize, int callbacksSize);
 
 bool vm_exec(VM * vm, char * byteCode,
-	     size_t byteCodeLen, size_t startIndex);
+	     size_t byteCodeLen, int startIndex);
 
 bool vm_reg_callback(VM * vm, char * name, size_t nameLen, VMCallback callback);
 
