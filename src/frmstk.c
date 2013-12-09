@@ -15,7 +15,8 @@
  * in size. Obviously, this implementation means that all variables require
  * 64 bits to be stored. This is because x86_64 pointers and doubles are both
  * 64 bits in length. Unfortunately, this means that Booleans also take up
- * 64 bits. We trade memory for constant time lookup.
+ * 64 bits. We trade memory for constant time lookup, and NEVER having to do
+ * allocation in our programs, since all stack is preallocated.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -166,9 +167,13 @@ void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
     }
  
     printf("NumVarArgs: %i\n\n", ((FrameHeader*)buffer)->numVarArgs);
-    /* return the pointer to the requested argument in the frame */
+    /* now we have the address of the HEADER of the frame at the desired depth.
+     * to get the argument, we have to subtract the size of each argument for
+     * each level of depth, plus one, since we start at the header. The first
+     * one gets us off of the header and into the memory between frame headers.
+     */
     if(varArgsIndex < ((FrameHeader*)buffer)->numVarArgs) {
-      return (void*)(buffer - ((VM_VAR_SIZE + typeSize) * varArgsIndex));
+      return (void*)(buffer - ((VM_VAR_SIZE + typeSize) * (varArgsIndex + 1)));
     }
   }
 
