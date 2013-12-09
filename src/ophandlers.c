@@ -32,7 +32,7 @@
 /* define boolean values used in the op_bool_push function */
 #define OP_TRUE             1
 #define OP_FALSE            0
-#define OP_NO_RETURN        -1
+#define OP_NO_RETURN       -1
 
 /**
  * All OP functions have more or less the same arguments. To save space

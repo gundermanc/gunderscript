@@ -410,6 +410,22 @@ void vm_free(VM * vm) {
 }
 
 /**
+ * Gets the bytecode index at which the code exited. This function can be used
+ * to get the approximate location at which an error occurred in the code. 
+ * Please Note: this method returns the code execution index, which is the place
+ * at which the VM last read bytes. These bytes are not neccessary VM opcodes,
+ * but may in fact be parameters to another OP code.
+ * vm: a virtual machine instance.
+ * returns: the index in the bytecode at which the execution with vm_exec()
+ * stopped.
+ */
+int vm_exit_index(VM * vm) {
+  assert(vm != NULL);
+
+  return vm->index;
+}
+
+/**
  * Gets the type of a VMArg.
  */
 VarType vmarg_type(VMArg arg) {

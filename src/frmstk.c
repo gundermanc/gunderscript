@@ -166,7 +166,6 @@ void * frmstk_var_addr(FrmStk * fs, int stackDepth, int varArgsIndex) {
 					* (VM_VAR_SIZE + typeSize)));
     }
  
-    printf("NumVarArgs: %i\n\n", ((FrameHeader*)buffer)->numVarArgs);
     /* now we have the address of the HEADER of the frame at the desired depth.
      * to get the argument, we have to subtract the size of each argument for
      * each level of depth, plus one, since we start at the header. The first

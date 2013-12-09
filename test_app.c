@@ -78,12 +78,13 @@ int main() {
 }
 */
 
+/*
 bool test(VM * vm, VMArg * arg, int argc) {
   printf("String: %s\n", vmarg_string(arg[0]));
   return true;
 }
 
-/* VM Test code */
+VM Test code
 int main() {
   long b;
   char code[200];
@@ -111,5 +112,11 @@ int main() {
 	 frmstk_var_read(vm->frmStk, 0, 1, &b, sizeof(bool), NULL));
   printf("Stored: %i", b);
   vm_free(vm);
+  return 0;
+}
+*/
+
+/* compiler test code */
+int main() {
   return 0;
 }

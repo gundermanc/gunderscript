@@ -29,16 +29,17 @@
 #include "typestk.h"
 #include "ht.h"
 
+/* Virtual Machine error codes */
 typedef enum {
-  VMERR_SUCCESS,
-  VMERR_INVALID_OPCODE,
+  VMERR_SUCCESS,                      /* operation succeeded */
+  VMERR_INVALID_OPCODE,               /* current byte is not an opcode */
   VMERR_STACK_OVERFLOW,               /* overflowed the frmStk */
   VMERR_STACK_EMPTY,                  /* not enough items left in opStk */
   VMERR_ALLOC_FAILED,                 /* an alloc failed */
-  VMERR_UNEXPECTED_END_OF_OPCODES,    
-  VMERR_INVALID_TYPE_IN_OPERATION,
-  VMERR_DIVIDE_BY_ZERO,
-  VMERR_FRMSTK_EMPTY,
+  VMERR_UNEXPECTED_END_OF_OPCODES,    /* expected a param, but no bytes left */
+  VMERR_INVALID_TYPE_IN_OPERATION,    /* item(s) on stack wrong type for oper. */
+  VMERR_DIVIDE_BY_ZERO,               /* OP_DIV tried to divide by zero */
+  VMERR_FRMSTK_EMPTY,                 /* no frames on the frame stack */
   VMERR_FRMSTK_VAR_ACCESS_FAILED,     /* can't alloc or invalid arg index */
   VMERR_INVALID_PARAM,                /* incorrect op code param */
   VMERR_INVALID_ADDR,                 /* address in goto is out of range */
@@ -86,6 +87,8 @@ void vm_set_err(VM * vm, VMErr err);
 VMErr vm_get_err(VM * vm);
 
 void vm_free(VM * vm);
+
+int vm_exit_index(VM * vm);
 
 VarType vmarg_type(VMArg arg);
 
