@@ -209,7 +209,7 @@ officially out of date, but will be left here for reference.
 	  with A-Z, lowercase or capital, and does not contain symbols.
      - Symbol :: (, ), {, }, etc.
      - Operator :: +, -, /, !, %, etc.
-** Parser Object
+** Parser / Compiler Object
 *** Description
     The Parser will follow a recursive parsing model, with separate parsers for
     each set of Token types. Each subparser looks at the current token. If the
@@ -240,7 +240,7 @@ officially out of date, but will be left here for reference.
     - EXPECTED_ARG_DELIM :: Returned if a comma was expected, but was missing.
     - EXPECTED_END_STATEMENT :: Returned if a semicolon was expected, but an
 	 unexpected token was found instead.
-    - END_OF_FILE :: Unexpected end of file.
+    - UNEXPECED_EOF :: Unexpected end of file.
     - SUCCESS :: No error has occurred.
 *** Parse Get Error Method
     Gets the last error encountered by the parser while parsing the script file.
@@ -249,6 +249,7 @@ officially out of date, but will be left here for reference.
     The possible error codes are listed in the Parse Set Error Method Section.
 *** Parse Empty Lines Method
 **** Description
+     DEPRECATED: the lexer fills this purpose now.
      Skips '\n' tokens to get to the real "meat" in the tokens. \n characters
      are only left in allow for single line C style comments.
 **** Pseudo Code
@@ -258,6 +259,7 @@ officially out of date, but will be left here for reference.
 
 *** Parse Comments Method
 **** Description
+     DEPRECATED: the lexer handles this now.
      Second highest priority subparser. Parse comments is responsible for
      skipping across all comments it encounters.
 **** Pseudo Code

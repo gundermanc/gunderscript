@@ -28,6 +28,7 @@
 #include "vm.h"
 #include "vmdefs.h"
 #include "typestk.h"
+#include "compiler.h"
 #include <string.h>
 
 /*
@@ -118,5 +119,7 @@ int main() {
 
 /* compiler test code */
 int main() {
+  Compiler * c = compiler_new();
+  compiler_free(c);
   return 0;
 }

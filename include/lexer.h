@@ -26,6 +26,9 @@
 #include <stdio.h>
 #include "gsbool.h"
 
+#ifndef LEXER__H__
+#define LEXER__H__
+
 /* Lexer Error Codes */
 typedef enum {
   LEXERERR_SUCCESS,
@@ -71,3 +74,5 @@ LexerErr lexer_get_err(Lexer * l);
 int lexer_line_num(Lexer * l);
 
 LexerType lexer_token_type(char * token, size_t len, bool definitive);
+
+#endif /* LEXER__H__*/

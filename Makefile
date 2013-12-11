@@ -39,8 +39,8 @@ testapp: library
 	$(CC) $(CFLAGS) -o testapp test_app.c gunderscript.a $(DATASTRUCTSDIR)/lib.a
 
 # build just the static library
-library: lexer.o frmstk.o vm.o
-	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o
+library: lexer.o frmstk.o vm.o compiler.o
+	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o $(OBJDIR)/compiler.o
 
 # build lexer object
 lexer.o: buildfs $(SRCDIR)/lexer.c
@@ -54,9 +54,13 @@ typestk.o: buildfs $(SRCDIR)/typestk.c
 vm.o: buildfs c-datastructs-build frmstk.o typestk.o ophandlers.o $(SRCDIR)/vm.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/vm.c
 
-# build vm object
+# build ophandlers object
 ophandlers.o: buildfs c-datastructs-build $(SRCDIR)/ophandlers.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/ophandlers.c
+
+# build compiler object
+compiler.o: buildfs c-datastructs-build lexer.o $(SRCDIR)/compiler.c
+	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/compiler.c
 
 # build framestack object
 frmstk.o: buildfs c-datastructs-build $(SRCDIR)/frmstk.c
