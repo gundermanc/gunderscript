@@ -32,6 +32,7 @@
 
 #include "lexer.h"
 #include <string.h>
+#include <assert.h>
 #include "gsbool.h"
 
 /**
@@ -46,15 +47,14 @@ static void finalize_lexer(Lexer * l) {
 
 /**
  * Creates a new lexer object.
- * inputType: an enum value specifying the input source for the lexer. Can be
- * STRING, or FILE.
- * inputFn: If inputType is a String, inputFn must be a string to lex. If
- * inputType is FILE, inputFn must be the path to a file containing input to
- * lex.
- * inputFnLen: The length of inputFn. No hand holding is done here. This value
- * must be a positive value, <= the size of the buffer.
+ * input: The input string to lex.
+ * inputLen: the number of characters in the input buffer.
+ * returns: A new lexer object, or NULL if the 
  */
 Lexer * lexer_new(char * input, size_t inputLen) {
+
+  assert(input != NULL);
+  assert(inputLen > 0);
 
   /* allocate lexer, return NULL if fails */
   Lexer * lexer = calloc(1, sizeof(Lexer));
@@ -64,14 +64,11 @@ Lexer * lexer_new(char * input, size_t inputLen) {
 
   /* create operator set and allocate input storage string and handle failure */
   lexer->input = calloc(inputLen + 1, sizeof(char));
-  if(/*!initialize_operator_set(lexer) ||*/ lexer->input == NULL) {
-
-    /* TODO: this NULL check is here. Make sure it works. */
+  if(lexer->input == NULL) {
     free(lexer);
     return NULL;
   }
 
-  
   strncpy(lexer->input, input, inputLen);
   lexer->inputLen = inputLen;
   lexer->lineNum = 1;
@@ -85,6 +82,8 @@ Lexer * lexer_new(char * input, size_t inputLen) {
  * l: the lexer object to free.
  */ 
 void lexer_free(Lexer * l) {
+  assert(l != NULL);
+
   free(l->input);
   free(l);
 }
@@ -251,7 +250,7 @@ static bool next_parse_comments(Lexer * l) {
  * returns: true if the first character the lexer encountered was a quotation
  * mark, and false if not.
  */
-bool next_parse_strings(Lexer * l) {
+static bool next_parse_strings(Lexer * l) {
 
   /* this is the beginning of a string */
   if(next_char(l) == '"') {
@@ -479,6 +478,9 @@ static bool next_parse_endstatement(Lexer * l) {
  */
 char * lexer_next(Lexer * l, size_t * len) {
 
+  assert(l != NULL);
+  assert(len != NULL);
+
   /* Recursive Descent Parsing Loop:
    * Each iteration, the lexer attempts to handle the current set of characters
    * by feeding the current, previous, and next characters into a sub parser.
@@ -546,6 +548,10 @@ char * lexer_next(Lexer * l, size_t * len) {
  * len parameter to ensure that only the characters from this token are compared.
  */
 char * lexer_current_token(Lexer * l, size_t * len) {
+
+  assert(l != NULL);
+  assert(len != NULL);
+
   *len = l->currTokenLen;
   return l->currToken;
 
@@ -560,6 +566,9 @@ char * lexer_current_token(Lexer * l, size_t * len) {
  * returns: the last error experienced by lexer_next().
  */
 LexerErr lexer_get_err(Lexer * l) {
+
+  assert(l != NULL);
+
   return l->err;
 }
 
@@ -570,6 +579,7 @@ LexerErr lexer_get_err(Lexer * l) {
  * returns: line number of current token.
  */
 int lexer_line_num(Lexer * l) {
+  assert(l != NULL);
   return l->lineNum;
 }
 
@@ -728,6 +738,9 @@ static bool is_valid_keyvar(char * input, size_t len, bool definitive) {
 LexerType lexer_token_type(char * token, size_t len, bool definitive) {
 
   LexerType type = LEXERTYPE_UNKNOWN;
+
+  assert(token != NULL);
+  assert(len > 0);
 
   if(is_valid_string(token, len, definitive)) {
     type = LEXERTYPE_STRING;

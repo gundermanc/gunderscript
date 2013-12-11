@@ -45,7 +45,7 @@ static const float HTLoadFactor = 0.75;
 /* number of bytes in each additional block of the buffer */
 static const int sbBlockSize = 100;
 
-
+/* UNDER CONSTRUCTION */
 
 Compiler * compiler_new() {
   Compiler * compiler = calloc(1, sizeof(Compiler));
@@ -72,6 +72,15 @@ Compiler * compiler_new() {
 
 /* builds a file and adds it to the output buffer */
 bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
+
+  assert(compiler != NULL);
+  assert(input != NULL);
+  assert(inputLen > 0);
+
+  Lexer * lexer = lexer_new(input, inputLen);
+  compiler_set_err(compiler, COMPILERERR_SUCCESS);
+
+  
   
 }
 
