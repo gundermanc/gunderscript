@@ -33,6 +33,8 @@
 #include <assert.h>
 #include "compiler.h"
 #include "lexer.h"
+#include "langkeywords.h"
+#include "vmdefs.h"
 
 /* TODO: make symTableStk auto expand and remove this */
 static const int maxFuncDepth = 100;
@@ -45,7 +47,7 @@ static const float HTLoadFactor = 0.75;
 /* number of bytes in each additional block of the buffer */
 static const int sbBlockSize = 100;
 
-/* UNDER CONSTRUCTION */
+/* !!UNDER CONSTRUCTION!! */
 
 Compiler * compiler_new() {
   Compiler * compiler = calloc(1, sizeof(Compiler));
@@ -70,6 +72,75 @@ Compiler * compiler_new() {
   return compiler;
 }
 
+static bool tokens_equal(char * token1, char * token2, size_t num) {
+  return strncmp(token1, token2, num) == 0;
+}
+
+static CompilerFunc * compilerfunc_new(char * name, size_t nameLen, int index) {
+  CompilerFunc * cf = calloc(1, sizeof(CompilerFunc));
+  if(cf != NULL) {
+    cf->name = calloc(nameLen + 1, sizeof(char));
+    strncpy(cf->name, name, nameLen);
+    cf->index = index;
+  }
+
+  return cf;
+}
+
+static void compilerfunc_free(CompilerFunc * cf) {
+  free(cf->name);
+  free(cf);
+}
+
+static bool build_parse_func_defs(Compiler * c, Lexer * l) {
+
+  /*
+   * A Function definition looks like so:
+   *
+   * function [EXPORTED] [NAME] ( [ARGUMENTS] ) {
+   *   [code]
+   * }
+   * 
+   * The code below parses these tokens
+   */
+   
+  bool exported = false;
+  size_t len;
+  LexerType type;
+  char * token = lexer_current_token(l, &type, &len);
+  char * name;
+
+  /* check that this is a function declaration token */
+  if(!tokens_equal(token, LANG_FUNCTION, len)) {
+    return false;
+  }
+
+  /* advance to next token. if is is EXPORTED, take note for later */
+  token = lexer_next(l, &type, &len);
+  if(tokens_equal(token, LANG_EXPORTED, len)) {
+    exported = true;
+    token = lexer_next(l, &type, &len);
+  }
+
+  /* this is the name token, take it down and check for correct type */
+  name = token;
+  if(type != LEXERTYPE_KEYVAR) {
+    c->err = COMPILERERR_EXPECTED_FNAME;
+    return true;
+  }
+
+  /* check for the open parenthesis */
+  token = lexer_next(l, &type, &len);
+  if(!token_equals(token, LANG_OPARENTH, len)) {
+    c->err = COMPILERERR_EXPECTED_OPARENTH;
+    return true;
+  }
+
+  /* make list of arguments */
+  
+  return true;
+}
+
 /* builds a file and adds it to the output buffer */
 bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
 
@@ -78,10 +149,27 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
   assert(inputLen > 0);
 
   Lexer * lexer = lexer_new(input, inputLen);
+  LexerType type;
+  char * token;
+  size_t tokenLen;
+
+  /* check that lexer alloc didn't fail */
+  if(lexer == NULL) {
+    compiler_set_err(compiler, COMPILERERR_ALLOC_FAILED);
+    return false;
+  }
   compiler_set_err(compiler, COMPILERERR_SUCCESS);
 
-  
-  
+  /* compile loop */
+  while((token = lexer_next(lexer, &type, &tokenLen)) != NULL) {
+
+    build_parse_func_defs(compiler, lexer);
+
+  }
+
+
+  /* TODO: Enforce actual return value */
+  return true;
 }
 
 void compiler_set_err(Compiler * compiler, CompilerErr err) {

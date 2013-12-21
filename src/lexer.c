@@ -162,6 +162,18 @@ static int remaining_chars(Lexer * l) {
 }
 
 /**
+ * Checks to make sure outType isn't null and then stored newType
+ * in the buffer pointed to by outType.
+ * outType: pointer to a LexerType that will receive the output.
+ * newType: the value to store in outType.
+ */
+static void set_type(LexerType * outType, LexerType newType) {
+  if(outType != NULL) {
+    *outType = newType;
+  }
+}
+
+/**
  * lexer_next() whitespace subparser.
  * Advances current character index until current contiguous block of whitespace
  * has been passed completed.
@@ -266,6 +278,8 @@ static bool next_parse_strings(Lexer * l) {
 	l->currToken = l->input + beginStrIndex;
 	l->err = LEXERERR_SUCCESS;
 
+	l->currTokenType = LEXERTYPE_STRING;
+
 	/* increment index again to prevent the end quote from being evaluated
 	 * next iteration.
 	 */
@@ -332,6 +346,7 @@ static bool next_parse_keyvars(Lexer * l) {
     l->currTokenLen = (l->index - beginStrIndex);
     l->currToken = l->input + beginStrIndex;
     l->err = LEXERERR_SUCCESS;
+    l->currTokenType = LEXERTYPE_KEYVAR;
 
     return true;
   }
@@ -392,6 +407,7 @@ static bool next_parse_numbers(Lexer * l) {
     l->currTokenLen = (l->index - beginStrIndex);
     l->currToken = l->input + beginStrIndex;
     l->err = LEXERERR_SUCCESS;
+    l->currTokenType = LEXERTYPE_NUMBER;
 
     return true;
   }
@@ -438,6 +454,7 @@ static bool next_parse_operators(Lexer * l) {
     l->currToken = token;
     l->currTokenLen = tokenLen;
     l->err = LEXERERR_SUCCESS;
+    l->currTokenType = LEXERTYPE_OPERATOR;
 
     return true;
   }
@@ -455,6 +472,7 @@ static bool next_parse_endstatement(Lexer * l) {
     l->currToken = l->input + l->index;
     l->currTokenLen = 1;
     l->err = LEXERERR_SUCCESS;
+    l->currTokenType = LEXERTYPE_ENDSTATEMENT;
     advance_char(l);
     return true;
   }
@@ -472,11 +490,12 @@ static bool next_parse_endstatement(Lexer * l) {
  * - Operators: any contiguous blocks of characters that aren't whitespace,
  *              letters, or digits.
  * l: an instance of lexer.
+ * type: the type of the token being returned.
  * len: the length of the string being returned.
  * returns: a string containing the next token. Note: this string is not NULL
  * terminated.
  */
-char * lexer_next(Lexer * l, size_t * len) {
+char * lexer_next(Lexer * l, LexerType * type, size_t * len) {
 
   assert(l != NULL);
   assert(len != NULL);
@@ -495,6 +514,7 @@ char * lexer_next(Lexer * l, size_t * len) {
    */
   while(remaining_chars(l) > 0) {
 
+    l->currTokenType = LEXERTYPE_UNKNOWN;
 
     /* Recursive Descent Chain:
      * I know the McCabe's complexity is CRAZY high, but in this I case, I
@@ -515,18 +535,23 @@ char * lexer_next(Lexer * l, size_t * len) {
       }
     } else if(next_parse_strings(l)) {
       *len = l->currTokenLen;
+      set_type(type, l->currTokenType);
       return l->currToken;
     } else if(next_parse_keyvars(l)){
       *len = l->currTokenLen;
+      set_type(type, l->currTokenType);
       return l->currToken;
     } else if(next_parse_numbers(l)){
       *len = l->currTokenLen;
+      set_type(type, l->currTokenType);
       return l->currToken;
     } else if(next_parse_operators(l)){
       *len = l->currTokenLen;
+      set_type(type, l->currTokenType);
       return l->currToken;
     } else if(next_parse_endstatement(l)) {
       *len = l->currTokenLen;
+      set_type(type, l->currTokenType);
       return l->currToken;
     } else {
 
@@ -542,17 +567,19 @@ char * lexer_next(Lexer * l, size_t * len) {
 /**
  * Gets the token returned by the previous call to lexer_next.
  * l: an instance of lexer.
- * len: the length of the token string.
+ * type: pointer that will receive the type. May be NULL.
+ * len: the length of the token string. Can't be NULL.
  * returns: a string containing the token. Note: this string is not null
  * terminated, but instead requires use of the length provided through the
  * len parameter to ensure that only the characters from this token are compared.
  */
-char * lexer_current_token(Lexer * l, size_t * len) {
+char * lexer_current_token(Lexer * l, LexerType * type, size_t * len) {
 
   assert(l != NULL);
   assert(len != NULL);
 
   *len = l->currTokenLen;
+  set_type(type, l->currTokenType);
   return l->currToken;
 
 }

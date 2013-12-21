@@ -31,16 +31,37 @@
 
 
 typedef enum {
-  COMPILERERR_SUCCESS
+  COMPILERERR_SUCCESS,
+  COMPILERERR_ALLOC_FAILED,
+  COMPILERERR_EXPECTED_FNAME,
+  COMPILERERR_EXPECTED_OPARENTH,
 } CompilerErr;
 
 
+/* a compiler instance type */
 typedef struct Compiler {
-  Stk * symTableStk;
-  HT * functionHT;
-  SB * outBuffer;
-  CompilerErr err;
+  Stk * symTableStk;              /* stack of hashtables of symbol structs */
+  HT * functionHT;                /* hashtable of function structs */
+  SB * outBuffer;                 /* string builder that accepts the output */
+  CompilerErr err;                /* error code value */
 } Compiler;
+
+
+/* a function struct */
+typedef struct CompilerFunc {
+  char * name;                    /* the string name of a function */
+  int index;                      /* the index where the function's 
+				   * bytecode begins */
+} CompilerFunc;
+
+
+Compiler * compiler_new();
+
+bool compiler_build(Compiler * compiler, char * input, size_t inputLen);
+
+void compiler_set_err(Compiler * compiler, CompilerErr err);
+
+CompilerErr compiler_get_err(Compiler * compiler);
 
 void compiler_free(Compiler * compiler);
 

@@ -120,6 +120,8 @@ int main() {
 /* compiler test code */
 int main() {
   Compiler * c = compiler_new();
+  char * foo = "hello pet how";
+  compiler_build(c, foo, strlen(foo));
   compiler_free(c);
   return 0;
 }
