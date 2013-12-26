@@ -29,18 +29,28 @@
 #include "ht.h"
 #include "sb.h"
 
-
+/* errors that can occur during compile time */
 typedef enum {
   COMPILERERR_SUCCESS,
   COMPILERERR_ALLOC_FAILED,
   COMPILERERR_EXPECTED_FNAME,
   COMPILERERR_EXPECTED_OPARENTH,
+  COMPILERERR_EXPECTED_VARNAME,
+  COMPILERERR_UNEXPECTED_TOKEN,
+  COMPILERERR_EXPECTED_OBRACKET,
+  COMPILERERR_EXPECTED_CBRACKET,
+  COMPILERERR_PREV_DEFINED_FUNC,
+  COMPILERERR_PREV_DEFINED_VAR,
 } CompilerErr;
 
 
 /* a compiler instance type */
 typedef struct Compiler {
-  Stk * symTableStk;              /* stack of hashtables of symbol structs */
+
+  /* stack of hashtables of symbol structs containing the index at which the
+   * variable will be stored in the frame stack frame in the byte code.
+   */
+  Stk * symTableStk;
   HT * functionHT;                /* hashtable of function structs */
   SB * outBuffer;                 /* string builder that accepts the output */
   CompilerErr err;                /* error code value */
@@ -52,6 +62,7 @@ typedef struct CompilerFunc {
   char * name;                    /* the string name of a function */
   int index;                      /* the index where the function's 
 				   * bytecode begins */
+  int numArgs;                    /* the number of arguments required */
 } CompilerFunc;
 
 

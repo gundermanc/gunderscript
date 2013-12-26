@@ -29,6 +29,7 @@
 #include "vmdefs.h"
 #include "typestk.h"
 #include "compiler.h"
+#include "ht.h"
 #include <string.h>
 
 /*
@@ -120,8 +121,10 @@ int main() {
 /* compiler test code */
 int main() {
   Compiler * c = compiler_new();
-  char * foo = "hello pet how";
+  char * foo = "function exported print(){}";
   compiler_build(c, foo, strlen(foo));
+  printf("FunctionHTSize: %i\n", ht_size(c->functionHT));
+  printf("Compiler Err: %i\n", c->err);
   compiler_free(c);
   return 0;
 }

@@ -30,7 +30,17 @@
 #define LANGKEYWORDS__H__
 
 #define LANG_FUNCTION   "function"
+#define LANG_FUNCTION_LEN 8
 #define LANG_EXPORTED   "exported"
+#define LANG_EXPORTED_LEN 8
 #define LANG_OPARENTH   "("
-
+#define LANG_OPARENTH_LEN 1
+#define LANG_CPARENTH   ")"
+#define LANG_CPARENTH_LEN 1
+#define LANG_ARGDELIM   ","
+#define LANG_ARGDELIM_LEN 1
+#define LANG_OBRACKET   "{"
+#define LANG_OBRACKET_LEN 1
+#define LANG_CBRACKET   "}"
+#define LANG_CBRACKET_LEN 1
 #endif /* LANGKEYWORDS__H__ */
