@@ -427,6 +427,16 @@ static bool is_operator(char c) {
 }
 
 /**
+ * Superficially decides if character is a logical parenthesis (bracket,
+ * parenthesis, or curly brace).
+ * c: the char to check.
+ * returns: true if c is an logical parenthesis, false if not.
+ */
+static bool is_logiparenth(char c) {
+  return c == '{' || c == '}' || c == '(' || c == ')' || c == '[' || c == ']';
+}
+
+/**
  * lexer_next() operators subparser.
  * If current character is an operator char (see is_operator()), function copies
  * current character and all characters following operator that are operators
@@ -458,6 +468,29 @@ static bool next_parse_operators(Lexer * l) {
 
     return true;
   }
+  return false;
+}
+
+/**
+ * lexer_next() logiparenth subparser.
+ * If current character is a logical parenthesis (parenth, bracket, or curly
+ * brace), the current character will be set to the l->currToken pointer, and
+ * l->currTokenLen will be set to the length of the symbol (always 1).
+ * l: an instance of lexer.
+ * returns: true if the current character is a logiparenth and false if not.
+ */
+static bool next_parse_logiparenth(Lexer * l) {
+
+  if(is_logiparenth(next_char(l))) {
+    l->currToken = l->input + l->index;
+    l->currTokenLen = 1;
+    l->currTokenType = LEXERTYPE_LOGIPARENTH;
+    l->err = LEXERERR_SUCCESS;
+    advance_char(l);
+
+    return true;
+  }
+
   return false;
 }
 
@@ -542,6 +575,10 @@ char * lexer_next(Lexer * l, LexerType * type, size_t * len) {
       set_type(type, l->currTokenType);
       return l->currToken;
     } else if(next_parse_numbers(l)){
+      *len = l->currTokenLen;
+      set_type(type, l->currTokenType);
+      return l->currToken;
+    } else if(next_parse_logiparenth(l)) {
       *len = l->currTokenLen;
       set_type(type, l->currTokenType);
       return l->currToken;
