@@ -28,6 +28,12 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+
+/**
+ * The QUALITY of code in THIS DOCUMENT is very low at the moment because it
+ * is a work in progress. Pardon the dust.
+ */
+
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
@@ -343,6 +349,23 @@ static bool func_do_var_defs(Compiler * c, Lexer * l) {
   return true;
 }
 
+/* handles straight code */
+static bool func_body_straight_code(Compiler * c, Lexer * l) {
+  LexerType type;
+  char * token;
+  size_t len;
+
+  token = lexer_current_token(l, &type, &len);
+
+  /* straight code token parse loop */
+  do {
+    
+  } while((token = lexer_next(l, &type, &len)) != NULL);
+
+  /* no errors occurred */
+  return true;
+}
+
 /* does the function body code */
 static bool func_do_body(Compiler * c, Lexer * l) {
   LexerType type;
@@ -507,8 +530,8 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
   char * token;
   size_t tokenLen;
 
-  /* check that lexer alloc didn't fail */
-  if(lexer == NULL) {
+  /* check that lexer alloc didn't fail, and push symtbl for global variables */
+  if(lexer == NULL || !symtblstk_push(compiler)) {
     compiler_set_err(compiler, COMPILERERR_ALLOC_FAILED);
     return false;
   }
@@ -517,10 +540,23 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
   /* compile loop */
   while((token = lexer_next(lexer, &type, &tokenLen)) != NULL) {
 
-    build_parse_func_defs(compiler, lexer);
+    
+    /* TEMPORARILY COMMENTED OUT FOR STRAIGHT CODE PARSER DEVELOPMENT: 
+    if(build_parse_func_defs(compiler, lexer)) {
+      break;
+    } else {
+      func_do_body(compiler, lexer);
+    }
+    */
 
+    /* handle errors */
+    if(compiler->err != COMPILERERR_SUCCESS) {
+      return false;
+    }
   }
 
+  /* we're done here: pop globals symtable */
+  symtbl_free(symtblstk_pop(compiler));
 
   /* TODO: Enforce actual return value */
   return true;
