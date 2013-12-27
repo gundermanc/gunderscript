@@ -138,6 +138,12 @@ static HT * symtblstk_pop(Compiler * c) {
   return value.pointerVal;
 }
 
+static void symtbl_free(HT * symTbl) {
+  assert(symTbl != NULL);
+
+  ht_free(symTbl);
+}
+
 /* TODO: make more sophisticated mechanism */
 static bool is_keyword(char * token, size_t tokenLen) {
   if(tokens_equal(LANG_FUNCTION, LANG_FUNCTION_LEN, token, tokenLen)) {
@@ -247,7 +253,135 @@ static bool func_store_def(Compiler * c, char * name, size_t nameLen, int numArg
   return true;
 }
 
-static bool build_parse_func_defs(Compiler * c, Lexer * l) {
+/* returns true if current token is start of a variable declaration expression */
+static bool var_def(Compiler * c, Lexer * l) {
+  HT * symTbl = symtblstk_peek(c);
+  LexerType type;
+  char * token;
+  size_t len;
+  char * varName;
+  size_t varNameLen;
+  bool prevExisted;
+  DSValue newValue;
+
+  /* get current token cached in the lexer */
+  token = lexer_current_token(l, &type, &len);
+
+  printf("   VAR DEF REACHED. Token: '%s'\n", token);
+  printf("Token Len: %i\n", len);
+  /* make sure next token is a variable decl. keyword, otherwise, return */
+  if(!tokens_equal(LANG_VAR_DECL, LANG_VAR_DECL_LEN, token, len)) {
+    return false;
+  }
+
+  printf("VAR TOKEN PROVIDED.\n");
+  /* check that next token is a keyvar type, neccessary for variable names */
+  varName = lexer_next(l, &type, &varNameLen);
+  if(type != LEXERTYPE_KEYVAR) {
+    c->err = COMPILERERR_EXPECTED_VAR_NAME;
+    return true;
+  }
+
+  /**************************************************************************
+   * TODO: place code for handling variable initialization
+   **************************************************************************/
+
+  /* check for terminating semicolon */
+  token = lexer_next(l, &type, &len);
+  if(type != LEXERTYPE_ENDSTATEMENT) {
+    c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+    return true;
+  }
+  printf("Semicolon providided.\n");
+
+  /* store variable along with index at which its data will be stored in the
+   * frame stack in the virtual machine
+   */
+  newValue.intVal = ht_size(symTbl);
+  if(!ht_put_raw_key(symTbl, varName, varNameLen,
+		     &newValue, NULL, &prevExisted)) {
+    c->err = COMPILERERR_ALLOC_FAILED;
+    return true;
+  }
+
+  printf("Stored in HT: VAR '%s'\n", varName);
+
+  /* check for duplicate var names */
+  if(prevExisted) {
+    c->err = COMPILERERR_PREV_DEFINED_VAR;
+    printf("PREV EXISTED\n");
+    return true;
+  } else {
+    printf("Not PREV EXISTED.\n");
+  }
+
+  return true;
+}
+
+/* performs variable declarations */
+static bool func_do_var_defs(Compiler * c, Lexer * l) {
+  LexerType type;
+  char * token;
+  size_t len;
+ 
+  /* variable declarations look like so:
+   * var [varName];
+   */
+  while((token = lexer_next(l, &type, &len)) != NULL) {
+    printf("func_do_var_defs next token: '%s'\n", token);
+    printf("func_do_var_defs next token len: '%i'\n", len);
+    if(var_def(c, l)) {
+      if(c->err != COMPILERERR_SUCCESS) {
+	return false;
+      }
+    } else {
+      /* no more variables, leave the loop */
+      break;
+    }
+  }
+
+  return true;
+}
+
+/* does the function body code */
+static bool func_do_body(Compiler * c, Lexer * l) {
+  LexerType type;
+  char * token;
+  size_t len;
+
+  token = lexer_current_token(l, &type, &len);
+
+  printf("BODY START TOKEN: '%s'\n", token);
+  printf("BODY START TOKEN LEN: %i\n", len);
+
+  /* handle variable declarations */
+  if(!func_do_var_defs(c, l)) {
+    return false;
+  }
+
+  /* retrieve current token (it was modified by func_do_var_defs */
+  token = lexer_current_token(l, &type, &len);
+
+  printf("Remaining token: %s\n", token);
+
+  /*
+  while((token = lexer_next(l, &type, &len)) != NULL) {
+  
+    if(func_do_var_def(c, l)) {
+      break;
+    } else {
+      printf("UNHANDLED SITUATION\n");
+    }
+
+    if(c->err != COMPILERERR_SUCCESS) {
+      return false;
+    }
+  }
+  */
+  return true;
+}
+
+ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
 
   /*
    * A Function definition looks like so:
@@ -334,10 +468,15 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   if(!func_store_def(c, name, nameLen, numArgs)) {
     return true;
   }
-  token = lexer_next(l, &type, &len);
 
   /****************************** Do function body ****************************/
 
+  if(!func_do_body(c, l)) {
+    return true;
+  }
+
+  /* retrieve current token (it was modified by func_do_body */
+  token = lexer_current_token(l, &type, &len);
 
   /****************************** End function body ***************************/
 
@@ -349,6 +488,9 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   }
 
   printf("Passed last brace. Stored Function.\n");
+
+  /* we're done here! pop the symbol table for this function off the stack. */
+  ht_free(symtblstk_pop(c));
 
   return true;
 }
