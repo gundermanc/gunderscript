@@ -160,7 +160,8 @@ bool typestk_push(TypeStk * stack, void * data, size_t dataSize, VarType type) {
 /**
  * Gets the value at the top of the stack without popping it off.
  * stack: an instance of TypeStk.
- * value: a buffer that will recv. the value contained within.
+ * value: a buffer that will recv. the value contained within. Can be
+ * NULL if you only want the type.
  * valueSize: the number of bytes to copy from the stack slot into
  * the buffer. This value must be greater than 0 and less than or equal
  * to VM_VAR_SIZE. You can use multiple calls to get the type and use it
