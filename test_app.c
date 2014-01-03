@@ -121,10 +121,11 @@ int main() {
 /* compiler test code */
 int main() {
   Compiler * c = compiler_new();
-  char * foo = "function exported print(){ var hello;} function do() { var hello; }";
+  char * foo = "\"Hello\"";
   compiler_build(c, foo, strlen(foo));
   printf("FunctionHTSize: %i\n", ht_size(c->functionHT));
   printf("SymTblStk Size: %i\n", stk_size(c->symTableStk));
+  printf("Output Length: %i\n", sb_size(c->outBuffer));
   printf("Compiler Err: %i\n", c->err);
   compiler_free(c);
   return 0;

@@ -37,11 +37,17 @@
 #include <string.h>
 #include <stdlib.h>
 #include <assert.h>
+#include <limits.h>
 #include "compiler.h"
 #include "lexer.h"
 #include "langkeywords.h"
 #include "vmdefs.h"
+#include "typestk.h"
 
+/* TODO: make STK type auto enlarge and remove */
+static const int initialOpStkDepth = 100;
+/* number of items to add to the op stack on resize */
+static const int opStkBlockSize = 12;
 /* TODO: make symTableStk auto expand and remove this */
 static const int maxFuncDepth = 100;
 /* initial size of all hashtables */
@@ -52,6 +58,8 @@ static const int HTBlockSize = 12;
 static const float HTLoadFactor = 0.75;
 /* number of bytes in each additional block of the buffer */
 static const int sbBlockSize = 100;
+/* max number of digits in a number value */
+static const int numValMaxDigits = 50;
 
 /* !!UNDER CONSTRUCTION!! */
 
@@ -350,16 +358,87 @@ static bool func_do_var_defs(Compiler * c, Lexer * l) {
 }
 
 /* handles straight code */
+/* This is a modified version of Djikstra's "Shunting Yard Algorithm" for
+ * conversion to postfix notation.
+ */
+/* returns false if an error occurred */
+/* TODO: return false for every sb_append* function upon failure */
 static bool func_body_straight_code(Compiler * c, Lexer * l) {
   LexerType type;
   char * token;
   size_t len;
 
+  /* allocate stack for operators, a.k.a. the "side track in shunting yard" */
+  TypeStk * opStk = typestk_new(initialOpStkDepth, opStkBlockSize);
+  if(opStk == NULL) {
+    c->err = COMPILERERR_ALLOC_FAILED;
+    return false;
+  }
+
   token = lexer_current_token(l, &type, &len);
 
   /* straight code token parse loop */
   do {
-    
+
+    /* output values, push operators to stack with precedence so that they can
+     * be postfixed for execution by the VM
+     */
+    switch(type) {
+
+    case LEXERTYPE_NUMBER: {
+      /* Reads a number, converts to double and writes it to output as so:
+       * OP_NUM_PUSH [value as a double]
+       */
+      char rawValue[numValMaxDigits];
+      double value;
+
+      /* get double representation of number
+      /* TODO: length check, and double overflow check */
+      strncpy(rawValue, token, len);
+      value = atof(rawValue);
+
+      printf("Output Number Written: %f\n", value);
+
+      /* write number to output */
+      sb_append_char(c->outBuffer, OP_NUM_PUSH);
+      sb_append_str(c->outBuffer, (char*)(&value), sizeof(value));
+      break;
+    }
+
+    case LEXERTYPE_STRING: {
+      /* Reads a string token and writes it raw to the output as so:
+       * OP_STR_PUSH [strlen as 1 byte value] [string]
+       */
+      char outLen = len;
+
+      /* string length byte has max value of CHAR_MAX. */
+      if(len >= CHAR_MAX) {
+	c->err = COMPILERERR_STRING_TOO_LONG;
+	return false;
+      }
+
+      printf("Output string: %s\n", token);
+
+      /* write output */
+      sb_append_char(c->outBuffer, OP_STR_PUSH);
+      sb_append_char(c->outBuffer, outLen);
+      sb_append_str(c->outBuffer, token, len);
+      break;
+    }
+
+    case LEXERTYPE_OPERATOR: {
+      /* Reads an operator from the lexer and decides whether or not to
+       * place it in the opStk, in accordance with order of operations,
+       * A.K.A. "precedence."
+       */
+      
+    }
+
+    default:
+      c->err = COMPILERERR_UNEXPECTED_TOKEN;
+      printf("Unexpected Straight Code Token: %s\n", token);
+      return false;
+    }
   } while((token = lexer_next(l, &type, &len)) != NULL);
 
   /* no errors occurred */
@@ -548,6 +627,10 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
       func_do_body(compiler, lexer);
     }
     */
+
+    if(!func_body_straight_code(compiler, lexer)) {
+      return false;
+    }
 
     /* handle errors */
     if(compiler->err != COMPILERERR_SUCCESS) {
