@@ -266,7 +266,7 @@ static bool next_parse_strings(Lexer * l) {
 
   /* this is the beginning of a string */
   if(next_char(l) == '"') {
-    int beginStrIndex = l->index;
+    int beginStrIndex = l->index + 1;
 
     /* add characters to the string */
     l->index++;
@@ -274,7 +274,8 @@ static bool next_parse_strings(Lexer * l) {
 
       /* encountered end of string, return it along with the quotes*/
       if(next_char(l) == '"' && prev_char(l) != '\\') {
-	l->currTokenLen = (l->index - beginStrIndex) + 1;
+	l->currTokenLen = (l->index - beginStrIndex);
+	printf("TOKEN LEN: %i\n", l->currTokenLen);
 	l->currToken = l->input + beginStrIndex;
 	l->err = LEXERERR_SUCCESS;
 
