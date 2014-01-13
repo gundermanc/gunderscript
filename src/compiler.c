@@ -357,6 +357,37 @@ static bool func_do_var_defs(Compiler * c, Lexer * l) {
   return true;
 }
 
+/* place holder for a function that gets the precedence of an operator */
+/* TODO: reimplement using a hash set for efficiency
+ */
+static int operator_precedence(char * operator, size_t operatorLen) {
+
+  if(operatorLen == 1) {
+    switch(operator[0]) {
+    case '*':
+    case '/':
+      return 2;
+    }
+  } else {
+
+  }
+
+  return 1;
+}
+
+/* gets the precedence of the operator at the top of the stack */
+static int topstack_precedence(TypeStk * stk) {
+
+  VarType type;
+
+  /* get item precedence. if stack is empty, make it 0. */
+  if(!typestk_peek(stk, NULL, 0, &type)) {
+    return 0;
+  }
+
+  return type;
+}
+
 /* handles straight code */
 /* This is a modified version of Djikstra's "Shunting Yard Algorithm" for
  * conversion to postfix notation.
@@ -369,7 +400,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   size_t len;
 
   /* allocate stack for operators, a.k.a. the "side track in shunting yard" */
-  TypeStk * opStk = typestk_new(initialOpStkDepth, opStkBlockSize);
+  TypeStk * opStk = typestk_new(initialOpStkDepth, opStkB);
   if(opStk == NULL) {
     c->err = COMPILERERR_ALLOC_FAILED;
     return false;
@@ -379,6 +410,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 
   /* straight code token parse loop */
   do {
+    bool popAfterNextVal = true;
 
     /* output values, push operators to stack with precedence so that they can
      * be postfixed for execution by the VM
@@ -431,7 +463,8 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
        * place it in the opStk, in accordance with order of operations,
        * A.K.A. "precedence."
        */
-      
+
+      if(operator_precedence(token, len) <= 
     }
 
     default:
