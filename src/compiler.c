@@ -376,16 +376,42 @@ static int operator_precedence(char * operator, size_t operatorLen) {
 }
 
 /* gets the precedence of the operator at the top of the stack */
-static int topstack_precedence(TypeStk * stk) {
+static int topstack_precedence(Stk * stk, Stk * lenStk) {
 
-  VarType type;
+  DSValue value;
+  char * token;
+  size_t len;
 
-  /* get item precedence. if stack is empty, make it 0. */
-  if(!typestk_peek(stk, NULL, 0, &type)) {
+  /* get the token from the operator stack */
+  if(!stk_peek(stk, &value)) {
     return 0;
   }
+  token = value.pointerVal;
 
-  return type;
+  /* get the token length from the operator length stack */
+  if(!stk_peek(lenStk, &value)) {
+    return 0;
+  }
+  len = value.longVal;
+
+  /* return the precedence of the operator */
+  return operator_precedence(token, len);
+}
+
+OpCode operator_to_opcode(char * operator, size_t len) {
+  if(tokens_equal(operator, len, LANG_OP_ADD, LANG_OP_ADD_LEN)) {
+    return OP_ADD;
+  }
+
+  /* unknown operator */
+  return -1;
+}
+
+static void write_operators_from_stack(Stk * opStk, Stk * opLenStk) {
+
+  while(stk_size(opStk) > 0) {
+    
+  }
 }
 
 /* handles straight code */
@@ -399,9 +425,10 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   char * token;
   size_t len;
 
-  /* allocate stack for operators, a.k.a. the "side track in shunting yard" */
-  TypeStk * opStk = typestk_new(initialOpStkDepth, opStkB);
-  if(opStk == NULL) {
+  /* allocate stack for operators and their lengths, a.k.a. the "side track in shunting yard" */
+  Stk * opStk = stk_new(initialOpStkDepth);
+  Stk * opLenStk = stk_new(initialOpStkDepth);
+  if(opStk == NULL || opLenStk == NULL) {
     c->err = COMPILERERR_ALLOC_FAILED;
     return false;
   }
@@ -464,7 +491,16 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
        * A.K.A. "precedence."
        */
 
-      if(operator_precedence(token, len) <= 
+      /* if the current operator precedence is >= to the one at the top of the stack,
+       * push it to the stack. Otherwise, pop the stack empty
+       */
+      if(operator_precedence(token, len) >= topstack_precedence(opStk, opLenStk)) {
+	/* push operator to operator stack */
+	stk_push_pointer(opStk, token);
+	stk_push_long(opLenStk, len);
+      } else {
+
+      }
     }
 
     default:

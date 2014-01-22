@@ -45,4 +45,7 @@
 #define LANG_CBRACKET_LEN 1
 #define LANG_VAR_DECL   "var"
 #define LANG_VAR_DECL_LEN 3
+
+#define LANG_OP_ADD     "+"
+#define LANG_OP_ADD_LEN   1
 #endif /* LANGKEYWORDS__H__ */
