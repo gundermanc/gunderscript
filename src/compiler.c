@@ -398,19 +398,53 @@ static int topstack_precedence(Stk * stk, Stk * lenStk) {
   return operator_precedence(token, len);
 }
 
+/* gets the OP code associated with an operation from its string representation.
+ * returns -1 if the operator is unrecognized
+ */
 OpCode operator_to_opcode(char * operator, size_t len) {
   if(tokens_equal(operator, len, LANG_OP_ADD, LANG_OP_ADD_LEN)) {
     return OP_ADD;
-  }
+  } else if(tokens_equal(operator, len, LANG_OP_SUB, LANG_OP_SUB_LEN)) {
+    return OP_SUB;
+  } else if(tokens_equal(operator, len, LANG_OP_MUL, LANG_OP_MUL_LEN)) {
+    return OP_MUL;
+  } else if(tokens_equal(operator, len, LANG_OP_DIV, LANG_OP_DIV_LEN)) {
+    return OP_DIV;
+  } 
 
   /* unknown operator */
   return -1;
 }
 
-static void write_operators_from_stack(Stk * opStk, Stk * opLenStk) {
+/* returns false if invalid operator encountered */
+static bool write_operators_from_stack(Compiler * c, 
+				       Stk * opStk, Stk * opLenStk) {
 
+  printf("DEBUG: writing %i operators from OPSTK.\n", stk_size(opStk));
   while(stk_size(opStk) > 0) {
-    
+    DSValue value;
+    char * token;
+    size_t len;
+    OpCode opCode;
+
+    /* get operator string */
+    stk_pop(opStk, &value);
+    token = value.pointerVal;
+
+    /* get operator length */
+    stk_pop(opLenStk, &value);
+    len = value.longVal;
+
+    opCode = operator_to_opcode(token, len);
+
+    /* check for invalid operators */
+    if(opCode == -1) {
+      return false;
+    }
+
+    /* write operator OP code to output buffer */
+    sb_append_char(c->outBuffer, opCode);
+    return true;
   }
 }
 
@@ -498,17 +532,32 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 	/* push operator to operator stack */
 	stk_push_pointer(opStk, token);
 	stk_push_long(opLenStk, len);
+	printf("Operator pushed to OPSTK: %s\n", token);
+	printf("Operator pushed to OPSTK Len: %i\n", len);
       } else {
-
+	if(!write_operators_from_stack(c, opStk, opLenStk)) {
+	  c->err = COMPILERERR_UNKNOWN_OPERATOR;
+	  printf("DEBUG: unknown operator.\n");
+	  return false;
+	}
       }
+      break;
     }
 
     default:
       c->err = COMPILERERR_UNEXPECTED_TOKEN;
       printf("Unexpected Straight Code Token: %s\n", token);
+      printf("Unexpected Straight Code Token Len: %i\n", len);
       return false;
     }
   } while((token = lexer_next(l, &type, &len)) != NULL);
+
+  /* reached the end of the input, empty the operator stack to the output */
+  if(!write_operators_from_stack(c, opStk, opLenStk)) {
+    c->err = COMPILERERR_UNKNOWN_OPERATOR;
+    printf("DEBUG: unknown operator.\n");
+    return false;
+  }
 
   /* no errors occurred */
   return true;

@@ -48,4 +48,10 @@
 
 #define LANG_OP_ADD     "+"
 #define LANG_OP_ADD_LEN   1
+#define LANG_OP_SUB     "-"
+#define LANG_OP_SUB_LEN   1
+#define LANG_OP_MUL     "*"
+#define LANG_OP_MUL_LEN   1
+#define LANG_OP_DIV     "/"
+#define LANG_OP_DIV_LEN   1
 #endif /* LANGKEYWORDS__H__ */
