@@ -444,13 +444,14 @@ static bool write_operators_from_stack(Compiler * c,
 
     /* write operator OP code to output buffer */
     sb_append_char(c->outBuffer, opCode);
-    return true;
   }
+  return true;
 }
 
 /* handles straight code */
 /* This is a modified version of Djikstra's "Shunting Yard Algorithm" for
- * conversion to postfix notation.
+ * conversion to postfix notation. Code is converted to postfix and written to
+ * the output buffer as a series of OP codes.
  */
 /* returns false if an error occurred */
 /* TODO: return false for every sb_append* function upon failure */
@@ -459,7 +460,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   char * token;
   size_t len;
 
-  /* allocate stack for operators and their lengths, a.k.a. the "side track in shunting yard" */
+  /* allocate stacks for operators and their lengths, a.k.a. the "side track in shunting yard" */
   Stk * opStk = stk_new(initialOpStkDepth);
   Stk * opLenStk = stk_new(initialOpStkDepth);
   if(opStk == NULL || opLenStk == NULL) {
@@ -525,16 +526,21 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
        * A.K.A. "precedence."
        */
 
-      /* if the current operator precedence is >= to the one at the top of the stack,
-       * push it to the stack. Otherwise, pop the stack empty
+      /* if the current operator precedence is >= to the one at the top of the
+       * stack, push it to the stack. Otherwise, pop the stack empty. By doing
+       * this, we modify the order of evaluation of operators based on their
+       * precedence, a.k.a. order of operations.
        */
       if(operator_precedence(token, len) >= topstack_precedence(opStk, opLenStk)) {
+	
 	/* push operator to operator stack */
 	stk_push_pointer(opStk, token);
 	stk_push_long(opLenStk, len);
 	printf("Operator pushed to OPSTK: %s\n", token);
 	printf("Operator pushed to OPSTK Len: %i\n", len);
       } else {
+
+	/* pop operators from stack and write to output buffer */
 	if(!write_operators_from_stack(c, opStk, opLenStk)) {
 	  c->err = COMPILERERR_UNKNOWN_OPERATOR;
 	  printf("DEBUG: unknown operator.\n");
