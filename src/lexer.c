@@ -428,13 +428,21 @@ static bool is_operator(char c) {
 }
 
 /**
- * Superficially decides if character is a logical parenthesis (bracket,
- * parenthesis, or curly brace).
+ * Checks if a character is a bracket or curly brace.
  * c: the char to check.
- * returns: true if c is an logical parenthesis, false if not.
+ * returns: true if c is a bracket, false if not.
  */
-static bool is_logiparenth(char c) {
-  return c == '{' || c == '}' || c == '(' || c == ')' || c == '[' || c == ']';
+static bool is_bracket(char c) {
+  return c == '{' || c == '}' || c == '[' || c == ']';
+}
+
+/**
+ * Checks if a character is a parenthesis.
+ * c: the char to check.
+ * returns: true if c is a parenthesis, false if not.
+ */
+static bool is_parenthesis(char c) {
+  return c == '(' || c == ')';
 }
 
 /**
@@ -473,19 +481,42 @@ static bool next_parse_operators(Lexer * l) {
 }
 
 /**
- * lexer_next() logiparenth subparser.
- * If current character is a logical parenthesis (parenth, bracket, or curly
- * brace), the current character will be set to the l->currToken pointer, and
+ * lexer_next() brackets subparser.
+ * If current character is a bracket or curly brace), the current character
+ * will be set to the l->currToken pointer, and
  * l->currTokenLen will be set to the length of the symbol (always 1).
  * l: an instance of lexer.
  * returns: true if the current character is a logiparenth and false if not.
  */
-static bool next_parse_logiparenth(Lexer * l) {
+static bool next_parse_brackets(Lexer * l) {
 
-  if(is_logiparenth(next_char(l))) {
+  if(is_bracket(next_char(l))) {
     l->currToken = l->input + l->index;
     l->currTokenLen = 1;
-    l->currTokenType = LEXERTYPE_LOGIPARENTH;
+    l->currTokenType = LEXERTYPE_BRACKETS;
+    l->err = LEXERERR_SUCCESS;
+    advance_char(l);
+
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * lexer_next() parenthesis subparser.
+ * If current character is a parenthesis, the current character
+ * will be set to the l->currToken pointer, and
+ * l->currTokenLen will be set to the length of the symbol (always 1).
+ * l: an instance of lexer.
+ * returns: true if the current character is a logiparenth and false if not.
+ */
+static bool next_parse_parenthesis(Lexer * l) {
+
+  if(is_parenthesis(next_char(l))) {
+    l->currToken = l->input + l->index;
+    l->currTokenLen = 1;
+    l->currTokenType = LEXERTYPE_PARENTHESIS;
     l->err = LEXERERR_SUCCESS;
     advance_char(l);
 
@@ -579,11 +610,15 @@ char * lexer_next(Lexer * l, LexerType * type, size_t * len) {
       *len = l->currTokenLen;
       set_type(type, l->currTokenType);
       return l->currToken;
-    } else if(next_parse_logiparenth(l)) {
+    } else if(next_parse_brackets(l)) {
       *len = l->currTokenLen;
       set_type(type, l->currTokenType);
       return l->currToken;
-    } else if(next_parse_operators(l)){
+    } else if(next_parse_parenthesis(l)) {
+      *len = l->currTokenLen;
+      set_type(type, l->currTokenType);
+      return l->currToken;
+    } else if(next_parse_operators(l)) {
       *len = l->currTokenLen;
       set_type(type, l->currTokenType);
       return l->currToken;
