@@ -367,6 +367,8 @@ static int operator_precedence(char * operator, size_t operatorLen) {
     case '*':
     case '/':
       return 2;
+    case ')':
+      return 0;
     }
   } else {
 
@@ -419,13 +421,13 @@ OpCode operator_to_opcode(char * operator, size_t len) {
 /* returns false if invalid operator encountered */
 static bool write_operators_from_stack(Compiler * c, 
 				       Stk * opStk, Stk * opLenStk) {
+  DSValue value;
+  char * token = NULL;
+  size_t len = 0;
+  OpCode opCode;
 
   printf("DEBUG: writing %i operators from OPSTK.\n", stk_size(opStk));
   while(stk_size(opStk) > 0) {
-    DSValue value;
-    char * token;
-    size_t len;
-    OpCode opCode;
 
     /* get operator string */
     stk_pop(opStk, &value);
@@ -434,6 +436,11 @@ static bool write_operators_from_stack(Compiler * c,
     /* get operator length */
     stk_pop(opLenStk, &value);
     len = value.longVal;
+
+    /* if there is an open parenthesis, stop popping and return */
+    if(tokens_equal(LANG_OPARENTH, LANG_OPARENTH_LEN, token, len)) {
+      break;
+    }
 
     opCode = operator_to_opcode(token, len);
 
@@ -460,7 +467,8 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   char * token;
   size_t len;
 
-  /* allocate stacks for operators and their lengths, a.k.a. the "side track in shunting yard" */
+  /* allocate stacks for operators and their lengths, a.k.a. 
+   * the "side track in shunting yard" */
   Stk * opStk = stk_new(initialOpStkDepth);
   Stk * opLenStk = stk_new(initialOpStkDepth);
   if(opStk == NULL || opLenStk == NULL) {
@@ -520,6 +528,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       break;
     }
 
+    case LEXERTYPE_PARENTHESIS:
     case LEXERTYPE_OPERATOR: {
       /* Reads an operator from the lexer and decides whether or not to
        * place it in the opStk, in accordance with order of operations,
@@ -531,7 +540,11 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
        * this, we modify the order of evaluation of operators based on their
        * precedence, a.k.a. order of operations.
        */
-      if(operator_precedence(token, len) >= topstack_precedence(opStk, opLenStk)) {
+
+      /* TODO: add error checking for extra operators
+       * and unmatched parenthesis */
+      if(operator_precedence(token, len)
+	 >= topstack_precedence(opStk, opLenStk)) {
 	
 	/* push operator to operator stack */
 	stk_push_pointer(opStk, token);
