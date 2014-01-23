@@ -419,14 +419,14 @@ OpCode operator_to_opcode(char * operator, size_t len) {
 }
 
 /* returns false if invalid operator encountered */
-static bool write_operators_from_stack(Compiler * c, 
-				       Stk * opStk, Stk * opLenStk) {
+static bool write_operators_from_stack(Compiler * c, Stk * opStk, 
+				       Stk * opLenStk, bool parenthExpected) {
+  bool topOperator = true;
   DSValue value;
   char * token = NULL;
   size_t len = 0;
   OpCode opCode;
 
-  printf("DEBUG: writing %i operators from OPSTK.\n", stk_size(opStk));
   while(stk_size(opStk) > 0) {
 
     /* get operator string */
@@ -437,22 +437,47 @@ static bool write_operators_from_stack(Compiler * c,
     stk_pop(opLenStk, &value);
     len = value.longVal;
 
-    /* if there is an open parenthesis, stop popping and return */
+    /* if there is an open parenthesis, stop popping  */
     if(tokens_equal(LANG_OPARENTH, LANG_OPARENTH_LEN, token, len)) {
-      break;
+
+      /* if top of stack is a parenthesis, it is a mismatch! */
+      if(!parenthExpected) {
+	printf("Unmatched parenth!\n");
+	c->err = COMPILERERR_UNMATCHED_PARENTH;
+	return false;
+      } else {
+	printf("DEBUG: TRUE\n");
+	return true;
+      }
     }
+
+    printf("DEBUG: writing operator from OPSTK %s\n", token);
+    printf("DEBUG: writing operator from OPSTK LEN %i\n", len);
 
     opCode = operator_to_opcode(token, len);
 
     /* check for invalid operators */
     if(opCode == -1) {
+      c->err = COMPILERERR_UNKNOWN_OPERATOR;
       return false;
     }
 
     /* write operator OP code to output buffer */
     sb_append_char(c->outBuffer, opCode);
+
+    /* we're no longer at the top of the stack */
+    topOperator = false;
   }
-  return true;
+
+  /* Is open parenthensis is expected SOMEWHERE in this sequence? If true,
+   * and we reach this point, throw an error.
+   */
+  if(!parenthExpected) {
+    return true;
+  } else {
+    c->err = COMPILERERR_UNMATCHED_PARENTH;
+    return false;
+  }
 }
 
 /* handles straight code */
@@ -528,7 +553,23 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       break;
     }
 
-    case LEXERTYPE_PARENTHESIS:
+    case LEXERTYPE_PARENTHESIS: {
+      if(tokens_equal(LANG_OPARENTH, LANG_OPARENTH_LEN, token, len)) {
+	stk_push_pointer(opStk, token);
+	stk_push_long(opLenStk, len);
+	printf("OParenth pushed to OPSTK: %s\n", token);
+	printf("OParenth pushed to OPSTK Len: %i\n", len);
+      } else {
+	/* pop operators from stack and write to output buffer
+	 * FAIL if there is no open parenthesis in the stack.
+	 */
+	if(!write_operators_from_stack(c, opStk, opLenStk, true)) {
+	  return false;
+	}
+      }
+      break;
+    }
+
     case LEXERTYPE_OPERATOR: {
       /* Reads an operator from the lexer and decides whether or not to
        * place it in the opStk, in accordance with order of operations,
@@ -554,9 +595,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       } else {
 
 	/* pop operators from stack and write to output buffer */
-	if(!write_operators_from_stack(c, opStk, opLenStk)) {
-	  c->err = COMPILERERR_UNKNOWN_OPERATOR;
-	  printf("DEBUG: unknown operator.\n");
+	if(!write_operators_from_stack(c, opStk, opLenStk, false)) {
 	  return false;
 	}
       }
@@ -572,9 +611,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   } while((token = lexer_next(l, &type, &len)) != NULL);
 
   /* reached the end of the input, empty the operator stack to the output */
-  if(!write_operators_from_stack(c, opStk, opLenStk)) {
-    c->err = COMPILERERR_UNKNOWN_OPERATOR;
-    printf("DEBUG: unknown operator.\n");
+  if(!write_operators_from_stack(c, opStk, opLenStk, false)) {
     return false;
   }
 
