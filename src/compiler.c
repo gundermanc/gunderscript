@@ -44,6 +44,9 @@
 #include "vmdefs.h"
 #include "typestk.h"
 
+/* preprocessor definitions: */
+#define COMPILER_NO_PREV        -1
+
 /* TODO: make STK type auto enlarge and remove */
 static const int initialOpStkDepth = 100;
 /* number of items to add to the op stack on resize */
@@ -666,6 +669,7 @@ static bool write_operators_from_stack(Compiler * c, Stk * opStk,
 /* TODO: return false for every sb_append* function upon failure */
 static bool func_body_straight_code(Compiler * c, Lexer * l) {
   LexerType type;
+  LexerType prevValType = COMPILER_NO_PREV;
   char * token;
   size_t len;
 
@@ -707,6 +711,15 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       /* write number to output */
       sb_append_char(c->outBuffer, OP_NUM_PUSH);
       sb_append_str(c->outBuffer, (char*)(&value), sizeof(value));
+
+      /* check for invalid types: */
+      if(prevValType != COMPILER_NO_PREV
+	 && prevValType != LEXERTYPE_PARENTHESIS
+	 && prevValType != LEXERTYPE_OPERATOR) {
+	c->err = COMPILERERR_UNEXPECTED_TOKEN;
+	return false;
+      }
+
       break;
     }
 
@@ -728,6 +741,14 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       sb_append_char(c->outBuffer, OP_STR_PUSH);
       sb_append_char(c->outBuffer, outLen);
       sb_append_str(c->outBuffer, token, len);
+
+      /* check for invalid types: */
+      if(prevValType != COMPILER_NO_PREV
+	 && prevValType != LEXERTYPE_PARENTHESIS
+	 && prevValType != LEXERTYPE_OPERATOR) {
+	c->err = COMPILERERR_UNEXPECTED_TOKEN;
+	return false;
+      }
       break;
     }
 
@@ -744,6 +765,14 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 	if(!write_operators_from_stack(c, opStk, opLenStk, true)) {
 	  return false;
 	}
+      }
+
+      /* check for invalid types: */
+      if(prevValType != COMPILER_NO_PREV
+	 && prevValType != LEXERTYPE_PARENTHESIS
+	 && prevValType != LEXERTYPE_OPERATOR) {
+	c->err = COMPILERERR_UNEXPECTED_TOKEN;
+	return false;
       }
       break;
     }
@@ -777,6 +806,24 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 	  return false;
 	}
       }
+
+      /* check for invalid types: */
+      if(prevValType == LEXERTYPE_OPERATOR 
+	 || prevValType == LEXERTYPE_PARENTHESIS) {
+	c->err = COMPILERERR_UNEXPECTED_TOKEN;
+	return false;
+      }
+
+      break;
+    }
+
+    case LEXERTYPE_ENDSTATEMENT: {
+      /* check for invalid types: */
+      if(prevValType == LEXERTYPE_OPERATOR
+	 || prevValType == LEXERTYPE_ENDSTATEMENT) {
+	c->err = COMPILERERR_UNEXPECTED_TOKEN;
+	return false;
+      }
       break;
     }
 
@@ -786,7 +833,17 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       printf("Unexpected Straight Code Token Len: %i\n", len);
       return false;
     }
+
+    /* store the type of this token for the next iteration: */
+    prevValType = type;
+
   } while((token = lexer_next(l, &type, &len)) != NULL);
+
+  /* check for a semicolon at the end of the line */
+  if(prevValType != LEXERTYPE_ENDSTATEMENT) {
+    c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+    return false;
+  }
 
   /* reached the end of the input, empty the operator stack to the output */
   if(!write_operators_from_stack(c, opStk, opLenStk, false)) {

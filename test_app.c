@@ -121,7 +121,7 @@ int main() {
 /* compiler test code */
 int main() {
   Compiler * c = compiler_new();
-  char * foo = "1";
+  char * foo = "1 + 1;";
   compiler_build(c, foo, strlen(foo));
   printf("FunctionHTSize: %i\n", ht_size(c->functionHT));
   printf("SymTblStk Size: %i\n", stk_size(c->symTableStk));
