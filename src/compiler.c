@@ -63,9 +63,15 @@ static const int numValMaxDigits = 50;
 
 /* !!UNDER CONSTRUCTION!! */
 
+/**
+ * Creates a new compiler object that will contain the current state of the
+ * compiler and its data structures.
+ * returns: new compiler object, or NULL if the allocation fails.
+ */
 Compiler * compiler_new() {
   Compiler * compiler = calloc(1, sizeof(Compiler));
 
+  /* check for failed allocation */
   if(compiler == NULL) {
     return NULL;
   }
@@ -75,7 +81,7 @@ Compiler * compiler_new() {
   compiler->functionHT = ht_new(initialHTSize, sbBlockSize, HTLoadFactor);
   compiler->outBuffer = sb_new(sbBlockSize);
 
-  /* check for malloc errors */
+  /* check for further malloc errors */
   if(compiler->symTableStk == NULL 
      || compiler->functionHT == NULL 
      || compiler->outBuffer == NULL) {
@@ -87,15 +93,41 @@ Compiler * compiler_new() {
 }
 
 /* checks that two tokens are equal and not NULL */
-static bool tokens_equal(char * token1, size_t num1, char * token2, size_t num2) {
+/**
+ * Checks if two strings, "tokens", are equal. To be equal, the must have the
+ * same text up to the provided lengths.
+ * token1: the first token to compare.
+ * num1: the number of characters of the first token to compare.
+ * token2: the second token to compare.
+ * num2: the number of characters of token 2 to compare.
+ * returns: true if the tokens are equal and false if they are different
+ * or token1 or token2 is NULL.
+ */
+static bool tokens_equal(char * token1, size_t num1,
+			 char * token2, size_t num2) {
+
   if((token1 != NULL && token2 != NULL) && (num1 == num2)) {
     return strncmp(token1, token2, num1) == 0;
   }
   return false;
 }
 
+/**
+ * Instantiates a CompilerFunc structure for storing information about a script
+ * function in the functionHT member of Compiler struct. This struct is used to
+ * store record of a function declaration, its number of arguments, and its
+ * respective location in the bytecode.
+ * name: A string with the text representation of the function. The text name
+ * it is called by in the code.
+ * nameLen: The number of characters to read from name for the function name.
+ * index: the index of the byte where the function begins in the byte code.
+ * numArgs: the number of arguments that the function expects.
+ * returns: A new instance of CompilerFunc struct, NULL if the allocation fails.
+ */
 static CompilerFunc * compilerfunc_new(char * name, size_t nameLen,
 				       int index, int numArgs) {
+  assert(index >= 0);
+
   CompilerFunc * cf = calloc(1, sizeof(CompilerFunc));
   if(cf != NULL) {
     cf->name = calloc(nameLen + 1, sizeof(char));
@@ -107,7 +139,15 @@ static CompilerFunc * compilerfunc_new(char * name, size_t nameLen,
   return cf;
 }
 
+/**
+ * Frees a CompilerFunc struct. This must be done to every CompilerFunc
+ * struct when it is removed from the hashtable.
+ * cf: an instance of CompilerFunc to free the associated memory to.
+ */
 static void compilerfunc_free(CompilerFunc * cf) {
+
+  assert(cf != NULL);
+
   free(cf->name);
   free(cf);
 }
@@ -115,7 +155,18 @@ static void compilerfunc_free(CompilerFunc * cf) {
 /* pushes another symbol table onto the stack of symbol tables
  * returns true if success, false if malloc fails
  */
+/**
+ * Pushes a new symbol table onto the stack of symbol tables. The symbol table
+ * is a structure that contains records of all variables and their respective
+ * locations in the stack in the VM. The symbol table's position in the stack
+ * represents the VM stack frame's position in the stack as well.
+ * c: an instance of Compiler that will receive the new frame.
+ * returns: true if success, false if an allocation failure occurs.
+ */
 static bool symtblstk_push(Compiler * c) {
+
+  assert(c != NULL);
+
   HT * symTbl = ht_new(initialHTSize, HTBlockSize, HTLoadFactor);
 
   /* check that hashtable was successfully allocated */
@@ -130,6 +181,15 @@ static bool symtblstk_push(Compiler * c) {
   return true;
 }
 
+/**
+ * Gets the top symbol table from the symbol table stack and returns a pointer,
+ * without actually removing the table from the stack. This function is useful
+ * for getting a reference to the current frame's symbol table so that you can
+ * look up its symbols.
+ * c: an instance of Compiler.
+ * returns: a pointer to the top symbol table hashtable, or NULL if the stack
+ * is empty.
+ */
 static HT * symtblstk_peek(Compiler * c) {
   DSValue value;
 
@@ -141,6 +201,15 @@ static HT * symtblstk_peek(Compiler * c) {
   return value.pointerVal;
 }
 
+/**
+ * Gets the top symbol table from the symbol table stack and returns a pointer,
+ * and removes the table from the stack. This function does NOT free the table.
+ * You must free the table manually when finished with symtbl_free(), or the memory
+ * will leak.
+ * c: an instance of Compiler.
+ * returns: a pointer to the symbol table formerly at the top of the stack, or
+ * NULL if the stack is empty.
+ */
 static HT * symtblstk_pop(Compiler * c) {
   DSValue value;
 
@@ -152,14 +221,33 @@ static HT * symtblstk_pop(Compiler * c) {
   return value.pointerVal;
 }
 
+/**
+ * A wrapper function that frees a symbol table. This function should be used
+ * after a symbol table is popped from the symbol table stack with
+ * symtblstk_pop(). Do NOT free symbol table references obtained with
+ * symtblstk_peek(). They are still being used. SEGFAULTS will ensue.
+ * symTbl: a hashtable/symbol table to free.
+ */
 static void symtbl_free(HT * symTbl) {
   assert(symTbl != NULL);
 
   ht_free(symTbl);
 }
 
-/* TODO: make more sophisticated mechanism */
+/**
+ * Checks a string to see if it is a reserved keyword for the scripting language
+ * At the moment this function is a place holder for the keyword check
+ * functionality. 
+ * TODO: make more sophisticated, constant time lookup mechanism.
+ * token: the string to check for being a keyword.
+ * tokenLen: the number of characters to compare from the token string.
+ * returns: true if token is a keyword, and false if it is not.
+ */
 static bool is_keyword(char * token, size_t tokenLen) {
+
+  assert(token != NULL);
+  assert(tokenLen > 0);
+
   if(tokens_equal(LANG_FUNCTION, LANG_FUNCTION_LEN, token, tokenLen)) {
     return true;
   }
@@ -167,8 +255,22 @@ static bool is_keyword(char * token, size_t tokenLen) {
   return false;
 }
 
-/* return the number of arguments, or -1 if error occurred */
+/**
+ * A build_parse_func_def() subparser that parses the arguments from a function
+ * definition. The function then stores the arguments in the current symbol
+ * table and returns the number of arguments that were provided.
+ * c: an instance of Compiler.
+ * l: an instance of lexer.
+ * returns: if the current token is a LEXERTYPE_KEYVAR, the parser starts to
+ * parse function arguments. If not, it returns -1 and sets c->err to 
+ * COMPILERERR_SUCCESS. If an error occurred, or there is a mistake in the
+ * script, the function returns -1, but c->err is set to a relevant error code.
+ */
 static int func_defs_parse_args(Compiler * c, Lexer * l) {
+
+  assert(c != NULL);
+  assert(l != NULL);
+
   /* while the next token is not an end parenthesis and tokens remain, parse
    * the tokens and store each KEYVAR type token in the symbol table as a
    * function argument
@@ -239,12 +341,22 @@ static int func_defs_parse_args(Compiler * c, Lexer * l) {
   return -1;
 }
 
-static bool func_store_def(Compiler * c, char * name, size_t nameLen, int numArgs) {
-  /* record function definition:
-   * store function definition, associated function name string, index of the
-   * function in the output, and the number of arguments that the function can
-   * accept.
-   */
+/**
+ * Records a function declaration and stores the function's text name, callable
+ * from the script, the number of arguments that the function accepts (we don't
+ * need to record the type of the arguments because the language is dynamically
+ * typed). These records are stored in the functionHT in the compiler struct and
+ * can be referred to during function calls to verify proper usage of the
+ * functions.
+ * c: an instance of Compiler.
+ * name: the string name of the function. This is the text that can be used to
+ * call the function. e.g. print.
+ * nameLen: the number of characters to read from name.
+ * numArgs: the number of arguments that the function can accept.
+ */
+static bool func_store_def(Compiler * c, char * name, size_t nameLen,
+			   int numArgs) {
+
   /* TODO: might need a lexer_next() call to get correct token */
   bool prevValue;
   CompilerFunc * cp;
@@ -268,7 +380,29 @@ static bool func_store_def(Compiler * c, char * name, size_t nameLen, int numArg
 }
 
 /* returns true if current token is start of a variable declaration expression */
+
+/**
+ * Subparser for func_do_var_defs(). Performs definition of variables.
+ * Looks at the current token. If it is 'var', the parser takes over and starts
+ * defining the current variable. It defines ONLY 1 and returns. To define
+ * additional, you must make multiple calls to this subparser.
+ * Variable declarations take the form:
+ *   var [variable_name];
+ * c: an instance of Compiler.
+ * l: an instance of lexer. The current token must be 'var' or else the function
+ * will do nothing.
+ * c: an instance of Compiler.
+ * l: an instance of Lexer that will be used to parse the variable declarations.
+ * returns: Returns true if the current token in Lexer l is 'var' and false if
+ * the current token is something else. c->err variable is set to an error code
+ * upon a mistake in the script or other error.
+ */
 static bool var_def(Compiler * c, Lexer * l) {
+
+  /* variable declarations: 
+   *
+   * var [variable_name];
+   */
   HT * symTbl = symtblstk_peek(c);
   LexerType type;
   char * token;
@@ -333,13 +467,25 @@ static bool var_def(Compiler * c, Lexer * l) {
 }
 
 /* performs variable declarations */
+/**
+ * Subparser for build_parse_func_defs(). Parses function definitions. Where
+ * var_def() function defines ONE variable from a declaration, this function
+ * continues defining variable until the first non-variable declaration token
+ * is found.
+ * c: an instance of Compiler.
+ * l: an instance of lexer that provides the tokens being parsed.
+ * returns: true if the variables were declared successfully, or there were
+ * no variable declarations, and false if an error occurred. Upon an error,
+ * c->err is set to a relevant error code.
+ */
 static bool func_do_var_defs(Compiler * c, Lexer * l) {
   LexerType type;
   char * token;
   size_t len;
  
   /* variable declarations look like so:
-   * var [varName];
+   * var [variable_name_1];
+   * var [variable_name_2];
    */
   while((token = lexer_next(l, &type, &len)) != NULL) {
     printf("func_do_var_defs next token: '%s'\n", token);
@@ -357,8 +503,13 @@ static bool func_do_var_defs(Compiler * c, Lexer * l) {
   return true;
 }
 
-/* place holder for a function that gets the precedence of an operator */
-/* TODO: reimplement using a hash set for efficiency
+/**
+ * Place holder for a function that gets the precedence of an operator.
+ * operator: the operator to check for precedence.
+ * operatorLen: the number of characters to read from operator as the operator.
+ * TODO: possibly reimplement using a hash set for multicharacter operators.
+ * returns: an integer that represents an operator's precedence. Higher is
+ * greater. Returns 1 if unknown operator.
  */
 static int operator_precedence(char * operator, size_t operatorLen) {
 
@@ -367,8 +518,6 @@ static int operator_precedence(char * operator, size_t operatorLen) {
     case '*':
     case '/':
       return 2;
-    case ')':
-      return 0;
     }
   } else {
 
@@ -377,7 +526,15 @@ static int operator_precedence(char * operator, size_t operatorLen) {
   return 1;
 }
 
-/* gets the precedence of the operator at the top of the stack */
+/**
+ * Gets the precedence of the operator at the top of the opStk. This function is
+ * used by the straight code parser to get the precedence of the last operator
+ * that was encountered.
+ * stk: the operator stack...a stack of pointers to strings containing operators
+ * lenStk: a stack of longs that contain the lengths of the operator strings.
+ * returns: the precedence of the top stack operator, or 0 if the operator stack
+ * is empty.
+ */
 static int topstack_precedence(Stk * stk, Stk * lenStk) {
 
   DSValue value;
@@ -400,8 +557,11 @@ static int topstack_precedence(Stk * stk, Stk * lenStk) {
   return operator_precedence(token, len);
 }
 
-/* gets the OP code associated with an operation from its string representation.
- * returns -1 if the operator is unrecognized
+/**
+ * Gets the OP code associated with an operation from its string representation.
+ * operator: the operator to get the OPCode from.
+ * len: the number of characters in length that operator is.
+ * returns: the OPCode, or -1 if the operator is unrecognized.
  */
 OpCode operator_to_opcode(char * operator, size_t len) {
   if(tokens_equal(operator, len, LANG_OP_ADD, LANG_OP_ADD_LEN)) {
@@ -419,6 +579,18 @@ OpCode operator_to_opcode(char * operator, size_t len) {
 }
 
 /* returns false if invalid operator encountered */
+/**
+ * Writes all operators from the provided stack to the output buffer in the 
+ * Compiler instance.
+ * c: an instance of Compiler.
+ * opStk: the stack of operator strings.
+ * opLenStk: the stack of operator string lengths, in longs.
+ * parenthExpected: tells whether or not the calling function is
+ * expecting a parenthesis. If it is and one is not encountered, the
+ * function sets c->err = COMPILERERR_UNMATCHED_PARENTH and returns false.
+ * returns: true if successful, and false if an unmatched parenthesis is
+ * encountered.
+ */
 static bool write_operators_from_stack(Compiler * c, Stk * opStk, 
 				       Stk * opLenStk, bool parenthExpected) {
   bool topOperator = true;
@@ -427,6 +599,7 @@ static bool write_operators_from_stack(Compiler * c, Stk * opStk,
   size_t len = 0;
   OpCode opCode;
 
+  /* while items remain */
   while(stk_size(opStk) > 0) {
 
     /* get operator string */
@@ -470,7 +643,7 @@ static bool write_operators_from_stack(Compiler * c, Stk * opStk,
   }
 
   /* Is open parenthensis is expected SOMEWHERE in this sequence? If true,
-   * and we reach this point, throw an error.
+   * and we reach this point, we never found one. Throw an error!
    */
   if(!parenthExpected) {
     return true;
@@ -480,12 +653,16 @@ static bool write_operators_from_stack(Compiler * c, Stk * opStk,
   }
 }
 
-/* handles straight code */
-/* This is a modified version of Djikstra's "Shunting Yard Algorithm" for
+/**
+ * Handles straight code:
+ * This is a modified version of Djikstra's "Shunting Yard Algorithm" for
  * conversion to postfix notation. Code is converted to postfix and written to
- * the output buffer as a series of OP codes.
+ * the output buffer as a series of OP codes all in one step.
+ * c: an instance of Compiler.
+ * l: an instance of lexer that will provide the tokens.
+ * returns: true if success, and false if errors occurred. If error occurred,
+ * c->err is set.
  */
-/* returns false if an error occurred */
 /* TODO: return false for every sb_append* function upon failure */
 static bool func_body_straight_code(Compiler * c, Lexer * l) {
   LexerType type;
@@ -493,7 +670,8 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   size_t len;
 
   /* allocate stacks for operators and their lengths, a.k.a. 
-   * the "side track in shunting yard" */
+   * the "side track in shunting yard" 
+   */
   Stk * opStk = stk_new(initialOpStkDepth);
   Stk * opLenStk = stk_new(initialOpStkDepth);
   if(opStk == NULL || opLenStk == NULL) {
@@ -619,7 +797,15 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   return true;
 }
 
-/* does the function body code */
+/**
+ * Evaluates function body code. In other words, all code that may be found
+ * within a function body, including loops, ifs, straight code, assignment
+ * statements, but excluding variable declarations.
+ * c: an instance of compiler.
+ * l: an instance of lexer that will provide all tokens that will be parsed.
+ * returns: true if successful, and false if an error occurs. In the case of
+ * an error, c->err is set to a relevant error code.
+ */
 static bool func_do_body(Compiler * c, Lexer * l) {
   LexerType type;
   char * token;
@@ -657,7 +843,20 @@ static bool func_do_body(Compiler * c, Lexer * l) {
   return true;
 }
 
- static bool build_parse_func_defs(Compiler * c, Lexer * l) {
+/**
+ * A subparser function for compiler_build() that looks at the current token,
+ * checks for a 'function' token. If found, it proceeds to evaluate the function
+ * declaration, make note of the number of arguments, and store the index where
+ * the function will begin in the byte code. This function then dispatches
+ * subparsers that define stack variables, evaluate logical blocks (if, else,
+ * while, etc), and evaluate straight code.
+ * c: an instance of Compiler.
+ * l: an instance of lexer. 
+ * returns: false if the current token is not the start of a function declaration
+ * ('function'), and true if it is. If an error occurs, function returns true,
+ * but c->err is set to a relevant error code.
+ */
+static bool build_parse_func_defs(Compiler * c, Lexer * l) {
 
   /*
    * A Function definition looks like so:
@@ -771,7 +970,30 @@ static bool func_do_body(Compiler * c, Lexer * l) {
   return true;
 }
 
-/* builds a file and adds it to the output buffer */
+/**
+ * Reads the bytecode compiled with compiler_build() into a new buffer of the
+ * appropriate size.
+ * compiler: an instance of Compiler that has some compiled bytecode.
+ * buffer: a pointer to a buffer that will receive the compiled bytecode.
+ * bufferSize: the size of the buffer in bytes.
+ * returns: true if the operation succeeds and false if the buffer is too small,
+ * or another error occurs. Read c->err for a specific error code.
+ */
+bool compiler_bytecode(Compiler * compiler, char * buffer, size_t bufferSize) {
+  /* TODO: write this function */
+  return false;
+}
+
+/**
+ * Builds a script file and adds its code to the bytecode output buffer and
+ * stores references to its functions and variables in the Compiler object.
+ * After several input buffers of scripts have been built, you can copy the
+ * bytecode to a buffer for execution using compiler_bytecode().
+ * compiler: an instance of compiler that will receive the bytecode.
+ * input: an input buffer that contains the script code.
+ * inputLen: the number of bytes in length of the input.
+ * returns: true if the compile operation succeeds, and false if it fails.
+ */
 bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
 
   assert(compiler != NULL);
@@ -819,18 +1041,35 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
   return true;
 }
 
+/**
+ * Sets the compiler error code.
+ * compiler: an instance of compiler to set the err on.
+ * compiler: an instance of Compiler.
+ * err: the error code to set.
+ */
 void compiler_set_err(Compiler * compiler, CompilerErr err) {
   assert(compiler != NULL);
 
   compiler->err = err;
 }
 
+/**
+ * Gets the error code currently set on the provided Compiler err.
+ * compiler: an instance of compiler.
+ * returns: the COMPILERERR_ value.
+ */
 CompilerErr compiler_get_err(Compiler * compiler) {
   assert(compiler != NULL);
 
   return compiler->err;
 }
 
+/**
+ * Frees a compiler object and all associated memory.
+ * compiler: an instance of Compiler.
+ * TODO: a lot of allocations don't have frees yet. These will be added in when
+ * the program structure becomes final.
+ */
 void compiler_free(Compiler * compiler) {
   assert(compiler != NULL);
 
