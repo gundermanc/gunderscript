@@ -841,7 +841,9 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       /* check for invalid types: */
       if(prevValType != COMPILER_NO_PREV
 	 && prevValType != LEXERTYPE_PARENTHESIS
-	 && prevValType != LEXERTYPE_OPERATOR) {
+	 && prevValType != LEXERTYPE_OPERATOR
+	 && prevValType != LEXERTYPE_NUMBER
+	 && prevValType != LEXERTYPE_STRING) {
 	c->err = COMPILERERR_UNEXPECTED_TOKEN;
 	return false;
       }
