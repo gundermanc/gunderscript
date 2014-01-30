@@ -456,6 +456,7 @@ static bool var_def(Compiler * c, Lexer * l) {
   }
 
   printf("Stored in HT: VAR '%s'\n", varName);
+  printf("Var length: %i\n", varNameLen);
 
   /* check for duplicate var names */
   if(prevExisted) {
@@ -613,6 +614,8 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
     stk_pop(opLenStk, &value);
     len = value.longVal;
 
+    printf("TOKEN: %s\n", token);
+
     /* if there is an open parenthesis, stop popping  */
     if(tokens_equal(LANG_OPARENTH, LANG_OPARENTH_LEN, token, len)) {
 
@@ -641,6 +644,7 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 	/* get variable name string */
 	if(!typestk_pop(opStk, &token, sizeof(char*), &type)
 	   || type != LEXERTYPE_KEYVAR) {
+	  printf("MALFORMED TOKEN: %s\n", token);
 	  c->err = COMPILERERR_MALFORMED_ASSIGNMENT;
 	  return false;
 	}
@@ -664,6 +668,7 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 	sb_append_char(c->outBuffer, OP_VAR_STOR);
 	sb_append_char(c->outBuffer, 0 /* this val should chng with depth */);
 	sb_append_char(c->outBuffer, value.intVal);
+	printf("ASSIGNED VALUE TO VAR: %s\n", token);
       } else {
 
 	opCode = operator_to_opcode(token, len);
@@ -755,7 +760,6 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       /* KEYVAR HANDLER:
        * Handles all word tokens. These can be variables or function names
        */
-      
       /* push variable or function name to operator stack */
       typestk_push(opStk, &token, sizeof(char*), type);
       stk_push_long(opLenStk, len);
@@ -1147,6 +1151,12 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
     return false;
   }
   compiler_set_err(compiler, COMPILERERR_SUCCESS);
+
+  /* handle global variable declarations */
+  if(!func_do_var_defs(compiler, lexer)) {
+    /* c->err is set by func_do_var_defs upon an error */
+    return false;
+  }
 
   /* compile loop */
   while((token = lexer_next(lexer, &type, &tokenLen)) != NULL) {
