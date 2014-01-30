@@ -77,7 +77,7 @@ Lexer for Compiler -- lexer.c -- 100%
 Type Aware Stack -- typestk.c -- 100%
 Virtual Machine Object -- vm.c -- 90%
 VM Opcode interpreter -- ophandlers.c -- 85%
-Compiler -- compiler.c -- 10%
+Compiler -- compiler.c -- 50%
 Gunderscript Object -- gunderscript.c -- 0%
 
 The planning documents can be found in the docs directory. They are not up to date
