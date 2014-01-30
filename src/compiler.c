@@ -516,6 +516,7 @@ static bool func_do_var_defs(Compiler * c, Lexer * l) {
  */
 static int operator_precedence(char * operator, size_t operatorLen) {
 
+  printf("OPERATOR: %s\n", operator);
   if(operatorLen == 1) {
     switch(operator[0]) {
     case '*':
@@ -679,7 +680,23 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 	sb_append_char(c->outBuffer, opCode);
       }
     } else {
+      /* Not an operator, must be a KEYVAR, and therefore, a variable read op */
+      assert(stk_size(c->symTableStk) > 0);
 
+      /* check that the variable was previously declared */
+      if(!ht_get_raw_key(symtblstk_peek(c), token, len, &value)) {
+	c->err = COMPILERERR_UNDEFINED_VARIABLE;
+	return false;
+      }
+
+      /* write the variable data read OPCodes
+       * Moves the last value from the specified depth and slot of the frame
+       * stack in the VM to the VM OP stack.
+       */
+      /* TODO: need to add ability to search LOWER frames for variables */
+      sb_append_char(c->outBuffer, OP_VAR_PUSH);
+      sb_append_char(c->outBuffer, 0 /* this val should chng with depth */);
+      sb_append_char(c->outBuffer, value.intVal);
     }
 
     /* we're no longer at the top of the stack */
