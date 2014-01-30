@@ -594,20 +594,20 @@ OpCode operator_to_opcode(char * operator, size_t len) {
  * returns: true if successful, and false if an unmatched parenthesis is
  * encountered.
  */
-static bool write_operators_from_stack(Compiler * c, Stk * opStk, 
+static bool write_operators_from_stack(Compiler * c, TypeStk * opStk, 
 				       Stk * opLenStk, bool parenthExpected) {
   bool topOperator = true;
   DSValue value;
   char * token = NULL;
   size_t len = 0;
   OpCode opCode;
+  VarType type;
 
   /* while items remain */
-  while(stk_size(opStk) > 0) {
+  while(typestk_size(opStk) > 0) {
 
     /* get operator string */
-    stk_pop(opStk, &value);
-    token = value.pointerVal;
+    typestk_pop(opStk, &token, sizeof(char*), &type);
 
     /* get operator length */
     stk_pop(opLenStk, &value);
@@ -627,19 +627,60 @@ static bool write_operators_from_stack(Compiler * c, Stk * opStk,
       }
     }
 
-    printf("DEBUG: writing operator from OPSTK %s\n", token);
-    printf("DEBUG: writing operator from OPSTK LEN %i\n", len);
+    /* handle OPERATORS and FUNCTIONS differently */
+    if(type == LEXERTYPE_OPERATOR) {
+      printf("DEBUG: writing operator from OPSTK %s\n", token);
+      printf("DEBUG: writing operator from OPSTK LEN %i\n", len);
 
-    opCode = operator_to_opcode(token, len);
+      /* if there is an '=' on the stack, this is an assignment,
+       * the next token on the stack should be a KEYVAR type that
+       * contains a variable name.
+       */
+      if(tokens_equal(LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN, token, len)) {
 
-    /* check for invalid operators */
-    if(opCode == -1) {
-      c->err = COMPILERERR_UNKNOWN_OPERATOR;
-      return false;
+	/* get variable name string */
+	if(!typestk_pop(opStk, &token, sizeof(char*), &type)
+	   || type != LEXERTYPE_KEYVAR) {
+	  c->err = COMPILERERR_MALFORMED_ASSIGNMENT;
+	  return false;
+	}
+
+	/* get variable name length */
+	stk_pop(opLenStk, &value);
+	len = value.longVal;
+
+	assert(stk_size(c->symTableStk) > 0);
+
+	/* check that the variable was previously declared */
+	if(!ht_get_raw_key(symtblstk_peek(c), token, len, &value)) {
+	  c->err = COMPILERERR_UNDEFINED_VARIABLE;
+	  return false;
+	}
+
+	/* write the variable data OPCodes
+	 * Moves the last value from the OP stack in the VM to the variable
+	 * storage slot in the frame stack. */
+	/* TODO: need to add ability to search LOWER frames for variables */
+	sb_append_char(c->outBuffer, OP_VAR_STOR);
+	sb_append_char(c->outBuffer, 0 /* this val should chng with depth */);
+	sb_append_char(c->outBuffer, value.intVal);
+      } else {
+
+	opCode = operator_to_opcode(token, len);
+
+	/* check for invalid operators */
+	if(opCode == -1) {
+
+	  c->err = COMPILERERR_UNKNOWN_OPERATOR;
+	  return false;
+	}
+
+	/* write operator OP code to output buffer */
+	sb_append_char(c->outBuffer, opCode);
+      }
+    } else {
+
     }
-
-    /* write operator OP code to output buffer */
-    sb_append_char(c->outBuffer, opCode);
 
     /* we're no longer at the top of the stack */
     topOperator = false;
@@ -676,7 +717,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   /* allocate stacks for operators and their lengths, a.k.a. 
    * the "side track in shunting yard" 
    */
-  Stk * opStk = stk_new(initialOpStkDepth);
+  TypeStk * opStk = typestk_new(initialOpStkDepth, opStkBlockSize);
   Stk * opLenStk = stk_new(initialOpStkDepth);
   if(opStk == NULL || opLenStk == NULL) {
     c->err = COMPILERERR_ALLOC_FAILED;
@@ -693,6 +734,19 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
      * be postfixed for execution by the VM
      */
     switch(type) {
+
+    case LEXERTYPE_KEYVAR: {
+      /* KEYVAR HANDLER:
+       * Handles all word tokens. These can be variables or function names
+       */
+      
+      /* push variable or function name to operator stack */
+      typestk_push(opStk, &token, sizeof(char*), type);
+      stk_push_long(opLenStk, len);
+      printf("KEYVAR pushed to OPSTK: %s\n", token);
+      printf("KEYVAR pushed to OPSTK Len: %i\n", len);
+      break;
+    }
 
     case LEXERTYPE_NUMBER: {
       /* Reads a number, converts to double and writes it to output as so:
@@ -754,7 +808,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 
     case LEXERTYPE_PARENTHESIS: {
       if(tokens_equal(LANG_OPARENTH, LANG_OPARENTH_LEN, token, len)) {
-	stk_push_pointer(opStk, token);
+	typestk_push(opStk, &token, sizeof(char*), type);
 	stk_push_long(opLenStk, len);
 	printf("OParenth pushed to OPSTK: %s\n", token);
 	printf("OParenth pushed to OPSTK Len: %i\n", len);
@@ -795,7 +849,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 	 >= topstack_precedence(opStk, opLenStk)) {
 	
 	/* push operator to operator stack */
-	stk_push_pointer(opStk, token);
+	typestk_push(opStk, &token, sizeof(char*), type);
 	stk_push_long(opLenStk, len);
 	printf("Operator pushed to OPSTK: %s\n", token);
 	printf("Operator pushed to OPSTK Len: %i\n", len);
@@ -818,6 +872,12 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
     }
 
     case LEXERTYPE_ENDSTATEMENT: {
+
+      /* write stack pop instruction:
+       * this ensures that the last return value is popped off of the stack after
+       * the statement completes.
+       */
+      sb_append_char(c->outBuffer, OP_POP);
       /* check for invalid types: */
       if(prevValType == LEXERTYPE_OPERATOR
 	 || prevValType == LEXERTYPE_ENDSTATEMENT) {
