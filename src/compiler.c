@@ -539,17 +539,16 @@ static int operator_precedence(char * operator, size_t operatorLen) {
  * returns: the precedence of the top stack operator, or 0 if the operator stack
  * is empty.
  */
-static int topstack_precedence(Stk * stk, Stk * lenStk) {
+static int topstack_precedence(TypeStk * stk, Stk * lenStk) {
 
   DSValue value;
   char * token;
   size_t len;
 
   /* get the token from the operator stack */
-  if(!stk_peek(stk, &value)) {
+  if(!typestk_peek(stk, &token, sizeof(char*), NULL)) {
     return 0;
   }
-  token = value.pointerVal;
 
   /* get the token length from the operator length stack */
   if(!stk_peek(lenStk, &value)) {
@@ -864,6 +863,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 
       /* TODO: add error checking for extra operators
        * and unmatched parenthesis */
+      assert(token != NULL);
       if(operator_precedence(token, len)
 	 >= topstack_precedence(opStk, opLenStk)) {
 	
