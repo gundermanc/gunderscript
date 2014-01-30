@@ -64,6 +64,9 @@ static const int sbBlockSize = 100;
 /* max number of digits in a number value */
 static const int numValMaxDigits = 50;
 
+/* Forward function declarations: */
+static bool func_body_straight_code(Compiler * c, Lexer * l);
+
 /* !!UNDER CONSTRUCTION!! */
 
 /**
@@ -433,18 +436,6 @@ static bool var_def(Compiler * c, Lexer * l) {
     return true;
   }
 
-  /**************************************************************************
-   * TODO: place code for handling variable initialization
-   **************************************************************************/
-
-  /* check for terminating semicolon */
-  token = lexer_next(l, &type, &len);
-  if(type != LEXERTYPE_ENDSTATEMENT) {
-    c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
-    return true;
-  }
-  printf("Semicolon providided.\n");
-
   /* store variable along with index at which its data will be stored in the
    * frame stack in the virtual machine
    */
@@ -465,6 +456,11 @@ static bool var_def(Compiler * c, Lexer * l) {
     return true;
   } else {
     printf("Not PREV EXISTED.\n");
+  }
+
+  /* perform inline variable initialization if code provided */
+  if(!func_body_straight_code(c, l)) {
+    return false;
   }
 
   return true;
