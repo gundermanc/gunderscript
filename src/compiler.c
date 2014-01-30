@@ -487,11 +487,13 @@ static bool func_do_var_defs(Compiler * c, Lexer * l) {
   char * token;
   size_t len;
  
+  token = lexer_current_token(l, &type, &len);
+  printf("Initial func_do_var_defs token: %s\n", token);
   /* variable declarations look like so:
    * var [variable_name_1];
    * var [variable_name_2];
    */
-  while((token = lexer_next(l, &type, &len)) != NULL) {
+  do {
     printf("func_do_var_defs next token: '%s'\n", token);
     printf("func_do_var_defs next token len: '%i'\n", len);
     if(var_def(c, l)) {
@@ -502,7 +504,7 @@ static bool func_do_var_defs(Compiler * c, Lexer * l) {
       /* no more variables, leave the loop */
       break;
     }
-  }
+  } while((token = lexer_next(l, &type, &len)) != NULL);
 
   return true;
 }
@@ -585,7 +587,8 @@ OpCode operator_to_opcode(char * operator, size_t len) {
 /* returns false if invalid operator encountered */
 /**
  * Writes all operators from the provided stack to the output buffer in the 
- * Compiler instance.
+ * Compiler instance, making allowances for specific behaviors for function
+ * tokens, variable references, and assignments.
  * c: an instance of Compiler.
  * opStk: the stack of operator strings.
  * opLenStk: the stack of operator string lengths, in longs.
@@ -643,7 +646,7 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 
 	/* get variable name string */
 	if(!typestk_pop(opStk, &token, sizeof(char*), &type)
-	   || type != LEXERTYPE_KEYVAR) {
+	     || type != LEXERTYPE_KEYVAR) {
 	  printf("MALFORMED TOKEN: %s\n", token);
 	  c->err = COMPILERERR_MALFORMED_ASSIGNMENT;
 	  return false;
@@ -746,6 +749,9 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   }
 
   token = lexer_current_token(l, &type, &len);
+  printf("First straight code token: %s\n", token);
+
+  printf("FIRST: %s\n", token);
 
   /* straight code token parse loop */
   do {
@@ -886,7 +892,9 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 
       /* check for invalid types: */
       if(prevValType == LEXERTYPE_OPERATOR 
-	 || prevValType == LEXERTYPE_PARENTHESIS) {
+	 || prevValType == LEXERTYPE_PARENTHESIS
+	 || prevValType == LEXERTYPE_ENDSTATEMENT
+	 || prevValType == COMPILER_NO_PREV) {
 	c->err = COMPILERERR_UNEXPECTED_TOKEN;
 	return false;
       }
@@ -965,6 +973,10 @@ static bool func_do_body(Compiler * c, Lexer * l) {
   token = lexer_current_token(l, &type, &len);
 
   printf("Remaining token: %s\n", token);
+
+  if(!func_body_straight_code(c, l)) {
+    return false;
+  }
 
   /*
   while((token = lexer_next(l, &type, &len)) != NULL) {
@@ -1152,12 +1164,6 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
   }
   compiler_set_err(compiler, COMPILERERR_SUCCESS);
 
-  /* handle global variable declarations */
-  if(!func_do_var_defs(compiler, lexer)) {
-    /* c->err is set by func_do_var_defs upon an error */
-    return false;
-  }
-
   /* compile loop */
   while((token = lexer_next(lexer, &type, &tokenLen)) != NULL) {
 
@@ -1170,9 +1176,15 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
     }
     */
 
+    if(!func_do_body(compiler, lexer)) {
+      return false;
+    }
+
+    /*
     if(!func_body_straight_code(compiler, lexer)) {
       return false;
     }
+    */
 
     /* handle errors */
     if(compiler->err != COMPILERERR_SUCCESS) {
