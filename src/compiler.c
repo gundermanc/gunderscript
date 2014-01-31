@@ -41,6 +41,7 @@
 #include "compiler.h"
 #include "lexer.h"
 #include "langkeywords.h"
+#include "vm.h"
 #include "vmdefs.h"
 #include "typestk.h"
 
@@ -74,7 +75,10 @@ static bool func_body_straight_code(Compiler * c, Lexer * l);
  * compiler and its data structures.
  * returns: new compiler object, or NULL if the allocation fails.
  */
-Compiler * compiler_new() {
+Compiler * compiler_new(VM * vm) {
+
+  assert(vm != NULL);
+
   Compiler * compiler = calloc(1, sizeof(Compiler));
 
   /* check for failed allocation */
@@ -86,6 +90,7 @@ Compiler * compiler_new() {
   compiler->symTableStk = stk_new(maxFuncDepth);
   compiler->functionHT = ht_new(initialHTSize, sbBlockSize, HTLoadFactor);
   compiler->outBuffer = sb_new(sbBlockSize);
+  compiler->vm = vm;
 
   /* check for further malloc errors */
   if(compiler->symTableStk == NULL 
@@ -604,6 +609,7 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
   VarType type;
 
   /* while items remain */
+  printf("TYPESTK SIZE: %i\n", typestk_size(opStk));
   while(typestk_size(opStk) > 0) {
 
     /* get operator string */
@@ -624,15 +630,42 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 	c->err = COMPILERERR_UNMATCHED_PARENTH;
 	return false;
       } else {
-	printf("DEBUG: TRUE\n");
+	typestk_pop(opStk, &token, sizeof(char*), &type);
+	/* get token length */
+	stk_pop(opLenStk, &value);
+	len = value.longVal;
+
+	/* there is a function name before the open parenthesis,
+	 * this is a function call:
+	 */
+	if(type == LEXERTYPE_KEYVAR) {
+	  int callbackIndex = -1;
+	  typestk_pop(opStk, &token, sizeof(char*), &type);
+
+	  /* check if the function name is a provided function */
+	  callbackIndex = vm_callback_index(c->vm, token, len);
+	  if(callbackIndex == -1) {
+	    printf("Undefined function: %s\n", token);
+	    c->err = COMPILERERR_UNDEFINED_FUNCTION;
+	    return false;
+	  }
+
+	  /* function exists, lets write the OPCodes */
+	  sb_append_char(c->outBuffer, OP_CALL_PTR_N);
+	  /* TODO: make support arguments */
+	  sb_append_char(c->outBuffer, 1);
+	  sb_append_str(c->outBuffer, &callbackIndex, sizeof(int));
+	  printf("OP_CALL_PTR_N: %s\n", token);
+	  
+	}
 	return true;
       }
     }
 
     /* handle OPERATORS and FUNCTIONS differently */
     if(type == LEXERTYPE_OPERATOR) {
-      printf("DEBUG: writing operator from OPSTK %s\n", token);
-      printf("DEBUG: writing operator from OPSTK LEN %i\n", len);
+      printf("POP: writing operator from OPSTK %s\n", token);
+      printf("     writing operator from OPSTK LEN %i\n", len);
 
       /* if there is an '=' on the stack, this is an assignment,
        * the next token on the stack should be a KEYVAR type that
@@ -782,11 +815,11 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       strncpy(rawValue, token, len);
       value = atof(rawValue);
 
-      printf("Output Number Written: %f\n", value);
+      printf("OUTPUT: %f\n", value);
 
       /* write number to output */
       sb_append_char(c->outBuffer, OP_NUM_PUSH);
-      sb_append_str(c->outBuffer, (char*)(&value), sizeof(value));
+      sb_append_str(c->outBuffer, (char*)(&value), sizeof(double));
 
       /* check for invalid types: */
       if(prevValType != COMPILER_NO_PREV
@@ -829,6 +862,8 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
     }
 
     case LEXERTYPE_PARENTHESIS: {
+      printf("PARENTH: %s\n", token);
+      printf("PARENTH LEN: %i\n", len);
       if(tokens_equal(LANG_OPARENTH, LANG_OPARENTH_LEN, token, len)) {
 	typestk_push(opStk, &token, sizeof(char*), type);
 	stk_push_long(opLenStk, len);
@@ -848,7 +883,8 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 	 && prevValType != LEXERTYPE_PARENTHESIS
 	 && prevValType != LEXERTYPE_OPERATOR
 	 && prevValType != LEXERTYPE_NUMBER
-	 && prevValType != LEXERTYPE_STRING) {
+	 && prevValType != LEXERTYPE_STRING
+	 && prevValType != LEXERTYPE_KEYVAR) {
 	c->err = COMPILERERR_UNEXPECTED_TOKEN;
 	return false;
       }
@@ -900,11 +936,6 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 
     case LEXERTYPE_ENDSTATEMENT: {
 
-      /* write stack pop instruction:
-       * this ensures that the last return value is popped off of the stack after
-       * the statement completes.
-       */
-      sb_append_char(c->outBuffer, OP_POP);
       /* check for invalid types: */
       if(prevValType == LEXERTYPE_OPERATOR
 	 || prevValType == LEXERTYPE_ENDSTATEMENT) {
@@ -936,6 +967,12 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   if(!write_operators_from_stack(c, opStk, opLenStk, false)) {
     return false;
   }
+
+  /* write stack pop instruction:
+   * this ensures that the last return value is popped off of the stack after
+   * the statement completes.
+   */
+  sb_append_char(c->outBuffer, OP_POP);
 
   /* no errors occurred */
   return true;
@@ -974,20 +1011,6 @@ static bool func_do_body(Compiler * c, Lexer * l) {
     return false;
   }
 
-  /*
-  while((token = lexer_next(l, &type, &len)) != NULL) {
-  
-    if(func_do_var_def(c, l)) {
-      break;
-    } else {
-      printf("UNHANDLED SITUATION\n");
-    }
-
-    if(c->err != COMPILERERR_SUCCESS) {
-      return false;
-    }
-  }
-  */
   return true;
 }
 
@@ -1098,7 +1121,7 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
     return true;
   }
 
-  /* retrieve current token (it was modified by func_do_body */
+  /* retrieve current token (it was modified by func_do_body) */
   token = lexer_current_token(l, &type, &len);
 
   /****************************** End function body ***************************/
@@ -1119,17 +1142,34 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
 }
 
 /**
+ * Gets the number of bytes of byte code in the bytecode buffer that can be
+ * copied out using compiler_bytecode().
+ * compiler: an instance of compiler.
+ * returns: the size of the byte code buffer.
+ */
+size_t compiler_bytecode_size(Compiler * compiler) {
+  assert(compiler != NULL);
+  return sb_size(compiler->outBuffer);
+}
+
+/**
  * Reads the bytecode compiled with compiler_build() into a new buffer of the
  * appropriate size.
  * compiler: an instance of Compiler that has some compiled bytecode.
  * buffer: a pointer to a buffer that will receive the compiled bytecode.
  * bufferSize: the size of the buffer in bytes.
  * returns: true if the operation succeeds and false if the buffer is too small,
- * or another error occurs. Read c->err for a specific error code.
+ * or another error occurs. Does not set c->err.
  */
 bool compiler_bytecode(Compiler * compiler, char * buffer, size_t bufferSize) {
-  /* TODO: write this function */
-  return false;
+  /* copy output to external buffer */
+  if(sb_size(compiler->outBuffer) > 0 
+     && sb_to_buffer(compiler->outBuffer, buffer, bufferSize, false)
+     != sb_size(compiler->outBuffer)) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
@@ -1175,12 +1215,6 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
     if(!func_do_body(compiler, lexer)) {
       return false;
     }
-
-    /*
-    if(!func_body_straight_code(compiler, lexer)) {
-      return false;
-    }
-    */
 
     /* handle errors */
     if(compiler->err != COMPILERERR_SUCCESS) {

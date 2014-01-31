@@ -28,6 +28,7 @@
 #include "stk.h"
 #include "ht.h"
 #include "sb.h"
+#include "vm.h"
 
 /* errors that can occur during compile time */
 typedef enum {
@@ -48,6 +49,7 @@ typedef enum {
   COMPILERERR_UNMATCHED_PARENTH,
   COMPILERERR_MALFORMED_ASSIGNMENT,
   COMPILERERR_UNDEFINED_VARIABLE,
+  COMPILERERR_UNDEFINED_FUNCTION,
 } CompilerErr;
 
 
@@ -58,6 +60,10 @@ typedef struct Compiler {
    * variable will be stored in the frame stack frame in the byte code.
    */
   Stk * symTableStk;
+  /* an instance of virtual machine. this is used during compile time to see
+   * what functions are available to the script.
+   */
+  VM * vm;
   HT * functionHT;                /* hashtable of function structs */
   SB * outBuffer;                 /* string builder that accepts the output */
   CompilerErr err;                /* error code value */
@@ -73,7 +79,7 @@ typedef struct CompilerFunc {
 } CompilerFunc;
 
 
-Compiler * compiler_new();
+Compiler * compiler_new(VM * vm);
 
 bool compiler_build(Compiler * compiler, char * input, size_t inputLen);
 

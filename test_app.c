@@ -118,15 +118,57 @@ int main() {
 }
 */
 
+static bool print(VM * vm, VMArg * arg, int argc) {
+  int i = 0;
+
+  for(i = 0; i < argc; i++) {
+    switch(arg[i].type) {
+    case TYPE_BOOLEAN:
+      printf("%s", vmarg_boolean(arg[i], NULL) ? "true" : "false");
+      break;
+    case TYPE_NUMBER:
+      printf("%f", vmarg_number(arg[i], NULL));
+      break;
+    case TYPE_STRING:
+      printf("%s", vmarg_string(arg[i]));
+      break;
+    default:
+      printf("DEBUG: unknown type.");
+    }
+  }
+  return false;
+}
+
 /* compiler test code */
 int main() {
-  Compiler * c = compiler_new();
-  char * foo = "var hello = 1;";
+  VM * vm = vm_new(100000, 100);
+  Compiler * c = compiler_new(vm);
+  char * foo = "print(3 * 3);";
+
+  char bytecode[1000];
+
+  if(!vm_reg_callback(vm, "print", 5, print)) {
+    printf("FAILED TO REGISTER PRINT FUNCTION.\n");
+    return 1;
+  }
+
+
   compiler_build(c, foo, strlen(foo));
+  compiler_bytecode(c, bytecode, 1000);
+
+  printf("\n\n\n\n");
   printf("FunctionHTSize: %i\n", ht_size(c->functionHT));
   printf("SymTblStk Size: %i\n", stk_size(c->symTableStk));
   printf("Output Length: %i\n", sb_size(c->outBuffer));
   printf("Compiler Err: %i\n", c->err);
+
+  printf("\n\n\nPROGRAM OUTPUT:\n\n");
+  if(!vm_exec(vm, bytecode, compiler_bytecode_size(c), 0)) {
+    printf("VM ERROR: %i\n", vm_get_err(vm));
+    return 1;
+  }
+ 
   compiler_free(c);
+  vm_free(vm);
   return 0;
 }

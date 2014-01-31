@@ -195,6 +195,8 @@ int vm_callback_index(VM * vm, char * name, size_t nameLen) {
 
   vm_set_err(vm, VMERR_SUCCESS);
 
+  printf("VM FUNCTION : %s\n", name);
+  printf("LEN: %i\n", nameLen);
   if(!ht_get_raw_key(vm->callbacksHT, name, nameLen, &value)) {
     vm_set_err(vm, VMERR_CALLBACK_NOT_EXIST);
     return -1;

@@ -55,6 +55,7 @@ typedef struct VMArg {
 
 typedef struct VM VM;
 
+/* the function prototype for a native VM function */
 typedef bool (*VMCallback) (VM * vm, VMArg * arg, int argc);
 
 struct VM {

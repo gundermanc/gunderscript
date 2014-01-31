@@ -337,6 +337,8 @@ bool op_dual_operand_math(VM * vm,  char * byteCode,
     exit(0);
   }
 
+  (*index)++;
+
   typestk_push(vm->opStk, &value1, sizeof(double), TYPE_NUMBER);
   return true;
 }
@@ -436,7 +438,7 @@ bool op_pop(VM * vm,  char * byteCode,
   void * value;
   VarType type;
 
-  printf("Reached.");
+  printf("Popped.");
   /* check that there is at least one item in the stack to pop */
   if(typestk_size(vm->opStk) <= 0) {
     vm_set_err(vm, VMERR_STACK_EMPTY);
