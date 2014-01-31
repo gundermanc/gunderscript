@@ -243,8 +243,6 @@ bool op_frame_pop(VM * vm,  char * byteCode,
 bool op_add(VM * vm,  char * byteCode, 
 	    size_t byteCodeLen, int * index) {
 
-  char * string1;
-  char * string2;
   VarType type1;
   VarType type2;
   char * newString;
@@ -257,35 +255,56 @@ bool op_add(VM * vm,  char * byteCode,
 
   (*index)++;
 
-  /* pop topmost two strings */
-  typestk_pop(vm->opStk, &string1, sizeof(char*), &type1);
-  typestk_pop(vm->opStk, &string2, sizeof(char*), &type2);
+  /* check the types of the top two objects on the stack */
+  typestk_peek(vm->opStk, NULL, sizeof(char*), &type1);
+  typestk_peek(vm->opStk, NULL, sizeof(char*), &type2);
 
-  /* check that top two values are strings */
-  if(type1 != TYPE_STRING || type2 != TYPE_STRING) {
+  /* handle string to string concat operation */
+  if(type1 == TYPE_STRING || type2 == TYPE_STRING) {
+
+    char * string1;
+    char * string2;
+
+    /* pop topmost two strings */
+    typestk_pop(vm->opStk, &string1, sizeof(char*), &type1);
+    typestk_pop(vm->opStk, &string2, sizeof(char*), &type2);
+
+    /* allocate and push new string, and free old ones */
+    newString = calloc(strlen(string1) + strlen(string2) + 1, sizeof(char));
+    if(newString == NULL) {
+      vm_set_err(vm, VMERR_ALLOC_FAILED);
+      return false;
+    }
+
+    strcpy(newString, string2);
+    strcat(newString, string1);
+
+    /* handle typestk realloc error */
+    if(!typestk_push(vm->opStk, &newString, sizeof(char*), TYPE_STRING)) {
+      vm_set_err(vm, VMERR_ALLOC_FAILED);
+      return false;
+    }
+
+    free(string1);
+    free(string2);
+    return true;
+  } else if(type1 == TYPE_NUMBER || type2 == TYPE_NUMBER) {
+    /* handle add operation: */
+
+    double value1;
+    double value2;
+
+    /* pop topmost two double values */
+    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
+    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    
+    value1 += value2;
+    typestk_push(vm->opStk, &value1, sizeof(double), type1);
+
+  } else {
     vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
     return false;
   }
-
-  /* allocate and push new string, and free old ones */
-  newString = calloc(strlen(string1) + strlen(string2) + 1, sizeof(char));
-  if(newString == NULL) {
-    vm_set_err(vm, VMERR_ALLOC_FAILED);
-    return false;
-  }
-
-  strcpy(newString, string2);
-  strcat(newString, string1);
-
-  /* handle typestk realloc error */
-  if(!typestk_push(vm->opStk, &newString, sizeof(char*), TYPE_STRING)) {
-    vm_set_err(vm, VMERR_ALLOC_FAILED);
-    return false;
-  }
-
-  free(string1);
-  free(string2);
-  return true;
 }
 
 /**

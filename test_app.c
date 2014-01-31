@@ -143,7 +143,7 @@ static bool print(VM * vm, VMArg * arg, int argc) {
 int main() {
   VM * vm = vm_new(100000, 100);
   Compiler * c = compiler_new(vm);
-  char * foo = "print(3 * 3);";
+  char * foo = "print(2 * 3 + 1);";
 
   char bytecode[1000];
 

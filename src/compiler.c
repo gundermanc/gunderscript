@@ -917,7 +917,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       } else {
 
 	/* pop operators from stack and write to output buffer */
-	if(!write_operators_from_stack(c, opStk, opLenStk, false)) {
+	if(!write_operators_from_stack(c, opStk, opLenStk, true)) {
 	  return false;
 	}
       }
