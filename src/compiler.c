@@ -520,7 +520,6 @@ static bool func_do_var_defs(Compiler * c, Lexer * l) {
  */
 static int operator_precedence(char * operator, size_t operatorLen) {
 
-  printf("OPERATOR: %s\n", operator);
   if(operatorLen == 1) {
     switch(operator[0]) {
     case '*':
@@ -600,7 +599,8 @@ OpCode operator_to_opcode(char * operator, size_t len) {
  * encountered.
  */
 static bool write_operators_from_stack(Compiler * c, TypeStk * opStk, 
-				       Stk * opLenStk, bool parenthExpected) {
+				       Stk * opLenStk, bool parenthExpected,
+				       bool popParenth) {
   bool topOperator = true;
   DSValue value;
   char * token = NULL;
@@ -609,30 +609,28 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
   VarType type;
 
   /* while items remain */
-  printf("TYPESTK SIZE: %i\n", typestk_size(opStk));
   while(typestk_size(opStk) > 0) {
-
-    /* get operator string */
+    printf("TYPESTK SIZE: %i\n", typestk_size(opStk));
+    /* get token string */
     typestk_pop(opStk, &token, sizeof(char*), &type);
 
-    /* get operator length */
+    /* get token length */
     stk_pop(opLenStk, &value);
     len = value.longVal;
 
-    printf("TOKEN: %s\n", token);
-
-    /* if there is an open parenthesis, stop popping  */
+    /* if there is an open parenthesis...  */
     if(tokens_equal(LANG_OPARENTH, LANG_OPARENTH_LEN, token, len)) {
-
+      printf("OPARENTHDSFLSKFJLSF\n");
+      printf("TYPESTK SIZE: %i\n", typestk_size(opStk));
       /* if top of stack is a parenthesis, it is a mismatch! */
       if(!parenthExpected) {
-	printf("Unmatched parenth!\n");
+	printf("UMP 1;\n");
 	c->err = COMPILERERR_UNMATCHED_PARENTH;
 	return false;
-      } else {
-	typestk_pop(opStk, &token, sizeof(char*), &type);
-	/* get token length */
-	stk_pop(opLenStk, &value);
+      } else if(popParenth) {
+	printf("POPPING OPARENTH:\n");
+	typestk_peek(opStk, &token, sizeof(char*), &type);
+	stk_peek(opLenStk, &value);
 	len = value.longVal;
 
 	/* there is a function name before the open parenthesis,
@@ -641,6 +639,7 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 	if(type == LEXERTYPE_KEYVAR) {
 	  int callbackIndex = -1;
 	  typestk_pop(opStk, &token, sizeof(char*), &type);
+	  stk_pop(opLenStk, &value);
 
 	  /* check if the function name is a provided function */
 	  callbackIndex = vm_callback_index(c->vm, token, len);
@@ -652,12 +651,20 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 
 	  /* function exists, lets write the OPCodes */
 	  sb_append_char(c->outBuffer, OP_CALL_PTR_N);
-	  /* TODO: make support arguments */
+	  /* TODO: make support mutiple arguments */
 	  sb_append_char(c->outBuffer, 1);
 	  sb_append_str(c->outBuffer, &callbackIndex, sizeof(int));
 	  printf("OP_CALL_PTR_N: %s\n", token);
 	  
 	}
+	return true;
+      } else {
+	/* Re-push the parenthesis:*/
+	typestk_push(opStk, &token, sizeof(char*), type);
+	stk_push_long(opLenStk, len);
+
+	printf("CEASING WITHOUT POPPING:\n");
+	printf("TYPESTK SIZE: %i\n", typestk_size(opStk));
 	return true;
       }
     }
@@ -689,6 +696,7 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 
 	/* check that the variable was previously declared */
 	if(!ht_get_raw_key(symtblstk_peek(c), token, len, &value)) {
+	  printf("UNDEFINED VAR: %s\n", token);
 	  c->err = COMPILERERR_UNDEFINED_VARIABLE;
 	  return false;
 	}
@@ -721,6 +729,7 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 
       /* check that the variable was previously declared */
       if(!ht_get_raw_key(symtblstk_peek(c), token, len, &value)) {
+	printf("Undefined Var!\n");
 	c->err = COMPILERERR_UNDEFINED_VARIABLE;
 	return false;
       }
@@ -745,6 +754,8 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
   if(!parenthExpected) {
     return true;
   } else {
+    printf("UMP 2;");
+    /*** TODO: potentially catches false error cases */
     c->err = COMPILERERR_UNMATCHED_PARENTH;
     return false;
   }
@@ -808,7 +819,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
        * OP_NUM_PUSH [value as a double]
        */
       char rawValue[numValMaxDigits];
-      double value;
+      double value = 0;
 
       /* get double representation of number
       /* TODO: length check, and double overflow check */
@@ -825,8 +836,8 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       if(prevValType != COMPILER_NO_PREV
 	 && prevValType != LEXERTYPE_PARENTHESIS
 	 && prevValType != LEXERTYPE_OPERATOR) {
-	c->err = COMPILERERR_UNEXPECTED_TOKEN;
-	return false;
+	 c->err = COMPILERERR_UNEXPECTED_TOKEN;
+	 return false;
       }
 
       break;
@@ -873,7 +884,8 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 	/* pop operators from stack and write to output buffer
 	 * FAIL if there is no open parenthesis in the stack.
 	 */
-	if(!write_operators_from_stack(c, opStk, opLenStk, true)) {
+	printf("**Close Parenth Pop\n");
+	if(!write_operators_from_stack(c, opStk, opLenStk, true, true)) {
 	  return false;
 	}
       }
@@ -885,7 +897,7 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 	 && prevValType != LEXERTYPE_NUMBER
 	 && prevValType != LEXERTYPE_STRING
 	 && prevValType != LEXERTYPE_KEYVAR) {
-	c->err = COMPILERERR_UNEXPECTED_TOKEN;
+	c->err = COMPILERERR_UNEXPECTED_TOKEN; 
 	return false;
       }
       break;
@@ -917,17 +929,25 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       } else {
 
 	/* pop operators from stack and write to output buffer */
-	if(!write_operators_from_stack(c, opStk, opLenStk, true)) {
+	printf("**Popping Operators.\n");
+	if(!write_operators_from_stack(c, opStk, opLenStk, true, false)) {
 	  return false;
 	}
+
+	/* push operator to operator stack */
+	typestk_push(opStk, &token, sizeof(char*), type);
+	stk_push_long(opLenStk, len);
       }
 
       /* check for invalid types: */
-      if(prevValType == LEXERTYPE_OPERATOR 
-	 || prevValType == LEXERTYPE_PARENTHESIS
-	 || prevValType == LEXERTYPE_ENDSTATEMENT
-	 || prevValType == COMPILER_NO_PREV) {
-	c->err = COMPILERERR_UNEXPECTED_TOKEN;
+      if(prevValType != LEXERTYPE_STRING
+	 && prevValType != LEXERTYPE_NUMBER
+	 && prevValType != LEXERTYPE_KEYVAR
+	 && prevValType != LEXERTYPE_PARENTHESIS) {
+	/* TODO: this error check does not distinguish between ( and ). Revise to
+	 * ensure that parenthesis is part of a matching pair too.
+	 */
+	c->err = COMPILERERR_UNEXPECTED_TOKEN; 
 	return false;
       }
 
@@ -964,7 +984,8 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   }
 
   /* reached the end of the input, empty the operator stack to the output */
-  if(!write_operators_from_stack(c, opStk, opLenStk, false)) {
+  printf("**End Pop\n");
+  if(!write_operators_from_stack(c, opStk, opLenStk, false, true)) {
     return false;
   }
 
