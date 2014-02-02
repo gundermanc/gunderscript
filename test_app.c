@@ -143,7 +143,7 @@ static bool print(VM * vm, VMArg * arg, int argc) {
 int main() {
   VM * vm = vm_new(100000, 100);
   Compiler * c = compiler_new(vm);
-  char * foo = "print((1) * (3));";
+  char * foo = "function main() { print(4 + 4); }";
 
   char bytecode[1000];
 
@@ -163,7 +163,8 @@ int main() {
   printf("Compiler Err: %i\n", c->err);
 
   printf("\n\n\nPROGRAM OUTPUT:\n\n");
-  if(!vm_exec(vm, bytecode, compiler_bytecode_size(c), 0)) {
+  if(!vm_exec(vm, bytecode, compiler_bytecode_size(c),
+	      compiler_function_index(c, "main", 4))) {
     printf("VM ERROR: %i\n", vm_get_err(vm));
     return 1;
   }

@@ -78,6 +78,7 @@ bool op_var_stor(VM * vm, char * byteCode,
 
   /* handle empty frame stack error case */
   if(!(frmstk_size(vm->frmStk) > 0)) {
+    printf("FRMSTK_EMPTY 1\n");
     vm_set_err(vm, VMERR_FRMSTK_EMPTY);
     return false;
   }
@@ -117,6 +118,7 @@ bool op_var_push(VM * vm,  char * byteCode,
 
   /* handle empty frame stack error case */
   if(!(frmstk_size(vm->frmStk) > 0)) {
+    printf("FRMSTK_EMPTY 2\n");
     vm_set_err(vm, VMERR_FRMSTK_EMPTY);
     return false;
   }
@@ -143,7 +145,7 @@ bool op_var_push(VM * vm,  char * byteCode,
  * of each function, logical block to enforce a change in scope.
  * functionCall: if true, this frame push acts as a function call instead.
  * OP_FRM_PUSH [number_of_vars_and_args:1]
- * OP_CALL_B [number_of_vars_and_args:1] [args:1]
+ * OP_CALL_B [number_of_vars_and_args:1] [args:1] [function_address:sizeof(int)]
  * args: the number of values to pop from OP stack to treat as arguments.
  */
 bool op_frame_push(VM * vm,  char * byteCode, 

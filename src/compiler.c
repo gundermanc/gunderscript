@@ -136,7 +136,7 @@ static bool tokens_equal(char * token1, size_t num1,
  * returns: A new instance of CompilerFunc struct, NULL if the allocation fails.
  */
 static CompilerFunc * compilerfunc_new(char * name, size_t nameLen,
-				       int index, int numArgs) {
+				       int index, int numArgs, bool exported) {
   assert(index >= 0);
 
   CompilerFunc * cf = calloc(1, sizeof(CompilerFunc));
@@ -145,6 +145,7 @@ static CompilerFunc * compilerfunc_new(char * name, size_t nameLen,
     strncpy(cf->name, name, nameLen);
     cf->index = index;
     cf->numArgs = numArgs;
+    cf->exported = true;
   }
 
   return cf;
@@ -291,6 +292,7 @@ static int func_defs_parse_args(Compiler * c, Lexer * l) {
   size_t len;
   bool prevExisted;
   char * token = lexer_next(l, &type, &len);
+  DSValue value;
   int numArgs = 0;
 
   while(true) {
@@ -312,11 +314,15 @@ static int func_defs_parse_args(Compiler * c, Lexer * l) {
     /* store variable along with index at which its data will be stored in the
      * frame stack in the virtual machine
      */
-    if(!ht_put_int(symTbl, token, ht_size(symTbl), NULL, &prevExisted)) {
+    value.intVal = ht_size(symTbl);
+    if(!ht_put_raw_key(symTbl, token, len, 
+		       &value, NULL, &prevExisted)) {
       c->err = COMPILERERR_ALLOC_FAILED;
       printf("COMPILER_ALLOC_FAILED\n");
       return -1;
     }
+    printf("Symbol Table Depth: %i\n", stk_size(c->symTableStk));
+    printf("Registered argument: %s %i\n", token, len);
     numArgs++;
 
     /* check for duplicate var names */
@@ -366,20 +372,22 @@ static int func_defs_parse_args(Compiler * c, Lexer * l) {
  * numArgs: the number of arguments that the function can accept.
  */
 static bool func_store_def(Compiler * c, char * name, size_t nameLen,
-			   int numArgs) {
+			   int numArgs, bool exported) {
 
   /* TODO: might need a lexer_next() call to get correct token */
   bool prevValue;
   CompilerFunc * cp;
+  DSValue value;
 
   /* check for proper CompilerFunc allocation */
-  cp = compilerfunc_new(name, nameLen, sb_size(c->outBuffer), numArgs);
+  cp = compilerfunc_new(name, nameLen, sb_size(c->outBuffer), numArgs, exported);
   if(cp == NULL) {
     c->err = COMPILERERR_ALLOC_FAILED;
     return false;
   }
 
-  ht_put_pointer(c->functionHT, cp->name, cp, NULL, &prevValue);
+  value.pointerVal = cp;
+  ht_put_raw_key(c->functionHT, cp->name, nameLen, &value, NULL, &prevValue);
 
   /* check that function didn't previously exist */
   if(prevValue) {
@@ -644,9 +652,24 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 	  /* check if the function name is a provided function */
 	  callbackIndex = vm_callback_index(c->vm, token, len);
 	  if(callbackIndex == -1) {
-	    printf("Undefined function: %s\n", token);
-	    c->err = COMPILERERR_UNDEFINED_FUNCTION;
-	    return false;
+	    CompilerFunc * funcDef;
+
+	    /* the function is not a native function. check script functions */
+	    funcDef = ht_get(c->functionHT, token, &value);
+	    if(funcDef) {
+	      /* function exists, lets write the OPCodes */
+	      sb_append_char(c->outBuffer, OP_CALL_B);
+	      /* TODO: error check number of arguments */
+	      sb_append_char(c->outBuffer, funcDef->numArgs);
+	      sb_append_char(c->outBuffer, 1); /* Number of args ...TODO */
+	      printf("Function Index: %i\n", funcDef->index);
+	      sb_append_str(c->outBuffer, &funcDef->index, sizeof(int));
+	      printf("OP_CALL_PTR_N: %s\n", token);
+	    } else {
+	      printf("Undefined function: %s\n", token);
+	      c->err = COMPILERERR_UNDEFINED_FUNCTION;
+	      return false;
+	    }
 	  }
 
 	  /* function exists, lets write the OPCodes */
@@ -729,7 +752,8 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 
       /* check that the variable was previously declared */
       if(!ht_get_raw_key(symtblstk_peek(c), token, len, &value)) {
-	printf("Undefined Var!\n");
+	printf("Symbol table frame: %i\n", stk_size(c->symTableStk));
+	printf("Undefined Var: %s %i\n", token, len);
 	c->err = COMPILERERR_UNDEFINED_VARIABLE;
 	return false;
       }
@@ -801,6 +825,14 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
      * be postfixed for execution by the VM
      */
     switch(type) {
+    case LEXERTYPE_BRACKETS:
+      /* check for invalid types: */
+      if(prevValType != COMPILER_NO_PREV
+	 && prevValType != LEXERTYPE_ENDSTATEMENT) {
+	c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+	return false;
+      }
+      return true;
 
     case LEXERTYPE_KEYVAR: {
       /* KEYVAR HANDLER:
@@ -1132,7 +1164,8 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   printf("Passed OBRACKET.\n");
 
   /* store the function name, location in the output, and # of args */
-  if(!func_store_def(c, name, nameLen, numArgs)) {
+  token = lexer_next(l, &type, &len);
+  if(!func_store_def(c, name, nameLen, numArgs, exported)) {
     return true;
   }
 
@@ -1225,17 +1258,15 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
   while((token = lexer_next(lexer, &type, &tokenLen)) != NULL) {
 
     
-    /* TEMPORARILY COMMENTED OUT FOR STRAIGHT CODE PARSER DEVELOPMENT: 
+    /* TEMPORARILY COMMENTED OUT FOR STRAIGHT CODE PARSER DEVELOPMENT: */
     if(build_parse_func_defs(compiler, lexer)) {
       break;
     } else {
-      func_do_body(compiler, lexer);
+      if(!func_do_body(compiler, lexer)) {
+	return false;
+      }
     }
-    */
-
-    if(!func_do_body(compiler, lexer)) {
-      return false;
-    }
+    
 
     /* handle errors */
     if(compiler->err != COMPILERERR_SUCCESS) {
@@ -1274,6 +1305,41 @@ CompilerErr compiler_get_err(Compiler * compiler) {
 }
 
 /**
+ * Gets the start index of the specified function from the compiler declared
+ * functions hashtable. To get the index of a function, it must have been
+ * declared with the exported keyword.
+ * compiler: an instance of compiler.
+ * name: the name of the function to locate.
+ * len: the length of name.
+ * returns: the index in the byte code where the function begins, or -1 if the
+ * function does not exist or was not exported.
+ */
+int compiler_function_index(Compiler * compiler, char * name, size_t len) {
+
+  assert(compiler != NULL);
+  assert(name != NULL);
+  assert(len > 0);
+
+  DSValue value;
+  CompilerFunc * cf;
+
+  /* get the specified function's struct */
+  if(!ht_get_raw_key(compiler->functionHT, name, len, &value)) {
+    printf("NEG1\n");
+    return -1; /* error occurred */
+  }
+  cf = value.pointerVal;
+
+  /* make sure function was declared with exported keyword */
+  if(!cf->exported) {
+    printf("NEG2\n");
+    return -1;
+  }
+
+  return cf->index;
+}
+
+/**
  * Frees a compiler object and all associated memory.
  * compiler: an instance of Compiler.
  * TODO: a lot of allocations don't have frees yet. These will be added in when
@@ -1289,7 +1355,7 @@ void compiler_free(Compiler * compiler) {
   if(compiler->functionHT != NULL) {
     ht_free(compiler->functionHT);
   }
-
+ 
   if(compiler->outBuffer != NULL) {
     sb_free(compiler->outBuffer);
   }

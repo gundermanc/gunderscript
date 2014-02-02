@@ -76,6 +76,7 @@ typedef struct CompilerFunc {
   int index;                      /* the index where the function's 
 				   * bytecode begins */
   int numArgs;                    /* the number of arguments required */
+  bool exported;
 } CompilerFunc;
 
 
@@ -85,7 +86,11 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen);
 
 void compiler_set_err(Compiler * compiler, CompilerErr err);
 
+int compiler_function_index(Compiler * compiler, char * name, size_t len);
+
 CompilerErr compiler_get_err(Compiler * compiler);
+
+
 
 void compiler_free(Compiler * compiler);
 
