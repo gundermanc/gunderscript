@@ -1,0 +1,9 @@
+/**
+ * Gunderscript Test Script
+ * (C) 2014 Christian Gunderman
+ */
+
+function exported main() {
+  print(3 + 3);
+
+}

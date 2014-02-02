@@ -139,12 +139,37 @@ static bool print(VM * vm, VMArg * arg, int argc) {
   return false;
 }
 
+char *loadfile(char *file, int *size) {
+  FILE *fp;
+  long lSize;
+  char *buffer;
+
+  fp = fopen ( file , "rb" );
+  if( !fp ) perror(file),exit(1);
+
+  fseek( fp , 0L , SEEK_END);
+  lSize = ftell( fp );
+  rewind( fp );
+
+  /* allocate memory for entire content */
+  buffer = calloc( 1, lSize+1 );
+  if( !buffer ) fclose(fp),fputs("memory alloc fails",stderr),exit(1);
+
+  /* copy the file into the buffer */
+  if( 1!=fread( buffer , lSize, 1 , fp) )
+    fclose(fp),free(buffer),fputs("entire read fails",stderr),exit(1);
+
+  /* do your work here, buffer is a string contains the whole text */
+  size = (int *)lSize;
+  fclose(fp);
+  return buffer;
+}
+
 /* compiler test code */
 int main() {
   VM * vm = vm_new(100000, 100);
   Compiler * c = compiler_new(vm);
-  char * foo = "function main() { print(4 + 4); }";
-
+  char * foo = loadfile("script.gxs", 1000);
   char bytecode[1000];
 
   if(!vm_reg_callback(vm, "print", 5, print)) {
