@@ -241,7 +241,6 @@ bool vm_exec(VM * vm, char * byteCode,
 
     switch(byteCode[vm->index]) {
     case OP_VAR_PUSH:
-      printf("**INDEX: %i\n", vm->index);
       if(!op_var_push(vm, byteCode, byteCodeLen, &vm->index)) {
 	return false;
       }
