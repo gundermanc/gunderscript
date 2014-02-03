@@ -78,7 +78,6 @@ bool op_var_stor(VM * vm, char * byteCode,
 
   /* handle empty frame stack error case */
   if(!(frmstk_size(vm->frmStk) > 0)) {
-    printf("FRMSTK_EMPTY 1\n");
     vm_set_err(vm, VMERR_FRMSTK_EMPTY);
     return false;
   }
@@ -118,7 +117,6 @@ bool op_var_push(VM * vm,  char * byteCode,
 
   /* handle empty frame stack error case */
   if(!(frmstk_size(vm->frmStk) > 0)) {
-    printf("FRMSTK_EMPTY 2\n");
     vm_set_err(vm, VMERR_FRMSTK_EMPTY);
     return false;
   }
@@ -176,10 +174,8 @@ bool op_frame_push(VM * vm,  char * byteCode,
   }
 
   /* push new frame with current index as return val */
-  printf("Return address: %i\n", endOfInstruction);
   if(!frmstk_push(vm->frmStk, functionCall ? endOfInstruction
 		  : OP_NO_RETURN, numVarArgs)) {
-    printf("NumVarArgs: %i\n", numVarArgs);
      vm_set_err(vm, VMERR_STACK_OVERFLOW);
      return false;
   }
@@ -196,7 +192,6 @@ bool op_frame_push(VM * vm,  char * byteCode,
 
     /* there are more parameters than there is memory allocated in the frame */
     if(args > numVarArgs) {
-      printf("INVALID PUSH PARAM\n");
       vm_set_err(vm, VMERR_INVALID_PARAM);
       return false;
     }
@@ -220,7 +215,6 @@ bool op_frame_push(VM * vm,  char * byteCode,
     }
 
     /* perform goto */
-    printf("Going to: %i\n", addr);
     *index = addr;
   }
 
@@ -252,7 +246,6 @@ bool op_frame_pop(VM * vm,  char * byteCode,
       vm->err = VMERR_INVALID_ADDR;
       return false;
     }
-    printf("Return!!!! %i\n", returnAddr);
     (*index) = returnAddr;
   } else {
    (*index)++;
@@ -690,7 +683,7 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
 
   /* copy callback pointer index from the bytecode */
   memcpy(&callbackIndex, byteCode + *index, sizeof(int));
-  *index += sizeof(void*);
+  *index += sizeof(int);
 
   /* handle invalid number of args case*/
   /* TODO: check signedness of char...this might be unneccessary */
