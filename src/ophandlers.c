@@ -153,11 +153,14 @@ bool op_frame_push(VM * vm,  char * byteCode,
 
   char numVarArgs = 0;
   char args;
+  size_t instructionSize = (functionCall ? (2 * sizeof(char))
+			    :((2 * sizeof(char)) + sizeof(int)));
+  size_t endOfInstruction = *index + instructionSize;
+
   int i = 0;
 
   /* check there are enough bytes left for the parameters */
-  if((byteCodeLen - *index) < 
-     (functionCall ? (2 * sizeof(char)):((2 * sizeof(char)) + sizeof(int)))) {
+  if((byteCodeLen - *index) < instructionSize) {
     vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
     return false;
   }
@@ -173,7 +176,10 @@ bool op_frame_push(VM * vm,  char * byteCode,
   }
 
   /* push new frame with current index as return val */
-  if(!frmstk_push(vm->frmStk, functionCall ? *index:OP_NO_RETURN, numVarArgs)) {
+  printf("Return address: %i\n", endOfInstruction);
+  if(!frmstk_push(vm->frmStk, functionCall ? endOfInstruction
+		  : OP_NO_RETURN, numVarArgs)) {
+    printf("NumVarArgs: %i\n", numVarArgs);
      vm_set_err(vm, VMERR_STACK_OVERFLOW);
      return false;
   }
@@ -190,6 +196,7 @@ bool op_frame_push(VM * vm,  char * byteCode,
 
     /* there are more parameters than there is memory allocated in the frame */
     if(args > numVarArgs) {
+      printf("INVALID PUSH PARAM\n");
       vm_set_err(vm, VMERR_INVALID_PARAM);
       return false;
     }
@@ -213,6 +220,7 @@ bool op_frame_push(VM * vm,  char * byteCode,
     }
 
     /* perform goto */
+    printf("Going to: %i\n", addr);
     *index = addr;
   }
 
@@ -221,19 +229,36 @@ bool op_frame_push(VM * vm,  char * byteCode,
 
 /**
  * Pops a stack from from the top of the frame stack. This is called every time
- * a function or logical block is left.
+ * a function or logical block is left. If the stack frame has a recorded return
+ * value (it was pushed with OP_CALL_B) then the code returns to that point of
+ * execution.
  */
 bool op_frame_pop(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
 
-  /* push new frame with current index as return val */
-  if(frmstk_pop(vm->frmStk)) {
-    (*index)++;
-    return true;
+  int returnAddr = frmstk_ret_addr(vm->frmStk);
+
+  /* pop frame off of the stack */
+  if(!frmstk_pop(vm->frmStk)) {
+    vm_set_err(vm, VMERR_STACK_EMPTY);
+    return false;
   }
 
-  vm_set_err(vm, VMERR_STACK_EMPTY);
-  return false;
+  /* if there is a return address, goto it to end the function */
+  if(returnAddr != OP_NO_RETURN) {
+
+    /* check that goto value is within the size of the bytecode */
+    if(returnAddr >= byteCodeLen || returnAddr < 0) {
+      vm->err = VMERR_INVALID_ADDR;
+      return false;
+    }
+    printf("Return!!!! %i\n", returnAddr);
+    (*index) = returnAddr;
+  } else {
+   (*index)++;
+  }
+
+  return true;
 }
 
 /**

@@ -189,8 +189,13 @@ int main() {
 
   printf("\n\n\nPROGRAM OUTPUT:\n\n");
   if(!vm_exec(vm, bytecode, compiler_bytecode_size(c),
-	      compiler_function_index(c, "main", 4))) {
+	      /*compiler_function_index(c, "main", 4)*/ 0)) {
+    int i = 0;
     printf("VM ERROR: %i\n", vm_get_err(vm));
+    for(i = 0; i < compiler_bytecode_size(c); i++) {
+      printf(":%i\n", bytecode[i]);
+
+    }
     return 1;
   }
  

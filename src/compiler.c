@@ -387,6 +387,7 @@ static bool func_store_def(Compiler * c, char * name, size_t nameLen,
   }
 
   value.pointerVal = cp;
+  printf("FUNCTIONDEF: %s\n", cp->name);
   ht_put_raw_key(c->functionHT, cp->name, nameLen, &value, NULL, &prevValue);
 
   /* check that function didn't previously exist */
@@ -652,11 +653,10 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 	  /* check if the function name is a provided function */
 	  callbackIndex = vm_callback_index(c->vm, token, len);
 	  if(callbackIndex == -1) {
-	    CompilerFunc * funcDef;
 
 	    /* the function is not a native function. check script functions */
-	    funcDef = ht_get(c->functionHT, token, &value);
-	    if(funcDef) {
+	    if(ht_get_raw_key(c->functionHT, token, len, &value)) {
+	      CompilerFunc * funcDef = value.pointerVal;
 	      /* function exists, lets write the OPCodes */
 	      sb_append_char(c->outBuffer, OP_CALL_B);
 	      /* TODO: error check number of arguments */
@@ -763,6 +763,7 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
        * stack in the VM to the VM OP stack.
        */
       /* TODO: need to add ability to search LOWER frames for variables */
+      printf("Reading Variable\n");
       sb_append_char(c->outBuffer, OP_VAR_PUSH);
       sb_append_char(c->outBuffer, 0 /* this val should chng with depth */);
       sb_append_char(c->outBuffer, value.intVal);
@@ -825,14 +826,13 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
      * be postfixed for execution by the VM
      */
     switch(type) {
-    case LEXERTYPE_BRACKETS:
-      /* check for invalid types: */
+      /*case LEXERTYPE_BRACKETS:
       if(prevValType != COMPILER_NO_PREV
 	 && prevValType != LEXERTYPE_ENDSTATEMENT) {
 	c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
 	return false;
       }
-      return true;
+      return true; */
 
     case LEXERTYPE_KEYVAR: {
       /* KEYVAR HANDLER:
@@ -994,7 +994,9 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 	c->err = COMPILERERR_UNEXPECTED_TOKEN;
 	return false;
       }
-      break;
+      printf("ENDSTATEMENT\n");
+      /*token = lexer_next(l, &type, &len);*/
+      return true;
     }
 
     default:
@@ -1010,10 +1012,10 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
   } while((token = lexer_next(l, &type, &len)) != NULL);
 
   /* check for a semicolon at the end of the line */
-  if(prevValType != LEXERTYPE_ENDSTATEMENT) {
+  /*if(prevValType != LEXERTYPE_ENDSTATEMENT) {
     c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
     return false;
-  }
+    }*/
 
   /* reached the end of the input, empty the operator stack to the output */
   printf("**End Pop\n");
@@ -1101,6 +1103,7 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   size_t nameLen;
   int numArgs;
 
+  printf("TOKEN: %s\n", token);
   /* check that this is a function declaration token */
   if(!tokens_equal(token, len, LANG_FUNCTION, LANG_FUNCTION_LEN)) {
     return false;
@@ -1183,11 +1186,14 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   /* check for closing brace defining end of body "}" */
   printf(token);
   if(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
+    printf("ACTUAL: %s\n", token);
     c->err = COMPILERERR_EXPECTED_CBRACKET;
     return true;
   }
 
-  printf("Passed last brace. Stored Function.\n");
+  printf("OP_FRM_POP\n");
+  sb_append_char(c->outBuffer, OP_FRM_POP);
+  printf("Passed last brace. Stored Function. Token: %s\n", token);
 
   /* we're done here! pop the symbol table for this function off the stack. */
   ht_free(symtblstk_pop(c));
@@ -1260,7 +1266,8 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
     
     /* TEMPORARILY COMMENTED OUT FOR STRAIGHT CODE PARSER DEVELOPMENT: */
     if(build_parse_func_defs(compiler, lexer)) {
-      break;
+      /* Do nothing */
+      /* break; */
     } else {
       if(!func_do_body(compiler, lexer)) {
 	return false;
