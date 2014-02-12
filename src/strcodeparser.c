@@ -282,6 +282,36 @@ static bool parse_number(Compiler * c, LexerType prevValType,
   return true;
 }
 
+static bool parse_string(Compiler * c, LexerType prevValType, 
+			 char * token, size_t len) {
+  /* Reads a string token and writes it raw to the output as so:
+   * OP_STR_PUSH [strlen as 1 byte value] [string]
+   */
+  char outLen = len;
+
+  /* string length byte has max value of CHAR_MAX. */
+  if(len >= CHAR_MAX) {
+    c->err = COMPILERERR_STRING_TOO_LONG;
+    return false;
+  }
+
+  printf("Output string: %s\n", token);
+
+  /* write output */
+  sb_append_char(c->outBuffer, OP_STR_PUSH);
+  sb_append_char(c->outBuffer, outLen);
+  sb_append_str(c->outBuffer, token, len);
+
+  /* check for invalid types: */
+  if(prevValType != COMPILER_NO_PREV
+     && prevValType != LEXERTYPE_PARENTHESIS
+     && prevValType != LEXERTYPE_OPERATOR) {
+    c->err = COMPILERERR_UNEXPECTED_TOKEN;
+    return false;
+  }
+  return true;
+}
+
 /**
  * Handles straight code:
  * This is a modified version of Djikstra's "Shunting Yard Algorithm" for
@@ -342,42 +372,17 @@ bool parse_straight_code(Compiler * c, Lexer * l) {
       break;
     }
 
-    case LEXERTYPE_NUMBER: {
+    case LEXERTYPE_NUMBER:
       if(!parse_number(c, prevValType, token, len)) {
 	return false;
       }
-
       break;
-    }
 
-    case LEXERTYPE_STRING: {
-      /* Reads a string token and writes it raw to the output as so:
-       * OP_STR_PUSH [strlen as 1 byte value] [string]
-       */
-      char outLen = len;
-
-      /* string length byte has max value of CHAR_MAX. */
-      if(len >= CHAR_MAX) {
-	c->err = COMPILERERR_STRING_TOO_LONG;
-	return false;
-      }
-
-      printf("Output string: %s\n", token);
-
-      /* write output */
-      sb_append_char(c->outBuffer, OP_STR_PUSH);
-      sb_append_char(c->outBuffer, outLen);
-      sb_append_str(c->outBuffer, token, len);
-
-      /* check for invalid types: */
-      if(prevValType != COMPILER_NO_PREV
-	 && prevValType != LEXERTYPE_PARENTHESIS
-	 && prevValType != LEXERTYPE_OPERATOR) {
-	c->err = COMPILERERR_UNEXPECTED_TOKEN;
+    case LEXERTYPE_STRING:
+      if(!parse_string(c, prevValType, token, len)) {
 	return false;
       }
       break;
-    }
 
     case LEXERTYPE_PARENTHESIS: {
       printf("PARENTH: %s\n", token);
