@@ -73,7 +73,7 @@ OpCode operator_to_opcode(char * operator, size_t len) {
  * returns: true if successful, and false if an unmatched parenthesis is
  * encountered.
  */
-bool write_operators_from_stack(Compiler * c, TypeStk * opStk, 
+static bool write_operators_from_stack(Compiler * c, TypeStk * opStk, 
 				       Stk * opLenStk, bool parenthExpected,
 				       bool popParenth) {
   bool topOperator = true;

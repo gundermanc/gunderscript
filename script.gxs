@@ -4,7 +4,6 @@
  */
 
 function exported main(x) {
-  x = 1;
-  x = x + 1;
-  print(x);
+  x = 99999999;
+  print(1 + x * 2);
 }
