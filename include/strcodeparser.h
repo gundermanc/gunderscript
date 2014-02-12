@@ -26,12 +26,15 @@
 #define STRCODEPARSER__H__
 
 #include <stdlib.h>
+#include "lexer.h"
 #include "compcommon.h"
 #include "gsbool.h"
 #include "typestk.h"
+
 bool write_operators_from_stack(Compiler * c, TypeStk * opStk, 
 				Stk * opLenStk, bool parenthExpected,
 				bool popParenth);
 
+bool func_body_straight_code(Compiler * c, Lexer * l);
 
 #endif /* STRCODEPARSER__H__ */

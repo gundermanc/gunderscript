@@ -23,9 +23,21 @@
  */
 
 #include <assert.h>
+#include <limits.h>
 #include "strcodeparser.h"
 #include "langkeywords.h"
 #include "lexer.h"
+
+/* preprocessor definitions: */
+#define COMPILER_NO_PREV        -1
+
+
+/* TODO: make STK type auto enlarge and remove */
+static const int initialOpStkDepth = 100;
+/* max number of digits in a number value */
+static const int numValMaxDigits = 50;
+/* number of items to add to the op stack on resize */
+static const int opStkBlockSize = 12;
 
 /**
  * Gets the OP code associated with an operation from its string representation.
@@ -238,4 +250,254 @@ bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
     c->err = COMPILERERR_UNMATCHED_PARENTH;
     return false;
   }
+}
+
+/**
+ * Handles straight code:
+ * This is a modified version of Djikstra's "Shunting Yard Algorithm" for
+ * conversion to postfix notation. Code is converted to postfix and written to
+ * the output buffer as a series of OP codes all in one step.
+ * c: an instance of Compiler.
+ * l: an instance of lexer that will provide the tokens.
+ * returns: true if success, and false if errors occurred. If error occurred,
+ * c->err is set.
+ */
+/* TODO: return false for every sb_append* function upon failure */
+bool func_body_straight_code(Compiler * c, Lexer * l) {
+  LexerType type;
+  LexerType prevValType = COMPILER_NO_PREV;
+  char * token;
+  size_t len;
+
+  /* allocate stacks for operators and their lengths, a.k.a. 
+   * the "side track in shunting yard" 
+   */
+  TypeStk * opStk = typestk_new(initialOpStkDepth, opStkBlockSize);
+  Stk * opLenStk = stk_new(initialOpStkDepth);
+  if(opStk == NULL || opLenStk == NULL) {
+    c->err = COMPILERERR_ALLOC_FAILED;
+    return false;
+  }
+
+  token = lexer_current_token(l, &type, &len);
+  printf("First straight code token: %s\n", token);
+
+  printf("FIRST: %s\n", token);
+
+  /* straight code token parse loop */
+  do {
+    bool popAfterNextVal = true;
+
+    /* output values, push operators to stack with precedence so that they can
+     * be postfixed for execution by the VM
+     */
+    switch(type) {
+    case LEXERTYPE_BRACKETS:
+      if(prevValType != COMPILER_NO_PREV
+	 && prevValType != LEXERTYPE_ENDSTATEMENT) {
+	c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+	return false;
+      }
+      return true; 
+
+    case LEXERTYPE_KEYVAR: {
+      /* KEYVAR HANDLER:
+       * Handles all word tokens. These can be variables or function names
+       */
+      /* push variable or function name to operator stack */
+      typestk_push(opStk, &token, sizeof(char*), type);
+      stk_push_long(opLenStk, len);
+      printf("KEYVAR pushed to OPSTK: %s\n", token);
+      printf("KEYVAR pushed to OPSTK Len: %i\n", len);
+      break;
+    }
+
+    case LEXERTYPE_NUMBER: {
+      /* Reads a number, converts to double and writes it to output as so:
+       * OP_NUM_PUSH [value as a double]
+       */
+      char rawValue[numValMaxDigits];
+      double value = 0;
+
+      /* get double representation of number
+      /* TODO: length check, and double overflow check */
+      strncpy(rawValue, token, len);
+      value = atof(rawValue);
+
+      printf("OUTPUT: %f\n", value);
+
+      /* write number to output */
+      sb_append_char(c->outBuffer, OP_NUM_PUSH);
+      sb_append_str(c->outBuffer, (char*)(&value), sizeof(double));
+
+      /* check for invalid types: */
+      if(prevValType != COMPILER_NO_PREV
+	 && prevValType != LEXERTYPE_PARENTHESIS
+	 && prevValType != LEXERTYPE_OPERATOR) {
+	 c->err = COMPILERERR_UNEXPECTED_TOKEN;
+	 return false;
+      }
+
+      break;
+    }
+
+    case LEXERTYPE_STRING: {
+      /* Reads a string token and writes it raw to the output as so:
+       * OP_STR_PUSH [strlen as 1 byte value] [string]
+       */
+      char outLen = len;
+
+      /* string length byte has max value of CHAR_MAX. */
+      if(len >= CHAR_MAX) {
+	c->err = COMPILERERR_STRING_TOO_LONG;
+	return false;
+      }
+
+      printf("Output string: %s\n", token);
+
+      /* write output */
+      sb_append_char(c->outBuffer, OP_STR_PUSH);
+      sb_append_char(c->outBuffer, outLen);
+      sb_append_str(c->outBuffer, token, len);
+
+      /* check for invalid types: */
+      if(prevValType != COMPILER_NO_PREV
+	 && prevValType != LEXERTYPE_PARENTHESIS
+	 && prevValType != LEXERTYPE_OPERATOR) {
+	c->err = COMPILERERR_UNEXPECTED_TOKEN;
+	return false;
+      }
+      break;
+    }
+
+    case LEXERTYPE_PARENTHESIS: {
+      printf("PARENTH: %s\n", token);
+      printf("PARENTH LEN: %i\n", len);
+      if(tokens_equal(LANG_OPARENTH, LANG_OPARENTH_LEN, token, len)) {
+	typestk_push(opStk, &token, sizeof(char*), type);
+	stk_push_long(opLenStk, len);
+	printf("OParenth pushed to OPSTK: %s\n", token);
+	printf("OParenth pushed to OPSTK Len: %i\n", len);
+      } else {
+	/* pop operators from stack and write to output buffer
+	 * FAIL if there is no open parenthesis in the stack.
+	 */
+	printf("**Close Parenth Pop\n");
+	if(!write_operators_from_stack(c, opStk, opLenStk, true, true)) {
+	  return false;
+	}
+      }
+
+      /* check for invalid types: */
+      if(prevValType != COMPILER_NO_PREV
+	 && prevValType != LEXERTYPE_PARENTHESIS
+	 && prevValType != LEXERTYPE_OPERATOR
+	 && prevValType != LEXERTYPE_NUMBER
+	 && prevValType != LEXERTYPE_STRING
+	 && prevValType != LEXERTYPE_KEYVAR) {
+	c->err = COMPILERERR_UNEXPECTED_TOKEN; 
+	return false;
+      }
+      break;
+    }
+
+    case LEXERTYPE_OPERATOR: {
+      /* Reads an operator from the lexer and decides whether or not to
+       * place it in the opStk, in accordance with order of operations,
+       * A.K.A. "precedence."
+       */
+
+      /* if the current operator precedence is >= to the one at the top of the
+       * stack, push it to the stack. Otherwise, pop the stack empty. By doing
+       * this, we modify the order of evaluation of operators based on their
+       * precedence, a.k.a. order of operations.
+       */
+
+      /* TODO: add error checking for extra operators
+       * and unmatched parenthesis */
+      assert(token != NULL);
+      if(operator_precedence(token, len)
+	 >= topstack_precedence(opStk, opLenStk)) {
+	
+	/* push operator to operator stack */
+	typestk_push(opStk, &token, sizeof(char*), type);
+	stk_push_long(opLenStk, len);
+	printf("Operator pushed to OPSTK: %s\n", token);
+	printf("Operator pushed to OPSTK Len: %i\n", len);
+      } else {
+
+	/* pop operators from stack and write to output buffer */
+	printf("**Popping Operators.\n");
+	if(!write_operators_from_stack(c, opStk, opLenStk, true, false)) {
+	  return false;
+	}
+
+	/* push operator to operator stack */
+	typestk_push(opStk, &token, sizeof(char*), type);
+	stk_push_long(opLenStk, len);
+      }
+
+      /* check for invalid types: */
+      if(prevValType != LEXERTYPE_STRING
+	 && prevValType != LEXERTYPE_NUMBER
+	 && prevValType != LEXERTYPE_KEYVAR
+	 && prevValType != LEXERTYPE_PARENTHESIS) {
+	/* TODO: this error check does not distinguish between ( and ). Revise to
+	 * ensure that parenthesis is part of a matching pair too.
+	 */
+	c->err = COMPILERERR_UNEXPECTED_TOKEN; 
+	return false;
+      }
+
+      break;
+    }
+
+    case LEXERTYPE_ENDSTATEMENT: {
+
+      /* check for invalid types: */
+      if(prevValType == LEXERTYPE_OPERATOR
+	 || prevValType == LEXERTYPE_ENDSTATEMENT) {
+	c->err = COMPILERERR_UNEXPECTED_TOKEN;
+	return false;
+      }
+      printf("ENDSTATEMENT\n");
+      /*token = lexer_next(l, &type, &len);*/
+
+      /* reached the end of the input, empty the operator stack to the output */
+      printf("**End Pop\n");
+      if(write_operators_from_stack(c, opStk, opLenStk, false, true)) {
+	/*token = lexer_next(l, &type, &len);*/
+	return true;
+      } else {
+	return false;
+      }
+      break;
+    }
+
+    default:
+      c->err = COMPILERERR_UNEXPECTED_TOKEN;
+      printf("Unexpected Straight Code Token: %s\n", token);
+      printf("Unexpected Straight Code Token Len: %i\n", len);
+      return false;
+    }
+
+    /* store the type of this token for the next iteration: */
+    prevValType = type;
+
+  } while((token = lexer_next(l, &type, &len)) != NULL);
+
+  /* no semicolon at the end of the line, throw a fit */
+  /*if(prevValType != LEXERTYPE_ENDSTATEMENT) {*/
+    c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+    return false;
+    /*}*/
+
+  /* write stack pop instruction:
+   * this ensures that the last return value is popped off of the stack after
+   * the statement completes.
+   */
+  sb_append_char(c->outBuffer, OP_POP);
+
+  /* no errors occurred */
+  return true;
 }

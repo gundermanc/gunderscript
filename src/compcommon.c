@@ -62,3 +62,56 @@ HT * symtblstk_peek(Compiler * c) {
 
   return value.pointerVal;
 }
+
+/**
+ * Place holder for a function that gets the precedence of an operator.
+ * operator: the operator to check for precedence.
+ * operatorLen: the number of characters to read from operator as the operator.
+ * TODO: possibly reimplement using a hash set for multicharacter operators.
+ * returns: an integer that represents an operator's precedence. Higher is
+ * greater. Returns 1 if unknown operator.
+ */
+int operator_precedence(char * operator, size_t operatorLen) {
+
+  if(operatorLen == 1) {
+    switch(operator[0]) {
+    case '*':
+    case '/':
+      return 2;
+    }
+  } else {
+
+  }
+
+  return 1;
+}
+
+/**
+ * Gets the precedence of the operator at the top of the opStk. This function is
+ * used by the straight code parser to get the precedence of the last operator
+ * that was encountered.
+ * stk: the operator stack...a stack of pointers to strings containing operators
+ * lenStk: a stack of longs that contain the lengths of the operator strings.
+ * returns: the precedence of the top stack operator, or 0 if the operator stack
+ * is empty.
+ */
+int topstack_precedence(TypeStk * stk, Stk * lenStk) {
+
+  DSValue value;
+  char * token;
+  size_t len;
+
+  /* get the token from the operator stack */
+  if(!typestk_peek(stk, &token, sizeof(char*), NULL)) {
+    return 0;
+  }
+
+  /* get the token length from the operator length stack */
+  if(!stk_peek(lenStk, &value)) {
+    return 0;
+  }
+  len = value.longVal;
+
+  /* return the precedence of the operator */
+  return operator_precedence(token, len);
+}
