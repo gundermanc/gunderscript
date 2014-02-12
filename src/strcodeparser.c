@@ -501,10 +501,7 @@ bool parse_straight_code(Compiler * c, Lexer * l) {
 
       /* reached the end of the input, empty the operator stack to the output */
       printf("**End Pop\n");
-      if(write_operators_from_stack(c, opStk, opLenStk, false, true)) {
-	/*token = lexer_next(l, &type, &len);*/
-	return true;
-      } else {
+      if(!write_operators_from_stack(c, opStk, opLenStk, false, true)) {
 	return false;
       }
       break;

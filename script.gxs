@@ -4,5 +4,7 @@
  */
 
 function exported main(x) {
-  print("Hello" + " h");
+  x = 1;
+  x = x + 1;
+  print(x);
 }
