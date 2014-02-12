@@ -35,6 +35,6 @@ bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 				Stk * opLenStk, bool parenthExpected,
 				bool popParenth);
 
-bool func_body_straight_code(Compiler * c, Lexer * l);
+bool parse_straight_code(Compiler * c, Lexer * l);
 
 #endif /* STRCODEPARSER__H__ */

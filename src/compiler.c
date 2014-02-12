@@ -422,7 +422,7 @@ static bool var_def(Compiler * c, Lexer * l) {
   }
 
   /* perform inline variable initialization if code provided */
-  if(!func_body_straight_code(c, l)) {
+  if(!parse_straight_code(c, l)) {
     return false;
   }
 
@@ -503,7 +503,7 @@ static bool func_do_body(Compiler * c, Lexer * l) {
 
   printf("Remaining token: %s\n", token);
 
-  if(!func_body_straight_code(c, l)) {
+  if(!parse_straight_code(c, l)) {
     return false;
   }
 

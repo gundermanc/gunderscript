@@ -263,7 +263,7 @@ bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
  * c->err is set.
  */
 /* TODO: return false for every sb_append* function upon failure */
-bool func_body_straight_code(Compiler * c, Lexer * l) {
+bool parse_straight_code(Compiler * c, Lexer * l) {
   LexerType type;
   LexerType prevValType = COMPILER_NO_PREV;
   char * token;
