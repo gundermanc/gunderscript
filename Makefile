@@ -40,7 +40,7 @@ testapp: library
 
 # build just the static library
 library: lexer.o frmstk.o vm.o compiler.o
-	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o $(OBJDIR)/compiler.o
+	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o $(OBJDIR)/strcodeparser.o $(OBJDIR)/compiler.o $(OBJDIR)/compcommon.o
 
 # build lexer object
 lexer.o: buildfs $(SRCDIR)/lexer.c
@@ -58,8 +58,16 @@ vm.o: buildfs c-datastructs-build frmstk.o typestk.o ophandlers.o $(SRCDIR)/vm.c
 ophandlers.o: buildfs c-datastructs-build $(SRCDIR)/ophandlers.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/ophandlers.c
 
+# build compcommon object
+compcommon.o: buildfs $(SRCDIR)/compcommon.c
+	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/compcommon.c
+
+# build strcodeparser object
+strcodeparser.o: buildfs compcommon.o $(SRCDIR)/strcodeparser.c
+	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/strcodeparser.c
+
 # build compiler object
-compiler.o: buildfs c-datastructs-build lexer.o $(SRCDIR)/compiler.c
+compiler.o: buildfs c-datastructs-build compcommon.o lexer.o strcodeparser.o $(SRCDIR)/compiler.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/compiler.c
 
 # build framestack object
@@ -79,5 +87,5 @@ c-datastructs-clean:
 
 # remove all binaries and annoying Emacs Backups
 clean: c-datastructs-clean
-	$(RM) lib.a testapp $(SRCDIR)/*~ $(INCDIR)/*~ $(DOCSDIR)/*~ *~
+	$(RM) gunderscript.a testapp $(SRCDIR)/*~ $(INCDIR)/*~ $(DOCSDIR)/*~ *~
 	$(RM) -rf objs

@@ -1,12 +1,12 @@
 /**
- * compiler.h
+ * strcodeparser.h
  * (C) 2013 Christian Gunderman
  * Modified by:
  * Author Email: gundermanc@gmail.com
  * Modifier Email:
  *
  * Description:
- * See compiler.c for description.
+ * See strcodeparser.c for description.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -22,28 +22,16 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef COMPILER__H__
-#define COMPILER__H__
+#ifndef STRCODEPARSER__H__
+#define STRCODEPARSER__H__
 
+#include <stdlib.h>
 #include "compcommon.h"
-#include "stk.h"
-#include "ht.h"
-#include "sb.h"
-#include "vm.h"
+#include "gsbool.h"
+#include "typestk.h"
+bool write_operators_from_stack(Compiler * c, TypeStk * opStk, 
+				Stk * opLenStk, bool parenthExpected,
+				bool popParenth);
 
 
-Compiler * compiler_new(VM * vm);
-
-bool compiler_build(Compiler * compiler, char * input, size_t inputLen);
-
-void compiler_set_err(Compiler * compiler, CompilerErr err);
-
-CompilerFunc * compiler_function(Compiler * compiler, char * name, size_t len);
-
-CompilerErr compiler_get_err(Compiler * compiler);
-
-
-
-void compiler_free(Compiler * compiler);
-
-#endif /* COMPILER__H__ */
+#endif /* STRCODEPARSER__H__ */
