@@ -252,6 +252,36 @@ bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
   }
 }
 
+static bool parse_number(Compiler * c, LexerType prevValType, 
+			 char * token, size_t len) {
+  /* Reads a number, converts to double and writes it to output as so:
+   * OP_NUM_PUSH [value as a double]
+   */
+  char rawValue[numValMaxDigits];
+  double value = 0;
+
+  /* get double representation of number
+     /* TODO: length check, and double overflow check */
+  strncpy(rawValue, token, len);
+  value = atof(rawValue);
+
+  printf("OUTPUT: %f\n", value);
+
+  /* write number to output */
+  sb_append_char(c->outBuffer, OP_NUM_PUSH);
+  sb_append_str(c->outBuffer, (char*)(&value), sizeof(double));
+
+  /* check for invalid types: */
+  if(prevValType != COMPILER_NO_PREV
+     && prevValType != LEXERTYPE_PARENTHESIS
+     && prevValType != LEXERTYPE_OPERATOR) {
+    c->err = COMPILERERR_UNEXPECTED_TOKEN;
+    return false;
+  }
+
+  return true;
+}
+
 /**
  * Handles straight code:
  * This is a modified version of Djikstra's "Shunting Yard Algorithm" for
@@ -313,29 +343,8 @@ bool parse_straight_code(Compiler * c, Lexer * l) {
     }
 
     case LEXERTYPE_NUMBER: {
-      /* Reads a number, converts to double and writes it to output as so:
-       * OP_NUM_PUSH [value as a double]
-       */
-      char rawValue[numValMaxDigits];
-      double value = 0;
-
-      /* get double representation of number
-      /* TODO: length check, and double overflow check */
-      strncpy(rawValue, token, len);
-      value = atof(rawValue);
-
-      printf("OUTPUT: %f\n", value);
-
-      /* write number to output */
-      sb_append_char(c->outBuffer, OP_NUM_PUSH);
-      sb_append_str(c->outBuffer, (char*)(&value), sizeof(double));
-
-      /* check for invalid types: */
-      if(prevValType != COMPILER_NO_PREV
-	 && prevValType != LEXERTYPE_PARENTHESIS
-	 && prevValType != LEXERTYPE_OPERATOR) {
-	 c->err = COMPILERERR_UNEXPECTED_TOKEN;
-	 return false;
+      if(!parse_number(c, prevValType, token, len)) {
+	return false;
       }
 
       break;
