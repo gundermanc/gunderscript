@@ -3,6 +3,7 @@
  * (C) 2014 Christian Gunderman
  */
 
-
-print(3);
-print(2);
+function exported main(x) {
+  x = 3;
+  print(3);
+}

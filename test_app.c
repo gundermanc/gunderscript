@@ -171,6 +171,8 @@ int main() {
   Compiler * c = compiler_new(vm);
   char * foo = loadfile("script.gxs", 1000);
   char bytecode[1000];
+  CompilerFunc * cf;
+  int i = 0;
 
   if(!vm_reg_callback(vm, "print", 5, print)) {
     printf("FAILED TO REGISTER PRINT FUNCTION.\n");
@@ -187,16 +189,17 @@ int main() {
   printf("Output Length: %i\n", sb_size(c->outBuffer));
   printf("Compiler Err: %i\n", c->err);
 
+  cf = compiler_function(c, "main", 4);
   printf("\n\n\nPROGRAM OUTPUT:\n\n");
   if(!vm_exec(vm, bytecode, compiler_bytecode_size(c),
-	      /*compiler_function_index(c, "main", 4)*/ 0)) {
-    int i = 0;
+	      cf->index, cf->numArgs)) {
     printf("VM ERROR: %i\n", vm_get_err(vm));
-    for(i = 0; i < compiler_bytecode_size(c); i++) {
-      printf(":%i\n", bytecode[i]);
-
-    }
     return 1;
+  }
+  
+  for(i = 0; i < compiler_bytecode_size(c); i++) {
+    printf(":%i\n", bytecode[i]);
+    
   }
  
   compiler_free(c);

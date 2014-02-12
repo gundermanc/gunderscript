@@ -225,20 +225,30 @@ int vm_num_callbacks(VM * vm) {
  * byteCode: an array of chars that contain VM byte code.
  * byteCodeLen: the number of bytes to read from byteCode array.
  * startIndex: the index to start executing from. The entry point.
+ * numArgs: the number of items to pop off of stack to use as arguments.
  */
 bool vm_exec(VM * vm, char * byteCode, 
-	     size_t byteCodeLen, int startIndex) {
+	     size_t byteCodeLen, int startIndex, int numVarArgs) {
 
   assert(vm != NULL);
   assert(startIndex >= 0);
   assert(startIndex < byteCodeLen);
+  assert(numVarArgs >= 0);
 
   vm->index = startIndex;
+
+  /* push new frame with selected number of arguments and vars. */
+  printf("NUMVARARGS: %i\n", numVarArgs);
+  if(!frmstk_push(vm->frmStk, -1, numVarArgs)) {
+     vm_set_err(vm, VMERR_STACK_OVERFLOW);
+     return false;
+  }
 
   while(vm->index < byteCodeLen) {
 
     vm_set_err(vm, VMERR_SUCCESS);
 
+    printf("EVAL %i\n", vm->index);
     switch(byteCode[vm->index]) {
     case OP_VAR_PUSH:
       if(!op_var_push(vm, byteCode, byteCodeLen, &vm->index)) {

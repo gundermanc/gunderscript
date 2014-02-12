@@ -826,13 +826,13 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
      * be postfixed for execution by the VM
      */
     switch(type) {
-      /*case LEXERTYPE_BRACKETS:
+    case LEXERTYPE_BRACKETS:
       if(prevValType != COMPILER_NO_PREV
 	 && prevValType != LEXERTYPE_ENDSTATEMENT) {
 	c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
 	return false;
       }
-      return true; */
+      return true; 
 
     case LEXERTYPE_KEYVAR: {
       /* KEYVAR HANDLER:
@@ -996,7 +996,16 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
       }
       printf("ENDSTATEMENT\n");
       /*token = lexer_next(l, &type, &len);*/
-      return true;
+
+      /* reached the end of the input, empty the operator stack to the output */
+      printf("**End Pop\n");
+      if(write_operators_from_stack(c, opStk, opLenStk, false, true)) {
+	/*token = lexer_next(l, &type, &len);*/
+	return true;
+      } else {
+	return false;
+      }
+      break;
     }
 
     default:
@@ -1011,17 +1020,11 @@ static bool func_body_straight_code(Compiler * c, Lexer * l) {
 
   } while((token = lexer_next(l, &type, &len)) != NULL);
 
-  /* check for a semicolon at the end of the line */
-  /*if(prevValType != LEXERTYPE_ENDSTATEMENT) {
+  /* no semicolon at the end of the line, throw a fit */
+  /*if(prevValType != LEXERTYPE_ENDSTATEMENT) {*/
     c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
     return false;
-    }*/
-
-  /* reached the end of the input, empty the operator stack to the output */
-  printf("**End Pop\n");
-  if(!write_operators_from_stack(c, opStk, opLenStk, false, true)) {
-    return false;
-  }
+    /*}*/
 
   /* write stack pop instruction:
    * this ensures that the last return value is popped off of the stack after
@@ -1321,7 +1324,7 @@ CompilerErr compiler_get_err(Compiler * compiler) {
  * returns: the index in the byte code where the function begins, or -1 if the
  * function does not exist or was not exported.
  */
-int compiler_function_index(Compiler * compiler, char * name, size_t len) {
+CompilerFunc * compiler_function(Compiler * compiler, char * name, size_t len) {
 
   assert(compiler != NULL);
   assert(name != NULL);
@@ -1333,17 +1336,17 @@ int compiler_function_index(Compiler * compiler, char * name, size_t len) {
   /* get the specified function's struct */
   if(!ht_get_raw_key(compiler->functionHT, name, len, &value)) {
     printf("NEG1\n");
-    return -1; /* error occurred */
+    return NULL; /* error occurred */
   }
   cf = value.pointerVal;
 
   /* make sure function was declared with exported keyword */
   if(!cf->exported) {
     printf("NEG2\n");
-    return -1;
+    return NULL;
   }
 
-  return cf->index;
+  return cf;
 }
 
 /**

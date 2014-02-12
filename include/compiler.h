@@ -86,7 +86,7 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen);
 
 void compiler_set_err(Compiler * compiler, CompilerErr err);
 
-int compiler_function_index(Compiler * compiler, char * name, size_t len);
+CompilerFunc * compiler_function(Compiler * compiler, char * name, size_t len);
 
 CompilerErr compiler_get_err(Compiler * compiler);
 
