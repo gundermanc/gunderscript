@@ -120,7 +120,7 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
 }
 
 /* only returns false if there is an error */
-static bool parse_function_call(Compiler * c, char * token, size_t len, 
+static bool parse_stacked_function_call(Compiler * c, char * token, size_t len, 
 				VarType type, TypeStk * opStk, 
 				Stk * opLenStk) {
   DSValue value;
@@ -174,10 +174,71 @@ static bool parse_function_call(Compiler * c, char * token, size_t len,
   return true;
 }
 
+/* Handles operators that are in the "sidetrack" stack used by Dijikstra's
+ * algorithm when handling operator precedence.
+ */
+static bool parse_stacked_operator(Compiler * c, char * token, size_t len, 
+				    VarType type, TypeStk * opStk, 
+				    Stk * opLenStk) {
+  DSValue value;
+
+  /* handle OPERATORS and FUNCTIONS differently */
+  if(type == LEXERTYPE_OPERATOR) {
+
+    /* if there is an '=' on the stack, this is an assignment, Variable Write
+     * the next token on the stack should be a KEYVAR type that
+     * contains a variable name.
+     */
+    if(tokens_equal(LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN, token, len)) {
+
+      /* get variable name string */
+      if(!typestk_pop(opStk, &token, sizeof(char*), &type)
+	 || type != LEXERTYPE_KEYVAR) {
+	printf("MALFORMED TOKEN: %s\n", token);
+	c->err = COMPILERERR_MALFORMED_ASSIGNMENT;
+	return false;
+      }
+
+      /* get variable name length */
+      stk_pop(opLenStk, &value);
+      len = value.longVal;
+
+      assert(stk_size(c->symTableStk) > 0);
+
+      /* check that the variable was previously declared */
+      if(!ht_get_raw_key(symtblstk_peek(c), token, len, &value)) {
+	c->err = COMPILERERR_UNDEFINED_VARIABLE;
+	return false;
+      }
+
+      /* write the variable data OPCodes
+       * Moves the last value from the OP stack in the VM to the variable
+       * storage slot in the frame stack. */
+      /* TODO: need to add ability to search LOWER frames for variables */
+      sb_append_char(c->outBuffer, OP_VAR_STOR);
+      sb_append_char(c->outBuffer, 0 /* this val should chng with depth */);
+      sb_append_char(c->outBuffer, value.intVal);
+    } else {
+      OpCode opCode = operator_to_opcode(token, len);
+
+      /* check for invalid operators */
+      if(opCode == -1) {
+	c->err = COMPILERERR_UNKNOWN_OPERATOR;
+	return false;
+      }
+
+      /* write operator OP code to output buffer */
+      sb_append_char(c->outBuffer, opCode);
+    }
+  }
+  return true;
+}
+
 /**
- * Writes all operators from the provided stack to the output buffer in the 
+ * Writes all tokens from the provided stack to the output buffer in the 
  * Compiler instance, making allowances for specific behaviors for function
- * tokens, variable references, and assignments.
+ * tokens, variable references, and assignments. A.K.A., un-"sidetracks"
+ * sidetracked tokens, in Dijikstra's postfix algorithm.
  * c: an instance of Compiler.
  * opStk: the stack of operator strings.
  * opLenStk: the stack of operator string lengths, in longs.
@@ -187,14 +248,13 @@ static bool parse_function_call(Compiler * c, char * token, size_t len,
  * returns: true if successful, and false if an unmatched parenthesis is
  * encountered.
  */
-static bool write_operators_from_stack(Compiler * c, TypeStk * opStk, 
+static bool write_from_stack(Compiler * c, TypeStk * opStk, 
 				       Stk * opLenStk, bool parenthExpected,
 				       bool popParenth) {
   bool topOperator = true;
   DSValue value;
   char * token = NULL;
   size_t len = 0;
-  OpCode opCode;
   VarType type;
 
   /* while items remain */
@@ -218,11 +278,11 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 	
 	/* let the parenthesis be popped, but don't push it back */
 	/* parse code that looks like function calls */
-	if(!parse_function_call(c, token, len, type, opStk, opLenStk)) {
+	if(!parse_stacked_function_call(c, token, len, type, opStk, opLenStk)) {
 	  return false;
 	}
-
 	return true;
+
       } else {
 	/* Re-push the parenthesis, we need it for later*/
 	typestk_push(opStk, &token, sizeof(char*), type);
@@ -231,68 +291,11 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
       }
     }
 
-    /* handle OPERATORS and FUNCTIONS differently */
-    if(type == LEXERTYPE_OPERATOR) {
-      printf("POP: writing operator from OPSTK %s\n", token);
-      printf("     writing operator from OPSTK LEN %i\n", len);
-
-      /* if there is an '=' on the stack, this is an assignment, Variable Write
-       * the next token on the stack should be a KEYVAR type that
-       * contains a variable name.
-       */
-      if(tokens_equal(LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN, token, len)) {
-
-	/* get variable name string */
-	if(!typestk_pop(opStk, &token, sizeof(char*), &type)
-	     || type != LEXERTYPE_KEYVAR) {
-	  printf("MALFORMED TOKEN: %s\n", token);
-	  c->err = COMPILERERR_MALFORMED_ASSIGNMENT;
-	  return false;
-	}
-
-	/* get variable name length */
-	stk_pop(opLenStk, &value);
-	len = value.longVal;
-
-	assert(stk_size(c->symTableStk) > 0);
-
-	/* check that the variable was previously declared */
-	printf("SYMTBLP: %p\n", symtblstk_peek(c));
-	if(!ht_get_raw_key(symtblstk_peek(c), token, len, &value)) {
-	  printf("UNDEFINED VAR: %s\n", token);
-	  c->err = COMPILERERR_UNDEFINED_VARIABLE;
-	  return false;
-	}
-
-	/* write the variable data OPCodes
-	 * Moves the last value from the OP stack in the VM to the variable
-	 * storage slot in the frame stack. */
-	/* TODO: need to add ability to search LOWER frames for variables */
-	sb_append_char(c->outBuffer, OP_VAR_STOR);
-	sb_append_char(c->outBuffer, 0 /* this val should chng with depth */);
-	sb_append_char(c->outBuffer, value.intVal);
-	printf("ASSIGNED VALUE TO VAR: %i\n", value.intVal);
-      } else {
-
-	opCode = operator_to_opcode(token, len);
-
-	/* check for invalid operators */
-	if(opCode == -1) {
-
-	  c->err = COMPILERERR_UNKNOWN_OPERATOR;
-	  return false;
-	}
-
-	/* write operator OP code to output buffer */
-	sb_append_char(c->outBuffer, opCode);
-      }
-    } else {
-      /* FORMERLY VARIABLE READ OP */
-      /*printf("Symbol table frame: %i\n", stk_size(c->symTableStk));
-      printf("Undefined Var: %s %i\n", token, len);
-      c->err = COMPILERERR_UNDEFINED_VARIABLE;
-      return false; */
-      return true;
+    /* checks top of stack for an operator. if one exists, it is written
+     * to the output. also handles variable assignment statements.
+     */
+    if(!parse_stacked_operator(c, token, len, type, opStk, opLenStk)) {
+      return false;
     }
 
     /* we're no longer at the top of the stack */
@@ -411,7 +414,7 @@ static bool parse_parenthesis(Compiler * c, TypeStk * opStk, Stk * opLenStk,
      * FAIL if there is no open parenthesis in the stack.
      */
     printf("**Close Parenth Pop\n");
-    if(!write_operators_from_stack(c, opStk, opLenStk, true, true)) {
+    if(!write_from_stack(c, opStk, opLenStk, true, true)) {
       return false;
     }
   }
@@ -466,7 +469,7 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
 
     /* pop operators from stack and write to output buffer */
     printf("**Popping Operators.\n");
-    if(!write_operators_from_stack(c, opStk, opLenStk, true, false)) {
+    if(!write_from_stack(c, opStk, opLenStk, true, false)) {
       return false;
     }
 
@@ -579,7 +582,7 @@ bool parse_straight_code(Compiler * c, Lexer * l) {
 
       /* reached the end of the input, empty the operator stack to the output */
       printf("**End Pop\n");
-      if(!write_operators_from_stack(c, opStk, opLenStk, false, true)) {
+      if(!write_from_stack(c, opStk, opLenStk, false, true)) {
 	return false;
       }
       /* write stack pop instruction:
