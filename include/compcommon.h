@@ -75,6 +75,7 @@ typedef struct CompilerFunc {
   int index;                      /* the index where the function's 
 				   * bytecode begins */
   int numArgs;                    /* the number of arguments required */
+  int numVars;                    /* the number of variables required */
   bool exported;
 } CompilerFunc;
 

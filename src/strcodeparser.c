@@ -218,6 +218,7 @@ static bool parse_stacked_operator(Compiler * c, char * token, size_t len,
       sb_append_char(c->outBuffer, OP_VAR_STOR);
       sb_append_char(c->outBuffer, 0 /* this val should chng with depth */);
       sb_append_char(c->outBuffer, value.intVal);
+      printf("ASSIGNED\n");
     } else {
       OpCode opCode = operator_to_opcode(token, len);
 
@@ -499,11 +500,13 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
  * the output buffer as a series of OP codes all in one step.
  * c: an instance of Compiler.
  * l: an instance of lexer that will provide the tokens.
+ * bracketEncountered: a boolean that will recv whether or not the parser
+ * stopped because a closed bracket was reached.
  * returns: true if success, and false if errors occurred. If error occurred,
  * c->err is set.
  */
 /* TODO: return false for every sb_append* function upon failure */
-bool parse_straight_code(Compiler * c, Lexer * l) {
+bool parse_straight_code(Compiler * c, Lexer * l, bool * bracketEncountered) {
   LexerType type;
   LexerType prevValType = COMPILER_NO_PREV;
   char * token;
@@ -524,6 +527,10 @@ bool parse_straight_code(Compiler * c, Lexer * l) {
 
   printf("FIRST: %s\n", token);
 
+  if(bracketEncountered != NULL) {
+    *bracketEncountered = false;
+  }
+
   /* straight code token parse loop */
   do {
 
@@ -532,11 +539,19 @@ bool parse_straight_code(Compiler * c, Lexer * l) {
      */
     switch(type) {
     case LEXERTYPE_BRACKETS:
+      /* TODO: make sure this is a CLOSE bracket, not open */
       if(prevValType != COMPILER_NO_PREV
 	 && prevValType != LEXERTYPE_ENDSTATEMENT) {
 	c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
 	return false;
       }
+
+      token = lexer_next(l, &type, &len);
+
+      if(bracketEncountered != NULL) {
+	*bracketEncountered = true;
+      }
+      printf("Hit Bracket\n");
       return true; 
 
     case LEXERTYPE_KEYVAR:
@@ -578,7 +593,6 @@ bool parse_straight_code(Compiler * c, Lexer * l) {
 	return false;
       }
       printf("ENDSTATEMENT\n");
-      /*token = lexer_next(l, &type, &len);*/
 
       /* reached the end of the input, empty the operator stack to the output */
       printf("**End Pop\n");
@@ -589,8 +603,11 @@ bool parse_straight_code(Compiler * c, Lexer * l) {
        * this ensures that the last return value is popped off of the stack after
        * the statement completes.
        */
+      printf("POPTOKEN: %s\n", token);
       sb_append_char(c->outBuffer, OP_POP);
-      break;
+
+      token = lexer_next(l, &type, &len);
+      return true;
     }
 
     default:

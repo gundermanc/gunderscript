@@ -3,7 +3,12 @@
  * (C) 2014 Christian Gunderman
  */
 
-function exported main(x) {
-  x = 2;
-  print(x);
+function exported main(hello) {
+  var x;
+  var y;
+
+  x = 1;
+  y = 2;
+  hello = 1;
+  print(x + y + hello);
 }

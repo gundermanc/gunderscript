@@ -31,6 +31,6 @@
 #include "gsbool.h"
 #include "typestk.h"
 
-bool parse_straight_code(Compiler * c, Lexer * l);
+bool parse_straight_code(Compiler * c, Lexer * l, bool * bracketEncountered);
 
 #endif /* STRCODEPARSER__H__ */
