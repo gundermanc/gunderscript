@@ -46,6 +46,7 @@ typedef enum {
   VMERR_CALLBACKS_BUFFER_FULL,        /* too many callbacks were registered */
   VMERR_CALLBACK_EXISTS,              /* a function with this name exists */
   VMERR_CALLBACK_NOT_EXIST,           /* invalid callback string, or index */
+  VMERR_INVALID_NUMBER_OF_ARGUMENTS,   /* too many/few arguments to function */
 } VMErr;
 
 typedef struct VMArg {

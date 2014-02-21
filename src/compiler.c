@@ -506,6 +506,9 @@ static bool func_do_body(Compiler * c, Lexer * l) {
     }
   }
 
+  token = lexer_current_token(l, &type, &len);
+  printf("FINISHED BODY: %s\n", token);
+
   return true;
 }
 
@@ -640,9 +643,12 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
     return true;
   }
 
-  printf("OP_FRM_POP\n");
+  /* push default return value. if no other return is given, this value is returned */
+  sb_append_char(c->outBuffer, OP_BOOL_PUSH);
+  sb_append_char(c->outBuffer, false);
+
+  /* pop function frame and return to calling function */
   sb_append_char(c->outBuffer, OP_FRM_POP);
-  printf("Passed last brace. Stored Function. Token: %s\n", token);
 
   token = lexer_next(l, &type, &len);
   printf("Last TOken: %s\n", token);

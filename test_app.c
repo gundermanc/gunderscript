@@ -193,14 +193,13 @@ int main() {
 
   cf = compiler_function(c, "main", 4);
   printf("\n\n\nPROGRAM OUTPUT:\n\n");
-  printf("NumArgs: %i\nNumVars: %i\n", cf->numArgs, cf->numVars);
   if(!vm_exec(vm, bytecode, compiler_bytecode_size(c),
 	      cf->index, cf->numArgs + cf->numVars)) {
     printf("VM ERROR: %i\n", vm_get_err(vm));
   }
 
   for(i = 0; i < compiler_bytecode_size(c); i++) {
-    printf(":%i\n", bytecode[i]);
+    printf("%i:%i%s\n", i, bytecode[i], i == vm->index ? "  << ERROR.":"");
     
   }
 

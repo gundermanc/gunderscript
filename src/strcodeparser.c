@@ -138,6 +138,24 @@ static bool parse_stacked_function_call(Compiler * c, char * token, size_t len,
     typestk_pop(opStk, &token, sizeof(char*), &type);
     stk_pop(opLenStk, &value);
 
+    /* handle return statements */
+    if(tokens_equal(token, len, LANG_RETURN, LANG_RETURN_LEN)) {
+
+      /* Return statements:
+       * The assumption here is that the return function is: 
+       *
+       * return ( [expression] );
+       * 
+       * If this is true, there is already a value on the stack. By
+       * popping the current frame, it is now treated as the result
+       * of the script function
+       */
+
+      /* TODO: check number of arguments to return */
+      sb_append_char(c->outBuffer, OP_FRM_POP);
+      return true;
+    }
+
     /* check if the function name is a C built-in function */
     callbackIndex = vm_callback_index(c->vm, token, len);
     if(callbackIndex != -1) {
@@ -161,8 +179,8 @@ static bool parse_stacked_function_call(Compiler * c, char * token, size_t len,
 	/* function exists, lets write the OPCodes */
 	sb_append_char(c->outBuffer, OP_CALL_B);
 	/* TODO: error check number of arguments */
-	sb_append_char(c->outBuffer, funcDef->numArgs);
-	sb_append_char(c->outBuffer, 1); /* Number of args ...TODO */
+	sb_append_char(c->outBuffer, funcDef->numArgs + funcDef->numVars);
+	sb_append_char(c->outBuffer, funcDef->numArgs); /* Number of args ...TODO */
 	sb_append_str(c->outBuffer, &funcDef->index, sizeof(int));
       } else {
 	printf("Undefined function: %s\n", token);
@@ -546,7 +564,7 @@ bool parse_straight_code(Compiler * c, Lexer * l, bool * bracketEncountered) {
 	return false;
       }
 
-      token = lexer_next(l, &type, &len);
+      /*token = lexer_next(l, &type, &len);*/
 
       if(bracketEncountered != NULL) {
 	*bracketEncountered = true;

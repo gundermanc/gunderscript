@@ -154,14 +154,14 @@ bool op_frame_push(VM * vm,  char * byteCode,
 
   char numVarArgs = 0;
   char args;
-  size_t instructionSize = (functionCall ? (2 * sizeof(char))
-			    :((2 * sizeof(char)) + sizeof(int)));
-  size_t endOfInstruction = *index + instructionSize;
+  size_t paramSize = (functionCall ? ((2 * sizeof(char)) + sizeof(int)):
+			    (2 * sizeof(char)));
+  size_t endOfInstruction = *index + paramSize + 1;
 
   int i = 0;
 
   /* check there are enough bytes left for the parameters */
-  if((byteCodeLen - *index) < instructionSize) {
+  if((byteCodeLen - *index) < paramSize) {
     vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
     return false;
   }

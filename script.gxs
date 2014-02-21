@@ -3,12 +3,22 @@
  * (C) 2014 Christian Gunderman
  */
 
+function xfun(hello) {
+  return(1);
+}
+
 function exported main(hello) {
+  // variable declarations
+  // inline initializations don't work yet :(
   var x;
   var y;
 
+  // variable initializations
   x = 1;
   y = 2;
-  hello = 1;
-  print(x + y + hello);
+
+  // native function call
+  //print(x + y);
+
+  print(xfun(x));
 }
