@@ -23,6 +23,7 @@
  */
 
 #include "compcommon.h"
+#include "lexer.h"
 
 /**
  * Checks if two strings, "tokens", are equal. To be equal, the must have the
@@ -114,4 +115,26 @@ int topstack_precedence(TypeStk * stk, Stk * lenStk) {
 
   /* return the precedence of the operator */
   return operator_precedence(token, len);
+}
+
+int topstack_type(TypeStk * stk, Stk * lenStk) {
+
+  DSValue value;
+  LexerType type;
+  char * token;
+  size_t len;
+
+  /* get the token from the operator stack */
+  if(!typestk_peek(stk, &token, sizeof(char*), &type)) {
+    return 0;
+  }
+
+  /* get the token length from the operator length stack */
+  if(!stk_peek(lenStk, &value)) {
+    return 0;
+  }
+  len = value.longVal;
+
+  /* return the precedence of the operator */
+  return type;;
 }

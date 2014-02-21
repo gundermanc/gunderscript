@@ -716,8 +716,13 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
     typestk_pop(vm->opStk, &args[i].data, VM_VAR_SIZE, &args[i].type);
   }
 
-  /* call the callback function */
-  (*callback)(vm, args, numArgs);
+  /* call the callback function
+   * if returns false, no return value was given. push a zero as our "null" */
+  if(! ((*callback)(vm, args, numArgs)) ) {
+    double value = 0;
+    typestk_push(vm->opStk, &value, sizeof(double), TYPE_NUMBER);
+    printf("Push value.");
+  }
   
   return true;
 }
