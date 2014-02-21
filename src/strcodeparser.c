@@ -110,12 +110,68 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
 	printf("Variable slot: %i\n", varSlot);
 	sb_append_char(c->outBuffer, varSlot);
       } else {
+	/* variable was not defined in the variable hashtable. Throw error. */
 	c->err = COMPILERERR_UNDEFINED_VARIABLE;
       }
       return true;
     }
   }
   return false;
+}
+
+/* only returns false if there is an error */
+static bool parse_function_call(Compiler * c, char * token, size_t len, 
+				VarType type, TypeStk * opStk, 
+				Stk * opLenStk) {
+  DSValue value;
+
+  /* peek top item in "sidetrack" stack */
+  typestk_peek(opStk, &token, sizeof(char*), &type);
+  stk_peek(opLenStk, &value);
+  len = value.longVal;
+
+  /* check if item is a KEYVAR, if so, it SHOULD be a function call */
+  if(type == LEXERTYPE_KEYVAR) {
+    int callbackIndex = -1;
+
+    /* item is correct type, pop it now */
+    typestk_pop(opStk, &token, sizeof(char*), &type);
+    stk_pop(opLenStk, &value);
+
+    /* check if the function name is a C built-in function */
+    callbackIndex = vm_callback_index(c->vm, token, len);
+    if(callbackIndex != -1) {
+
+      /* function is native, lets write the OPCodes for native call */
+      sb_append_char(c->outBuffer, OP_CALL_PTR_N);
+      /* TODO: make support mutiple arguments */
+      sb_append_char(c->outBuffer, 1);
+      sb_append_str(c->outBuffer, &callbackIndex, sizeof(int));
+      printf("OP_CALL_PTR_N: %s\n", token);
+      return true;
+
+    } else {
+
+      /* the function is not a native function. check script functions */
+      if(ht_get_raw_key(c->functionHT, token, len, &value)) {
+
+	/* turn hashtable value into pointer to CompilerFunc struct */
+	CompilerFunc * funcDef = value.pointerVal;
+
+	/* function exists, lets write the OPCodes */
+	sb_append_char(c->outBuffer, OP_CALL_B);
+	/* TODO: error check number of arguments */
+	sb_append_char(c->outBuffer, funcDef->numArgs);
+	sb_append_char(c->outBuffer, 1); /* Number of args ...TODO */
+	sb_append_str(c->outBuffer, &funcDef->index, sizeof(int));
+      } else {
+	printf("Undefined function: %s\n", token);
+	c->err = COMPILERERR_UNDEFINED_FUNCTION;
+	return false;
+      }
+    }
+  }
+  return true;
 }
 
 /**
@@ -153,66 +209,24 @@ static bool write_operators_from_stack(Compiler * c, TypeStk * opStk,
 
     /* if there is an open parenthesis...  */
     if(tokens_equal(LANG_OPARENTH, LANG_OPARENTH_LEN, token, len)) {
-      printf("OPARENTHDSFLSKFJLSF\n");
-      printf("TYPESTK SIZE: %i\n", typestk_size(opStk));
 
       /* if top of stack is a parenthesis, it is a mismatch! */
       if(!parenthExpected) {
-	printf("UMP 1;\n");
 	c->err = COMPILERERR_UNMATCHED_PARENTH;
 	return false;
       } else if(popParenth) {
-	printf("POPPING OPARENTH:\n");
-	typestk_peek(opStk, &token, sizeof(char*), &type);
-	stk_peek(opLenStk, &value);
-	len = value.longVal;
-
-	/* there is a function name before the open parenthesis,
-	 * this is a function call:
-	 */
-	if(type == LEXERTYPE_KEYVAR) {
-	  int callbackIndex = -1;
-	  typestk_pop(opStk, &token, sizeof(char*), &type);
-	  stk_pop(opLenStk, &value);
-
-	  /* check if the function name is a provided function */
-	  callbackIndex = vm_callback_index(c->vm, token, len);
-	  if(callbackIndex == -1) {
-
-	    /* the function is not a native function. check script functions */
-	    if(ht_get_raw_key(c->functionHT, token, len, &value)) {
-	      CompilerFunc * funcDef = value.pointerVal;
-	      /* function exists, lets write the OPCodes */
-	      sb_append_char(c->outBuffer, OP_CALL_B);
-	      /* TODO: error check number of arguments */
-	      sb_append_char(c->outBuffer, funcDef->numArgs);
-	      sb_append_char(c->outBuffer, 1); /* Number of args ...TODO */
-	      printf("Function Index: %i\n", funcDef->index);
-	      sb_append_str(c->outBuffer, &funcDef->index, sizeof(int));
-	      printf("OP_CALL_PTR_N: %s\n", token);
-	    } else {
-	      printf("Undefined function: %s\n", token);
-	      c->err = COMPILERERR_UNDEFINED_FUNCTION;
-	      return false;
-	    }
-	  }
-
-	  /* function exists, lets write the OPCodes */
-	  sb_append_char(c->outBuffer, OP_CALL_PTR_N);
-	  /* TODO: make support mutiple arguments */
-	  sb_append_char(c->outBuffer, 1);
-	  sb_append_str(c->outBuffer, &callbackIndex, sizeof(int));
-	  printf("OP_CALL_PTR_N: %s\n", token);
-	  
+	
+	/* let the parenthesis be popped, but don't push it back */
+	/* parse code that looks like function calls */
+	if(!parse_function_call(c, token, len, type, opStk, opLenStk)) {
+	  return false;
 	}
+
 	return true;
       } else {
-	/* Re-push the parenthesis:*/
+	/* Re-push the parenthesis, we need it for later*/
 	typestk_push(opStk, &token, sizeof(char*), type);
 	stk_push_long(opLenStk, len);
-
-	printf("CEASING WITHOUT POPPING:\n");
-	printf("TYPESTK SIZE: %i\n", typestk_size(opStk));
 	return true;
       }
     }
