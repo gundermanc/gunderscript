@@ -652,9 +652,9 @@ char * lexer_current_token(Lexer * l, LexerType * type, size_t * len) {
   assert(l != NULL);
   assert(len != NULL);
 
-  *len = l->nextTokenLen;
-  set_type(type, l->nextTokenType);
-  return l->nextToken;
+  *len = l->currTokenLen;
+  set_type(type, l->currTokenType);
+  return l->currToken;
 
 }
 
