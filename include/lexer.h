@@ -49,6 +49,7 @@ typedef enum {
   LEXERTYPE_PARENTHESIS,
   LEXERTYPE_OPERATOR,
   LEXERTYPE_ENDSTATEMENT,
+  LEXERTYPE_ARGDELIM,
 } LexerType;
 
 /* Lexer Instance Struct */
@@ -58,6 +59,9 @@ typedef struct Lexer {
   char * currToken;
   size_t currTokenLen;
   LexerType currTokenType;
+  char * nextToken;
+  size_t nextTokenLen;
+  LexerType nextTokenType;
   LexerErr err;
   int index;
   int lineNum;

@@ -202,7 +202,7 @@ static bool next_parse_whitespace(Lexer * l) {
  * Whenever a comment start operator is encountered, advances current char index
  * until the matching comment terminator is encountered. If a multiline comment
  * is encountered, but it does not have a matching terminator, the l->err flag
- * is set to LEXERERR_UNTERMINATED_COMMENT, the next l->currToken is set to NULL
+ * is set to LEXERERR_UNTERMINATED_COMMENT, the next l->nextToken is set to NULL
  * but method still returns true.
  * l: a lexer object.
  * returns: true if this subparser was called when first chars were a start
@@ -253,10 +253,10 @@ static bool next_parse_comments(Lexer * l) {
 /**
  * lexer_next() strings subparser.
  * If current character is a quotation mark, ", this function begins parsing to
- * find the matching end quotation mark. Upon finding it, the l->currToken
- * pointer is set to point to the beginning of the string, and l->currTokenLen is
+ * find the matching end quotation mark. Upon finding it, the l->nextToken
+ * pointer is set to point to the beginning of the string, and l->nextTokenLen is
  * set to the length of the string. If no end quotation mark is encountered,
- * l->err is set to LEXERERR_UNTERMINATED_STRING and l->currToken is set to NULL,
+ * l->err is set to LEXERERR_UNTERMINATED_STRING and l->nextToken is set to NULL,
  * but function returns true;
  * l: an instance of lexer.
  * returns: true if the first character the lexer encountered was a quotation
@@ -274,12 +274,12 @@ static bool next_parse_strings(Lexer * l) {
 
       /* encountered end of string, return it along with the quotes*/
       if(next_char(l) == '"' && prev_char(l) != '\\') {
-	l->currTokenLen = (l->index - beginStrIndex);
-	printf("TOKEN LEN: %i\n", l->currTokenLen);
-	l->currToken = l->input + beginStrIndex;
+	l->nextTokenLen = (l->index - beginStrIndex);
+	printf("TOKEN LEN: %i\n", l->nextTokenLen);
+	l->nextToken = l->input + beginStrIndex;
 	l->err = LEXERERR_SUCCESS;
 
-	l->currTokenType = LEXERTYPE_STRING;
+	l->nextTokenType = LEXERTYPE_STRING;
 
 	/* increment index again to prevent the end quote from being evaluated
 	 * next iteration.
@@ -298,7 +298,7 @@ static bool next_parse_strings(Lexer * l) {
     }
 
     /* error occurred, set token to null and quit */
-    l->currToken = NULL;
+    l->nextToken = NULL;
     l->err = LEXERERR_UNTERMINATED_STRING;
     finalize_lexer(l);
     return true;
@@ -327,8 +327,8 @@ static bool is_digit(char c) {
 /**
  * lexer_next() keyvars subparser.
  * If current character is a letter, this method parses to the end of the
- * contiguous body of letters and numbers and then sets l->currToken to the
- * start of the keyword or variable, and l->currTokenLen to the the length
+ * contiguous body of letters and numbers and then sets l->nextToken to the
+ * start of the keyword or variable, and l->nextTokenLen to the the length
  * of the keyword or variable.
  * l: an instance of lexer.
  * returns: true if the first char was a letter, and false if not.
@@ -340,14 +340,16 @@ static bool next_parse_keyvars(Lexer * l) {
 
     /* extract entire word */
     while(remaining_chars(l) > 0 
-	  && (is_letter(next_char(l)) || is_digit(next_char(l)) || next_char(l) == '_')) {
+	  && (is_letter(next_char(l)) 
+	      || is_digit(next_char(l)) 
+	      || next_char(l) == '_')) {
       advance_char(l);
     }
 
-    l->currTokenLen = (l->index - beginStrIndex);
-    l->currToken = l->input + beginStrIndex;
+    l->nextTokenLen = (l->index - beginStrIndex);
+    l->nextToken = l->input + beginStrIndex;
     l->err = LEXERERR_SUCCESS;
-    l->currTokenType = LEXERTYPE_KEYVAR;
+    l->nextTokenType = LEXERTYPE_KEYVAR;
 
     return true;
   }
@@ -359,9 +361,9 @@ static bool next_parse_keyvars(Lexer * l) {
  * lexer_next() numbers subparser.
  * If current character is a digit, begins parsing until end of digits is reached
  * making note of decimal points along the way. If more than one decimal point is
- * encountered, l->err is set to LEXERERR_DUPLICATE_DECIMAL_PT, l->currToken is
+ * encountered, l->err is set to LEXERERR_DUPLICATE_DECIMAL_PT, l->nextToken is
  * set to NULL, and the function returns true. Otherwise, the function sets
- * l->currToken to the pointer to the first digit in the number, and l->tokenLen
+ * l->nextToken to the pointer to the first digit in the number, and l->tokenLen
  * to the number of digits in the number (plus one if there is a decimal pt).
  * l: an instance of lexer.
  * returns: true if the first character encountered is a digit, and false if not.
@@ -382,8 +384,8 @@ static bool next_parse_numbers(Lexer * l) {
 	if(decimalDetected) {
 	  l->err = LEXERERR_DUPLICATE_DECIMAL_PT;
 	  finalize_lexer(l);
-	  l->currToken = NULL;
-	  l->currTokenLen = 0;
+	  l->nextToken = NULL;
+	  l->nextTokenLen = 0;
 	  return true;
 	}
 
@@ -399,16 +401,16 @@ static bool next_parse_numbers(Lexer * l) {
     if(prev_char(l) == '.') {
       l->err = LEXERERR_TRAILING_DECIMAL_PT;
       finalize_lexer(l);
-      l->currToken = NULL;
-      l->currTokenLen = 0;
+      l->nextToken = NULL;
+      l->nextTokenLen = 0;
       return true;
     }
 
     /* success, save number to currentToken pointer */
-    l->currTokenLen = (l->index - beginStrIndex);
-    l->currToken = l->input + beginStrIndex;
+    l->nextTokenLen = (l->index - beginStrIndex);
+    l->nextToken = l->input + beginStrIndex;
     l->err = LEXERERR_SUCCESS;
-    l->currTokenType = LEXERTYPE_NUMBER;
+    l->nextTokenType = LEXERTYPE_NUMBER;
 
     return true;
   }
@@ -449,7 +451,7 @@ static bool is_parenthesis(char c) {
  * lexer_next() operators subparser.
  * If current character is an operator char (see is_operator()), function copies
  * current character and all characters following operator that are operators
- * to the l->currToken pointer, and sets l->currTokenLen to the length of this
+ * to the l->nextToken pointer, and sets l->nextTokenLen to the length of this
  * multicharacter operator.
  * l: an instance of lexer.
  * returns: true if the first character is an operator, and false if not.
@@ -470,10 +472,10 @@ static bool next_parse_operators(Lexer * l) {
     tokenLen = (l->index - beginStrIndex);
     token  = l->input + beginStrIndex;
 
-    l->currToken = token;
-    l->currTokenLen = tokenLen;
+    l->nextToken = token;
+    l->nextTokenLen = tokenLen;
     l->err = LEXERERR_SUCCESS;
-    l->currTokenType = LEXERTYPE_OPERATOR;
+    l->nextTokenType = LEXERTYPE_OPERATOR;
 
     return true;
   }
@@ -483,17 +485,17 @@ static bool next_parse_operators(Lexer * l) {
 /**
  * lexer_next() brackets subparser.
  * If current character is a bracket or curly brace), the current character
- * will be set to the l->currToken pointer, and
- * l->currTokenLen will be set to the length of the symbol (always 1).
+ * will be set to the l->nextToken pointer, and
+ * l->nextTokenLen will be set to the length of the symbol (always 1).
  * l: an instance of lexer.
  * returns: true if the current character is a logiparenth and false if not.
  */
 static bool next_parse_brackets(Lexer * l) {
 
   if(is_bracket(next_char(l))) {
-    l->currToken = l->input + l->index;
-    l->currTokenLen = 1;
-    l->currTokenType = LEXERTYPE_BRACKETS;
+    l->nextToken = l->input + l->index;
+    l->nextTokenLen = 1;
+    l->nextTokenType = LEXERTYPE_BRACKETS;
     l->err = LEXERERR_SUCCESS;
     advance_char(l);
 
@@ -506,17 +508,17 @@ static bool next_parse_brackets(Lexer * l) {
 /**
  * lexer_next() parenthesis subparser.
  * If current character is a parenthesis, the current character
- * will be set to the l->currToken pointer, and
- * l->currTokenLen will be set to the length of the symbol (always 1).
+ * will be set to the l->nextToken pointer, and
+ * l->nextTokenLen will be set to the length of the symbol (always 1).
  * l: an instance of lexer.
  * returns: true if the current character is a logiparenth and false if not.
  */
 static bool next_parse_parenthesis(Lexer * l) {
 
   if(is_parenthesis(next_char(l))) {
-    l->currToken = l->input + l->index;
-    l->currTokenLen = 1;
-    l->currTokenType = LEXERTYPE_PARENTHESIS;
+    l->nextToken = l->input + l->index;
+    l->nextTokenLen = 1;
+    l->nextTokenType = LEXERTYPE_PARENTHESIS;
     l->err = LEXERERR_SUCCESS;
     advance_char(l);
 
@@ -528,16 +530,16 @@ static bool next_parse_parenthesis(Lexer * l) {
 
 /**
  * lexer_next() end statement subparser. If current character is an endstatement
- * character, function returns true and sets l->currToken to the current character.
+ * character, function returns true and sets l->nextToken to the current character.
  * l: an instance of lexer.
  * returns: true if current character is an endstatement.
  */
 static bool next_parse_endstatement(Lexer * l) {
   if(next_char(l) == ';') {
-    l->currToken = l->input + l->index;
-    l->currTokenLen = 1;
+    l->nextToken = l->input + l->index;
+    l->nextTokenLen = 1;
     l->err = LEXERERR_SUCCESS;
-    l->currTokenType = LEXERTYPE_ENDSTATEMENT;
+    l->nextTokenType = LEXERTYPE_ENDSTATEMENT;
     advance_char(l);
     return true;
   }
@@ -545,25 +547,35 @@ static bool next_parse_endstatement(Lexer * l) {
 }
 
 /**
- * Returns the next token string from this lexer. Characters are tokenized into:
- * - Strings: surrounded by quotes.
- * - Numbers: contiguous blocks of digits with up to one decimal pt.
- * - Comments: begin with slash star, end with star slash or begin with // end
- *             newline, and are removed during tokenization.
- * - Keywords/vars: any contiguous block of characters starting with a letter
- *                  and ending with letters or numbers.
- * - Operators: any contiguous blocks of characters that aren't whitespace,
- *              letters, or digits.
+ * lexer_next() comma subparser. If current character is a comma
+ * character, function returns true and sets l->nextToken to the current character.
  * l: an instance of lexer.
- * type: the type of the token being returned.
- * len: the length of the string being returned.
- * returns: a string containing the next token. Note: this string is not NULL
- * terminated.
+ * returns: true if current character is a comma.
  */
-char * lexer_next(Lexer * l, LexerType * type, size_t * len) {
+static bool next_parse_argdelim(Lexer * l) {
+  if(next_char(l) == ',') {
+    l->nextToken = l->input + l->index;
+    l->nextTokenLen = 1;
+    l->err = LEXERERR_SUCCESS;
+    l->nextTokenType = LEXERTYPE_ARGDELIM;
+    advance_char(l);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * Moves the currToken and nextToken fields of lexer object forward by one token.
+ * l: an instance of lexer.
+ */
+static void update_next_token(Lexer * l) {
 
   assert(l != NULL);
-  assert(len != NULL);
+
+  /* move "next" tokens into current */
+  l->currToken = l->nextToken;
+  l->currTokenLen = l->nextTokenLen;
+  l->currTokenType = l->nextTokenType;
 
   /* Recursive Descent Parsing Loop:
    * Each iteration, the lexer attempts to handle the current set of characters
@@ -579,7 +591,7 @@ char * lexer_next(Lexer * l, LexerType * type, size_t * len) {
    */
   while(remaining_chars(l) > 0) {
 
-    l->currTokenType = LEXERTYPE_UNKNOWN;
+    l->nextTokenType = LEXERTYPE_UNKNOWN;
 
     /* Recursive Descent Chain:
      * I know the McCabe's complexity is CRAZY high, but in this I case, I
@@ -599,33 +611,21 @@ char * lexer_next(Lexer * l, LexerType * type, size_t * len) {
 	break;
       }
     } else if(next_parse_strings(l)) {
-      *len = l->currTokenLen;
-      set_type(type, l->currTokenType);
-      return l->currToken;
+      return;
     } else if(next_parse_keyvars(l)){
-      *len = l->currTokenLen;
-      set_type(type, l->currTokenType);
-      return l->currToken;
+      return;
     } else if(next_parse_numbers(l)){
-      *len = l->currTokenLen;
-      set_type(type, l->currTokenType);
-      return l->currToken;
+      return;
     } else if(next_parse_brackets(l)) {
-      *len = l->currTokenLen;
-      set_type(type, l->currTokenType);
-      return l->currToken;
+      return;
+    } else if(next_parse_argdelim(l)) {
+      return;
     } else if(next_parse_parenthesis(l)) {
-      *len = l->currTokenLen;
-      set_type(type, l->currTokenType);
-      return l->currToken;
+      return;
     } else if(next_parse_operators(l)) {
-      *len = l->currTokenLen;
-      set_type(type, l->currTokenType);
-      return l->currToken;
+      return;
     } else if(next_parse_endstatement(l)) {
-      *len = l->currTokenLen;
-      set_type(type, l->currTokenType);
-      return l->currToken;
+      return;
     } else {
 
       /* none of the parsers can handle the current situation */
@@ -634,7 +634,8 @@ char * lexer_next(Lexer * l, LexerType * type, size_t * len) {
       break;
     }
   }
-  return NULL;
+
+  l->nextToken = NULL;
 }
 
 /**
@@ -651,9 +652,9 @@ char * lexer_current_token(Lexer * l, LexerType * type, size_t * len) {
   assert(l != NULL);
   assert(len != NULL);
 
-  *len = l->currTokenLen;
-  set_type(type, l->currTokenType);
-  return l->currToken;
+  *len = l->nextTokenLen;
+  set_type(type, l->nextTokenType);
+  return l->nextToken;
 
 }
 
@@ -855,4 +856,65 @@ LexerType lexer_token_type(char * token, size_t len, bool definitive) {
   }
 
   return type;
+}
+
+/**
+ * Advances the currToken and nextToken fields of the lexer object to the next
+ * token.
+ * lexer: an instance of lexer.
+ */
+static void update_tokens(Lexer * lexer) {
+
+  /* first time updating tokens, fill both currToken and nextToken by running
+   * update_next_token a second time
+   */
+  if(lexer->index == 0) {
+    update_next_token(lexer);
+  }
+  update_next_token(lexer);
+}
+
+/**
+ * Returns the token after the current one without advancing the lexer forward.
+ * lexer: an instance of lexer.
+ * type: a pointer that will recv. the the type of the token being returned. May
+ * be NULL.
+ * len: a pointer that will recv. the length of the token in characters.
+ * returns: the token after the current token.
+ */
+char * lexer_peek(Lexer * lexer, LexerType * type, size_t * len) {
+  set_type(type, lexer->nextTokenType);
+  *len = lexer->nextTokenLen;
+  return lexer->nextToken;
+}
+
+/**
+ * Returns the next token string from this lexer. Characters are tokenized into:
+ * - Strings: surrounded by quotes.
+ * - Numbers: contiguous blocks of digits with up to one decimal pt.
+ * - Comments: begin with slash star, end with star slash or begin with // end
+ *             newline, and are removed during tokenization.
+ * - Keywords/vars: any contiguous block of characters starting with a letter
+ *                  and ending with letters or numbers.
+ * - Operators: any contiguous blocks of characters that aren't whitespace,
+ *              letters, or digits.
+ * l: an instance of lexer.
+ * type: the type of the token being returned.
+ * len: the length of the string being returned.
+ * returns: a string containing the next token. Note: this string is not NULL
+ * terminated.
+ */
+char * lexer_next(Lexer * lexer, LexerType * type, size_t * len) {
+  assert(lexer != NULL);
+  assert(type != NULL);
+  assert(len != NULL);
+
+  /* move lexer object's "nextToken" and "currentToken" fields
+   * forward one token
+   */
+  update_tokens(lexer);
+
+  set_type(type, lexer->currTokenType);
+  *len = lexer->currTokenLen;
+  return lexer->currToken;
 }
