@@ -3,22 +3,25 @@
  * (C) 2014 Christian Gunderman
  */
 
-function xfun(hello) {
-  return(1);
+function test() {
+  return("Foo");
 }
 
 function exported main(hello) {
   // variable declarations
   // inline initializations don't work yet :(
   var x;
-  var y;
+  //var y;
 
   // variable initializations
-  x = 1;
-  y = 2;
+  //x = 1;
+  //y = 2;
 
   // native function call
   //print(x + y);
-
-  print(xfun(x));
+  //x = (1 + 1) * 3;
+  x = passthru(1) + 1;
+  //print(passthru(x) + 1);
+  //print(3 + 3);
+  print(test());
 }

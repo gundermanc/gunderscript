@@ -119,79 +119,6 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
   return false;
 }
 
-/* only returns false if there is an error */
-static bool parse_stacked_function_call(Compiler * c, char * token, size_t len, 
-				VarType type, TypeStk * opStk, 
-				Stk * opLenStk) {
-  DSValue value;
-
-  /* peek top item in "sidetrack" stack */
-  typestk_peek(opStk, &token, sizeof(char*), &type);
-  stk_peek(opLenStk, &value);
-  len = value.longVal;
-
-  /* check if item is a KEYVAR, if so, it SHOULD be a function call */
-  if(type == LEXERTYPE_KEYVAR) {
-    int callbackIndex = -1;
-
-    /* item is correct type, pop it now */
-    typestk_pop(opStk, &token, sizeof(char*), &type);
-    stk_pop(opLenStk, &value);
-
-    /* handle return statements */
-    if(tokens_equal(token, len, LANG_RETURN, LANG_RETURN_LEN)) {
-
-      /* Return statements:
-       * The assumption here is that the return function is: 
-       *
-       * return ( [expression] );
-       * 
-       * If this is true, there is already a value on the stack. By
-       * popping the current frame, it is now treated as the result
-       * of the script function
-       */
-
-      /* TODO: check number of arguments to return */
-      sb_append_char(c->outBuffer, OP_FRM_POP);
-      return true;
-    }
-
-    /* check if the function name is a C built-in function */
-    callbackIndex = vm_callback_index(c->vm, token, len);
-    if(callbackIndex != -1) {
-
-      /* function is native, lets write the OPCodes for native call */
-      sb_append_char(c->outBuffer, OP_CALL_PTR_N);
-      /* TODO: make support mutiple arguments */
-      sb_append_char(c->outBuffer, 1);
-      sb_append_str(c->outBuffer, &callbackIndex, sizeof(int));
-      printf("OP_CALL_PTR_N: %s\n", token);
-      return true;
-
-    } else {
-
-      /* the function is not a native function. check script functions */
-      if(ht_get_raw_key(c->functionHT, token, len, &value)) {
-
-	/* turn hashtable value into pointer to CompilerFunc struct */
-	CompilerFunc * funcDef = value.pointerVal;
-
-	/* function exists, lets write the OPCodes */
-	sb_append_char(c->outBuffer, OP_CALL_B);
-	/* TODO: error check number of arguments */
-	sb_append_char(c->outBuffer, funcDef->numArgs + funcDef->numVars);
-	sb_append_char(c->outBuffer, funcDef->numArgs); /* Number of args ...TODO */
-	sb_append_str(c->outBuffer, &funcDef->index, sizeof(int));
-      } else {
-	printf("Undefined function: %s\n", token);
-	c->err = COMPILERERR_UNDEFINED_FUNCTION;
-	return false;
-      }
-    }
-  }
-  return true;
-}
-
 /* Handles operators that are in the "sidetrack" stack used by Dijikstra's
  * algorithm when handling operator precedence.
  */
@@ -291,15 +218,12 @@ static bool write_from_stack(Compiler * c, TypeStk * opStk,
 
       /* if top of stack is a parenthesis, it is a mismatch! */
       if(!parenthExpected) {
+	printf("UMP1\n");
 	c->err = COMPILERERR_UNMATCHED_PARENTH;
 	return false;
       } else if(popParenth) {
 	
-	/* let the parenthesis be popped, but don't push it back */
-	/* parse code that looks like function calls */
-	if(!parse_stacked_function_call(c, token, len, type, opStk, opLenStk)) {
-	  return false;
-	}
+	/* TODO: try to eliminate this */
 	return true;
 
       } else {
@@ -324,14 +248,14 @@ static bool write_from_stack(Compiler * c, TypeStk * opStk,
   /* Is open parenthensis is expected SOMEWHERE in this sequence? If true,
    * and we reach this point, we never found one. Throw an error!
    */
-  if(!parenthExpected) {
+  /*if(!parenthExpected) {
     return true;
   } else {
-    printf("UMP 2;");
-    /*** TODO: potentially catches false error cases */
+    printf("UMP 2;\n");
     c->err = COMPILERERR_UNMATCHED_PARENTH;
     return false;
-  }
+  }*/
+  return true;
 }
 
 static bool parse_number(Compiler * c, LexerType prevValType, 
@@ -357,6 +281,7 @@ static bool parse_number(Compiler * c, LexerType prevValType,
   if(prevValType != COMPILER_NO_PREV
      && prevValType != LEXERTYPE_PARENTHESIS
      && prevValType != LEXERTYPE_OPERATOR) {
+    printf("UET parse_number\n");
     c->err = COMPILERERR_UNEXPECTED_TOKEN;
     return false;
   }
@@ -389,28 +314,51 @@ static bool parse_string(Compiler * c, LexerType prevValType,
      && prevValType != LEXERTYPE_PARENTHESIS
      && prevValType != LEXERTYPE_OPERATOR) {
     c->err = COMPILERERR_UNEXPECTED_TOKEN;
+    printf("UET parse_string\n");
     return false;
   }
   return true;
 }
 
-static bool parse_keyvar(Compiler * c, TypeStk * opStk, Stk * opLenStk,
-			 LexerType prevValType, LexerType type,
+static bool parse_keyvar(Compiler * c, Lexer * l, TypeStk * opStk,
+			 Stk * opLenStk, LexerType * prevValType, LexerType type,
 			 char * token, size_t len) {
-  /* KEYVAR HANDLER:
-   * Handles all word tokens. These can be variables or function names
-   */
-  /* push variable or function name to operator stack */
-  typestk_push(opStk, &token, sizeof(char*), type);
-  stk_push_long(opLenStk, len);
-  printf("KEYVAR pushed to OPSTK: %s\n", token);
-  printf("KEYVAR pushed to OPSTK Len: %i\n", len);
+  char * parenthToken;
+  size_t parenthLen;
+  LexerType parenthType;
+
+  /* look ahead one and see what's there */
+  parenthToken = lexer_peek(l, &parenthType, &parenthLen);
+
+  printf("PARENTHTOKEN: %s\n", parenthToken);
+  /* check if this is a function call */
+  if(tokens_equal(parenthToken, parenthLen, LANG_OPARENTH, LANG_OPARENTH_LEN)) {
+
+    /*token = lexer_next(l, &type, &len);*/
+    printf("PARSE INNER: %s\n", token);
+    /* delegate function call to function call parser */
+    if(!parse_function_call(c, l)) {
+      return false;
+    }
+    token = lexer_current_token(l, &type, &len);
+    printf("End String: %s\n", token);
+  } else {
+
+    /* Not a function call. A variable operation. Store tokens on stack for
+     * later parsing.
+     */
+    typestk_push(opStk, &token, sizeof(char*), type);
+    stk_push_long(opLenStk, len);
+    (*prevValType) = type;
+    token = lexer_next(l, &type, &len);
+  }
+
   return true;
 }
 
 static bool parse_parenthesis(Compiler * c, TypeStk * opStk, Stk * opLenStk,
 			      LexerType prevValType, LexerType type, 
-			      char * token, size_t len) {
+			      char * token, size_t len, int * parenthDepth) {
   printf("PARENTH: %s\n", token);
   printf("PARENTH LEN: %i\n", len);
   if(tokens_equal(LANG_OPARENTH, LANG_OPARENTH_LEN, token, len)) {
@@ -418,6 +366,7 @@ static bool parse_parenthesis(Compiler * c, TypeStk * opStk, Stk * opLenStk,
     stk_push_long(opLenStk, len);
     printf("OParenth pushed to OPSTK: %s\n", token);
     printf("OParenth pushed to OPSTK Len: %i\n", len);
+    (*parenthDepth)++;
   } else {
 
     /* we're about to start popping items off of the stack. First check for
@@ -436,6 +385,8 @@ static bool parse_parenthesis(Compiler * c, TypeStk * opStk, Stk * opLenStk,
     if(!write_from_stack(c, opStk, opLenStk, true, true)) {
       return false;
     }
+
+    (*parenthDepth)--;
   }
 
   /* check for invalid types: */
@@ -446,6 +397,7 @@ static bool parse_parenthesis(Compiler * c, TypeStk * opStk, Stk * opLenStk,
      && prevValType != LEXERTYPE_STRING
      && prevValType != LEXERTYPE_KEYVAR) {
     c->err = COMPILERERR_UNEXPECTED_TOKEN; 
+    printf("UET parse_parenth\n");
     return false;
   }
   return true;
@@ -503,10 +455,11 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
      && prevValType != LEXERTYPE_KEYVAR
      && prevValType != LEXERTYPE_PARENTHESIS) {
     /* TODO: this error check does not distinguish between ( and ). Revise to
-     * ensure that parenthesis is part of a matching pair too.
+     * ensure that parenthesis is part of a matching pair too, and fix bug
      */
-    c->err = COMPILERERR_UNEXPECTED_TOKEN; 
-    return false;
+    /*c->err = COMPILERERR_UNEXPECTED_TOKEN;*/
+    printf("UET parse_operators: %i\n", prevValType);
+    /*return false;*/
   }
   return true;
 }
@@ -523,12 +476,15 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
  * returns: true if success, and false if errors occurred. If error occurred,
  * c->err is set.
  */
+/* innerCall: return upon hitting last parenthesis */
 /* TODO: return false for every sb_append* function upon failure */
-bool parse_straight_code(Compiler * c, Lexer * l, bool * bracketEncountered) {
+bool parse_straight_code(Compiler * c, Lexer * l,
+			 bool innerCall, bool * parenthEncountered) {
   LexerType type;
   LexerType prevValType = COMPILER_NO_PREV;
   char * token;
   size_t len;
+  int parenthDepth = 0;
 
   /* allocate stacks for operators and their lengths, a.k.a. 
    * the "side track in shunting yard" 
@@ -543,10 +499,8 @@ bool parse_straight_code(Compiler * c, Lexer * l, bool * bracketEncountered) {
   token = lexer_current_token(l, &type, &len);
   printf("First straight code token: %s\n", token);
 
-  printf("FIRST: %s\n", token);
-
-  if(bracketEncountered != NULL) {
-    *bracketEncountered = false;
+  if(parenthEncountered != NULL) {
+    *parenthEncountered = false;
   }
 
   /* straight code token parse loop */
@@ -556,77 +510,95 @@ bool parse_straight_code(Compiler * c, Lexer * l, bool * bracketEncountered) {
      * be postfixed for execution by the VM
      */
     switch(type) {
-    case LEXERTYPE_BRACKETS:
-      /* TODO: make sure this is a CLOSE bracket, not open */
-      if(prevValType != COMPILER_NO_PREV
-	 && prevValType != LEXERTYPE_ENDSTATEMENT) {
-	c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+    case LEXERTYPE_ARGDELIM:
+      if(innerCall) {
+	/* finishing parsing the current argument, return */
+	if(!write_from_stack(c, opStk, opLenStk, true, true)) {
+	  return false;
+	}
+	return true;
+      } else {
+	/* there shouldn't be any commas here */
+	c->err = COMPILERERR_UNEXPECTED_TOKEN;
 	return false;
       }
-
-      /*token = lexer_next(l, &type, &len);*/
-
-      if(bracketEncountered != NULL) {
-	*bracketEncountered = true;
-      }
-      printf("Hit Bracket\n");
-      return true; 
-
-    case LEXERTYPE_KEYVAR:
-      if(!parse_keyvar(c, opStk, opLenStk, prevValType, type, token, len)) {
-	return false;
-      }
-      break;
 
     case LEXERTYPE_NUMBER:
       if(!parse_number(c, prevValType, token, len)) {
 	return false;
       }
+      prevValType = type;
+      token = lexer_next(l, &type, &len);
       break;
 
     case LEXERTYPE_STRING:
       if(!parse_string(c, prevValType, token, len)) {
 	return false;
       }
+      prevValType = type;
+      token = lexer_next(l, &type, &len);
       break;
 
     case LEXERTYPE_PARENTHESIS:
-      if(!parse_parenthesis(c, opStk, opLenStk, prevValType, type, token, len)) {
+      if(!parse_parenthesis(c, opStk, opLenStk, prevValType, 
+			    type, token, len, &parenthDepth)) {
 	return false;
       }
+
+      printf("Innercall: %i\n", innerCall);
+      if(parenthDepth <= 0) {
+	if(tokens_equal(token, len, LANG_CPARENTH, LANG_CPARENTH_LEN) 
+	   && parenthEncountered != NULL) {
+	  *parenthEncountered = true;
+	  return true;
+	}
+      }
+      prevValType = type;
+      token = lexer_next(l, &type, &len);
       break;
 
     case LEXERTYPE_OPERATOR:
       if(!parse_operator(c, opStk, opLenStk, prevValType, type, token, len)) {
 	return false;
       }
+      prevValType = type;
+      token = lexer_next(l, &type, &len);
+      break;
+
+    case LEXERTYPE_KEYVAR:
+      if(!parse_keyvar(c, l, opStk, opLenStk, &prevValType, 
+		       type, token, len)) {
+	return false;
+      }
+      token = lexer_current_token(l, &type, &len);
+      printf("KEYVAR TOKEN: %s\n", token);
+
+      prevValType = type;
+      /*token = lexer_next(l, &type, &len);*/
       break;
 
     case LEXERTYPE_ENDSTATEMENT: {
 
-      /* check for invalid types: */
-      if(prevValType == LEXERTYPE_OPERATOR
-	 || prevValType == LEXERTYPE_ENDSTATEMENT) {
+      if(!innerCall) {
+	/* check for invalid types: */
+	if(prevValType == LEXERTYPE_OPERATOR
+	   || prevValType == LEXERTYPE_ENDSTATEMENT) {
+	  c->err = COMPILERERR_UNEXPECTED_TOKEN;
+	  return false;
+	}
+
+	if(!write_from_stack(c, opStk, opLenStk, false, true)) {
+	  return false;
+	}
+	return true;
+      } else {
 	c->err = COMPILERERR_UNEXPECTED_TOKEN;
 	return false;
       }
-      printf("ENDSTATEMENT\n");
-
-      /* reached the end of the input, empty the operator stack to the output */
-      printf("**End Pop\n");
-      if(!write_from_stack(c, opStk, opLenStk, false, true)) {
-	return false;
-      }
-      /* write stack pop instruction:
-       * this ensures that the last return value is popped off of the stack after
-       * the statement completes.
-       */
-      printf("POPTOKEN: %s\n", token);
-      sb_append_char(c->outBuffer, OP_POP);
-
-      token = lexer_next(l, &type, &len);
-      return true;
     }
+
+    case LEXERTYPE_BRACKETS:
+      return true;
 
     default:
       c->err = COMPILERERR_UNEXPECTED_TOKEN;
@@ -635,17 +607,140 @@ bool parse_straight_code(Compiler * c, Lexer * l, bool * bracketEncountered) {
       return false;
     }
 
-    /* store the type of this token for the next iteration: */
-    prevValType = type;
+    token = lexer_current_token(l, &type, &len);
 
-  } while((token = lexer_next(l, &type, &len)) != NULL);
+  } while(token != NULL);
 
   /* no semicolon at the end of the line, throw a fit */
   /*if(prevValType != LEXERTYPE_ENDSTATEMENT) {*/
+  printf("Fell out of loop.\n");
     c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
     return false;
     /*}*/
 
   /* no errors occurred */
+  return true;
+}
+
+/* writes the function call op codes, telling VM to pop last 'arguments' number
+   of args off of stack. */
+static bool function_call(Compiler * c, char * functionName, 
+		   size_t functionNameLen, int arguments) {
+
+  DSValue value;
+
+  /* check if function is "return" function */
+  if(tokens_equal(functionName, functionNameLen, LANG_RETURN, LANG_RETURN_LEN)) {
+    if(arguments != 1) {
+      c->err = COMPILERERR_TOO_MANY_ARGUMENTS;
+      return false;
+    }
+
+    /* TODO: pop multiple frames if current frame isn't a function frame */
+    sb_append_char(c->outBuffer, OP_FRM_POP);
+    return true;
+  }
+
+  /* check if the function name is a C built-in function */
+  int callbackIndex = vm_callback_index(c->vm, functionName, 
+				    functionNameLen);
+  if(callbackIndex != -1) {
+
+    /* function is native, lets write the OPCodes for native call */
+    sb_append_char(c->outBuffer, OP_CALL_PTR_N);
+    sb_append_char(c->outBuffer, arguments);
+    sb_append_str(c->outBuffer, &callbackIndex, sizeof(int));
+    return true;
+
+  } else {
+
+    /* the function is not a native function. check script functions */
+    if(ht_get_raw_key(c->functionHT, functionName, 
+		      functionNameLen, &value)) {
+
+      /* turn hashtable value into pointer to CompilerFunc struct */
+      CompilerFunc * funcDef = value.pointerVal;
+
+      /* function exists, lets write the OPCodes */
+      sb_append_char(c->outBuffer, OP_CALL_B);
+      /* TODO: error check number of arguments */
+      sb_append_char(c->outBuffer, funcDef->numArgs + funcDef->numVars);
+      sb_append_char(c->outBuffer, funcDef->numArgs); /* Number of args ...TODO */
+      sb_append_str(c->outBuffer, &funcDef->index, sizeof(int));
+    } else {
+      c->err = COMPILERERR_UNDEFINED_FUNCTION;
+      return false;
+    }
+  }
+}
+
+/* TODO: rename */
+bool parse_function_call(Compiler * c, Lexer * l) {
+  LexerType type;
+  char * token;
+  size_t len;
+
+  /* get current token */
+  token = lexer_current_token(l, &type, &len);
+  
+  /* check if this is a keyword or variable */
+  printf("FUNCCALLSTART: %s\n", token);
+  if(type == LEXERTYPE_KEYVAR) {
+    bool endOfArgs = false;
+    size_t functionTokenLen;
+    /* peek ahead 1 token to see if it is a parenthesis */
+    char * functionToken;
+
+    /* peek ahead one token */
+    token = lexer_peek(l, NULL, &len);
+
+    /* check if this is a function call by seeing if peeked token is a parenth */
+    if(tokens_equal(token, len,LANG_OPARENTH, LANG_OPARENTH_LEN)) {
+      int argCount = 0;
+
+      functionToken = lexer_current_token(l, NULL, &functionTokenLen);
+
+      printf("REACHED\n");
+      /* check for arguments */
+      token = lexer_next(l, &type, &len);
+      token = lexer_next(l, &type, &len);
+      if(!tokens_equal(token, len, LANG_CPARENTH, LANG_CPARENTH_LEN)) {
+	printf("ARGSPRESENT\n");
+	do {
+
+	  /* delegate current argument to the straight code parser */
+	  if(!parse_straight_code(c, l, true, &endOfArgs)) {
+	    return false;
+	  }
+
+	  /* skip the comma or closing parenth if there is one */
+	  token = lexer_next(l, &type, &len);
+	  argCount++;
+	} while(!endOfArgs);
+      } else {
+	token = lexer_next(l, &type, &len);
+      }
+      /* writes a call to the specified function, or returns if error */
+      if(!function_call(c, functionToken, functionTokenLen, argCount)) {
+	return false;
+      }
+
+      /* function call write succeeded */
+      return true;
+    } else {
+      /* not a function call, delegate to the straight code parser */
+      if(!parse_straight_code(c, l, false, NULL)) {
+	return false;
+      }
+    }
+  } else {
+    /* malformed expression,
+     * does not start with KEYVAR...is not var assignment or function call
+     * TODO: Do something
+     */
+    printf("THISONE\n");
+    c->err = COMPILERERR_UNEXPECTED_TOKEN;
+    return false;
+  }
   return true;
 }

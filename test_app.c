@@ -36,41 +36,49 @@
 char * print_next_token(Lexer * l) {
   size_t tokenLen;
   int i = 0;
-  
-  char * token = lexer_next(l, &tokenLen);
+  LexerType type;
+
+  char * token = lexer_next(l, &type, &tokenLen);
 
   if(token == NULL) {
     printf("NULL\n");
     return token;
   }
 
+  printf("Next Token: ");
   for(i = 0; i < tokenLen; i++) {
     printf("%c", token[i]);
   }
+
+  token = lexer_peek(l, &type, &tokenLen);
+
+  printf("; Peek Token: ");
+  if(token != NULL) {
+    for(i = 0; i < tokenLen; i++) {
+      printf("%c", token[i]);
+    }
+  }
   printf("\n\t");
 
-  printf("Token type: %i", lexer_token_type(token, tokenLen, false));
+
+  printf("Token type: %i", type);
   printf("\n");
 
   return token;
 }
 
 int main() {
-  char * foo = "function main(args, argsLen) {\n"
-               "  print(\"Hello\"); "
-               "  return 0;"
-               "}"
+  char * foo = "function exported main() { print(five());}";
+  int i = 0;
+  LexerType type;
+  size_t len;
 
-               "function print(text) {"
-               "  out(text);"
-               "  return true;"
-               "}";
- 
-    
+  char * token = lexer_next(l, &type, &len);
   Lexer * l = lexer_new(foo, strlen(foo));
  
-  while(print_next_token(l) != NULL);
-
+  for(i = 0; print_next_token(l); i++) {
+    ;
+    }
 
   printf("Error code: %i", l->err);
   printf("\nLine: %i\n", lexer_line_num(l));
@@ -79,7 +87,6 @@ int main() {
   return 0;
 }
 */
-
 /*
 bool test(VM * vm, VMArg * arg, int argc) {
   printf("String: %s\n", vmarg_string(arg[0]));
@@ -120,7 +127,8 @@ int main() {
 
 static bool print(VM * vm, VMArg * arg, int argc) {
   int i = 0;
-
+  
+  printf("PRINT!!!!!***************\n");
   for(i = 0; i < argc; i++) {
     switch(arg[i].type) {
     case TYPE_BOOLEAN:
@@ -139,6 +147,23 @@ static bool print(VM * vm, VMArg * arg, int argc) {
 
   /* make return value default 0 */
   return false;
+}
+
+static bool passthru(VM * vm, VMArg * arg, int argc) {
+  double value = 0;
+  int i = 0;
+  
+  for(i = 0; i < argc; i++) {
+    switch(arg[i].type) {
+    case TYPE_NUMBER:
+      value = vmarg_number(arg[i], NULL);
+      typestk_push(vm->opStk, &value, sizeof(double), TYPE_NUMBER);
+      break;
+    default:
+      printf("DEBUG: unknown type.");
+    }
+  }
+  return argc > 0;
 }
 
 char *loadfile(char *file, int *size) {
@@ -178,6 +203,11 @@ int main() {
 
   if(!vm_reg_callback(vm, "print", 5, print)) {
     printf("FAILED TO REGISTER PRINT FUNCTION.\n");
+    return 1;
+  }
+
+  if(!vm_reg_callback(vm, "passthru", 8 , passthru)) {
+    printf("FAILED TO REGISTER PASSTHRU FUNCTION.\n");
     return 1;
   }
 

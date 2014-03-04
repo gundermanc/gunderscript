@@ -420,11 +420,19 @@ static bool var_def(Compiler * c, Lexer * l) {
   }
 
   /* perform inline variable initialization if code provided */
-  token = lexer_current_token(l, &type, &len);
+  /*token = lexer_current_token(l, &type, &len);
   printf("Var init token: %s\n", token);
-  if(!parse_straight_code(c, l, NULL)) {
+  if(!parse_function_call(c, l, NULL)) {
+    return false;
+    }*/
+
+  token = lexer_next(l, &type, &len);
+  /* check for terminating semicolon */
+  if(type != LEXERTYPE_ENDSTATEMENT) {
+    c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
     return false;
   }
+  token = lexer_next(l, &type, &len);
   printf("END DEF 1: %s\n", token);
 
   return true;
@@ -497,13 +505,22 @@ static bool func_do_body(Compiler * c, Lexer * l) {
   printf("Remaining token: %s\n", token);
 
   /* keep executing lines of code until we hit a '}' */
-  while(!bracketEncountered) {
-    token = lexer_current_token(l, &type, &len);
-    
-    printf("STR PARSE: %s\n", token);
-    if(!parse_straight_code(c, l, &bracketEncountered)) {
+  while(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
+
+    /* run line of code */
+    if(!parse_function_call(c, l)) {
       return false;
     }
+
+    /* check for terminating semicolon */
+    token = lexer_current_token(l, &type, &len);
+    printf("FOO TOKEN: %s\n", token);
+    if(type != LEXERTYPE_ENDSTATEMENT) {
+      c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+      return false;
+    }
+    token = lexer_next(l, &type, &len);
+    printf("FOO2 %s\n", token);
   }
 
   token = lexer_current_token(l, &type, &len);
@@ -615,7 +632,8 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   if((numVars = func_do_var_defs(c, l)) == -1) {
     return false;
   }
-  /* retrieve current token (it was modified by func_do_var_def */
+
+  /* retrieve next token (it was modified by func_do_var_def */
   token = lexer_current_token(l, &type, &len);
 
   printf("VAR DEFS 2: %i\n", numArgs);

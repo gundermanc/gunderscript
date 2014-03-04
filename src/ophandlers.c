@@ -713,7 +713,7 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
   }
 
   /* create array of arguments */
-  for(i = 0; i < numArgs; i++) {
+  for(i = numArgs - 1; i >= 0; i--) {
     typestk_pop(vm->opStk, &args[i].data, VM_VAR_SIZE, &args[i].type);
   }
 
