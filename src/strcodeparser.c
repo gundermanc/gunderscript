@@ -632,7 +632,7 @@ static bool function_call(Compiler * c, char * functionName,
   /* check if function is "return" function */
   if(tokens_equal(functionName, functionNameLen, LANG_RETURN, LANG_RETURN_LEN)) {
     if(arguments != 1) {
-      c->err = COMPILERERR_TOO_MANY_ARGUMENTS;
+      c->err = COMPILERERR_INCORRECT_NUMARGS;
       return false;
     }
 
@@ -660,6 +660,12 @@ static bool function_call(Compiler * c, char * functionName,
 
       /* turn hashtable value into pointer to CompilerFunc struct */
       CompilerFunc * funcDef = value.pointerVal;
+
+      /* check for correct number of arguments */
+      if(funcDef->numArgs != arguments) {
+	c->err = COMPILERERR_INCORRECT_NUMARGS;
+	return false;
+      }
 
       /* function exists, lets write the OPCodes */
       sb_append_char(c->outBuffer, OP_CALL_B);

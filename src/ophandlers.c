@@ -200,7 +200,7 @@ bool op_frame_push(VM * vm,  char * byteCode,
     }
 
     /* pop arguments and put them in them in variables on the new frame */
-    for(i = 0; i < args; i++) {
+    for(i = args - 1; i >= 0; i--) {
       char data[VM_VAR_SIZE];
       VarType type;
 
@@ -349,8 +349,8 @@ bool op_dual_operand_math(VM * vm,  char * byteCode,
     return false;
   }
 
-  typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
-  typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+  typestk_pop(vm->opStk, &value2, sizeof(double), &type1);
+  typestk_pop(vm->opStk, &value1, sizeof(double), &type2);
     
   /* check that both operands are numbers..fail other types */
   if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {

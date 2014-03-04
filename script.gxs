@@ -3,8 +3,8 @@
  * (C) 2014 Christian Gunderman
  */
 
-function test() {
-  return("Foo");
+function test(x, y) {
+  return (x / y);
 }
 
 function exported main(hello) {
@@ -23,5 +23,6 @@ function exported main(hello) {
   x = passthru(1) + 1;
   //print(passthru(x) + 1);
   //print(3 + 3);
-  print(test());
+  //print(test("Hello", "friend"));
+  print(test(4, 2));
 }
