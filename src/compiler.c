@@ -252,12 +252,10 @@ static int func_defs_parse_args(Compiler * c, Lexer * l) {
     if(token == NULL || type != LEXERTYPE_KEYVAR) {
 
       /* if there was a closed parenth, there are no args, otherwise, give err */
-      printf("TOKENS EQS '%s'\n", token);
       if(tokens_equal(LANG_CPARENTH, LANG_CPARENTH_LEN, token, len)) {
 	return 0;
       } else {
 	c->err = COMPILERERR_EXPECTED_VARNAME;
-	printf("COMPILERERR_EXPECTED_VARNAME\n");
 	return -1;
       }
     }
@@ -269,17 +267,13 @@ static int func_defs_parse_args(Compiler * c, Lexer * l) {
     if(!ht_put_raw_key(symTbl, token, len, 
 		       &value, NULL, &prevExisted)) {
       c->err = COMPILERERR_ALLOC_FAILED;
-      printf("COMPILER_ALLOC_FAILED\n");
       return -1;
     }
-    printf("Symbol Table Depth: %i\n", stk_size(c->symTableStk));
-    printf("Registered argument: %s %i\n", token, len);
     numArgs++;
 
     /* check for duplicate var names */
     if(prevExisted) {
       c->err = COMPILERERR_PREV_DEFINED_VAR;
-      printf("COMPILERERR_PREV_DEFINED_VAR\n");
       return -1;
     }
 
@@ -287,16 +281,11 @@ static int func_defs_parse_args(Compiler * c, Lexer * l) {
     token = lexer_next(l, &type, &len);
     if(!tokens_equal(token, len, LANG_ARGDELIM, LANG_ARGDELIM_LEN)) {
 
-      printf("Not Arg delim.\n");
-
       /* check for end of the args, or invalid token */
       if(tokens_equal(token, len, LANG_CPARENTH, LANG_CPARENTH_LEN)) {
-
-	printf("End of Args\n");
 	/* end of args */
 	return numArgs;
       } else {
-	printf("Unexpected token in args.");
 	c->err = COMPILERERR_UNEXPECTED_TOKEN;
 	return -1;
       }
@@ -339,7 +328,6 @@ static bool function_store_definition(Compiler * c, char * name, size_t nameLen,
   }
 
   value.pointerVal = cp;
-  printf("FUNCTIONDEF: %s\n", cp->name);
   ht_put_raw_key(c->functionHT, cp->name, nameLen, &value, NULL, &prevValue);
 
   /* check that function didn't previously exist */
@@ -386,7 +374,6 @@ static bool var_def(Compiler * c, Lexer * l) {
 
   /* get current token cached in the lexer */
   token = lexer_current_token(l, &type, &len);
-  printf("START DEF: %s\n", token);
 
   /* make sure next token is a variable decl. keyword, otherwise, return */
   if(!tokens_equal(LANG_VAR_DECL, LANG_VAR_DECL_LEN, token, len)) {
@@ -413,10 +400,7 @@ static bool var_def(Compiler * c, Lexer * l) {
   /* check for duplicate var names */
   if(prevExisted) {
     c->err = COMPILERERR_PREV_DEFINED_VAR;
-    printf("PREV EXISTED\n");
     return true;
-  } else {
-    printf("Not PREV EXISTED.\n");
   }
 
   /* perform inline variable initialization if code provided */
@@ -433,7 +417,6 @@ static bool var_def(Compiler * c, Lexer * l) {
     return false;
   }
   token = lexer_next(l, &type, &len);
-  printf("END DEF 1: %s\n", token);
 
   return true;
 }
@@ -457,7 +440,6 @@ static int func_do_var_defs(Compiler * c, Lexer * l) {
   int varCount = 0;
  
   token = lexer_current_token(l, &type, &len);
-  printf("VARDEFSTTTOken: %s\n", token);
   /* variable declarations look like so:
    * var [variable_name_1];
    * var [variable_name_2];
@@ -474,8 +456,6 @@ static int func_do_var_defs(Compiler * c, Lexer * l) {
     }
   } while((token = lexer_current_token(l, &type, &len)) != NULL);
 
-  printf("VAR DEFS FINAL: %s\n", token);
-  printf("Var Count: %i\n", varCount);
   return varCount;
 }
 
@@ -502,8 +482,6 @@ static bool func_do_body(Compiler * c, Lexer * l) {
 
   token = lexer_current_token(l, &type, &len);
 
-  printf("Remaining token: %s\n", token);
-
   /* keep executing lines of code until we hit a '}' */
   while(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
 
@@ -514,18 +492,15 @@ static bool func_do_body(Compiler * c, Lexer * l) {
 
     /* check for terminating semicolon */
     token = lexer_current_token(l, &type, &len);
-    printf("FOO TOKEN: %s\n", token);
     if(type != LEXERTYPE_ENDSTATEMENT) {
       c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
       return false;
     }
     token = lexer_next(l, &type, &len);
-    printf("FOO2 %s\n", token);
   }
 
   token = lexer_current_token(l, &type, &len);
-  printf("FINISHED BODY: %s\n", token);
-
+ 
   return true;
 }
 
@@ -564,13 +539,10 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   int numArgs;
   int numVars;
 
-  printf("TOKEN: %s\n", token);
   /* check that this is a function declaration token */
   if(!tokens_equal(token, len, LANG_FUNCTION, LANG_FUNCTION_LEN)) {
     return false;
   }
-
-  printf("Relevant Token.\n");
 
   /* advance to next token. if is is EXPORTED, take note for later */
   token = lexer_next(l, &type, &len);
@@ -579,29 +551,20 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
     token = lexer_next(l, &type, &len);
   }
 
-  printf("Passed Exported. Had: %i\n", exported);
-
   /* this is the name token, store it and check for correct type */
   name = token;
   nameLen = len;
   if(type != LEXERTYPE_KEYVAR || is_keyword(name, nameLen)) {
-    printf("ERR: NOT KEYVAR or IS_KEYWORD\n");
     c->err = COMPILERERR_EXPECTED_FNAME;
     return true;
   }
 
-  printf("Function Name is: %s\n", name);
-  printf("Function nameLen is: %i\n", nameLen);
-
   /* check for the open parenthesis */
   token = lexer_next(l, &type, &len);
-  printf("COMP TOKEN LEN: %i \n", len);
   if(!tokens_equal(token, len, LANG_OPARENTH, LANG_OPARENTH_LEN)) {
     c->err = COMPILERERR_EXPECTED_OPARENTH;
     return true;
   }
-
-  printf("Passed OPARENTH\n");
 
   /* we're going down a level. push new symbol table to stack */
   if(!symtblstk_push(c)) {
@@ -609,14 +572,10 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
     return true;
   }
 
-  printf("Pushed Stack Frame.\n");
-
   /* parse the arguments, return if the process fails */
   if((numArgs = func_defs_parse_args(c, l)) == -1) {
     return true;
   }
-
-  printf("Parsed Args. Num args: %i\n", numArgs);
 
   /* check for open brace defining start of function "{" */
   token = lexer_next(l, &type, &len);
@@ -636,14 +595,11 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   /* retrieve next token (it was modified by func_do_var_def */
   token = lexer_current_token(l, &type, &len);
 
-  printf("VAR DEFS 2: %i\n", numArgs);
-
   /* store the function name, location in the output, and # of args and vars */
   if(!function_store_definition(c, name, nameLen, numArgs, numVars, exported)) {
     return true;
   }
 
-  printf("BODY START: %s\n", token);
   if(!func_do_body(c, l)) {
     return true;
   }
@@ -654,14 +610,13 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   /****************************** End function body ***************************/
 
   /* check for closing brace defining end of body "}" */
-  printf("Where brace should be: %s\n", token);
   if(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
-    printf("ACTUAL: %s\n", token);
     c->err = COMPILERERR_EXPECTED_CBRACKET;
     return true;
   }
 
-  /* push default return value. if no other return is given, this value is returned */
+  /* push default return value. if no other return is given, this value is 
+   * returned */
   sb_append_char(c->outBuffer, OP_BOOL_PUSH);
   sb_append_char(c->outBuffer, false);
 
@@ -669,7 +624,6 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   sb_append_char(c->outBuffer, OP_FRM_POP);
 
   token = lexer_next(l, &type, &len);
-  printf("Last TOken: %s\n", token);
 
   /* we're done here! pop the symbol table for this function off the stack. */
   ht_free(symtblstk_pop(c));
@@ -797,14 +751,12 @@ CompilerFunc * compiler_function(Compiler * compiler, char * name, size_t len) {
 
   /* get the specified function's struct */
   if(!ht_get_raw_key(compiler->functionHT, name, len, &value)) {
-    printf("NEG1\n");
     return NULL; /* error occurred */
   }
   cf = value.pointerVal;
 
   /* make sure function was declared with exported keyword */
   if(!cf->exported) {
-    printf("NEG2\n");
     return NULL;
   }
 

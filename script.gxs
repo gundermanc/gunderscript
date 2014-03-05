@@ -12,4 +12,5 @@ function exported main(hello) {
   // inline initializations don't work yet :(
   var x;
   print(passthru(1) + 1);
+  print("Another");
 }
