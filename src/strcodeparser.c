@@ -131,7 +131,7 @@ static bool parse_stacked_operator(Compiler * c,  char * token,
     if(tokens_equal(LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN, token, len)) {
 
       /* get variable name string */
-      if(!typestk_pop(opStk, &token, sizeof(char*), NULL)
+      if(!typestk_pop(opStk, &token, sizeof(char*), &type)
 	 || type != LEXERTYPE_KEYVAR) {
 	c->err = COMPILERERR_MALFORMED_ASSIGNMENT;
 	return false;
@@ -592,13 +592,29 @@ bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk,
       prevValType = type;
       break;
 
-      /*case LEXERTYPE_ENDSTATEMENT:
-      c->err = COMPILERERR_UNMATCHED_PARENTH;
-      return false;
+    case LEXERTYPE_ENDSTATEMENT: {
+ 
+      if(!innerCall) {
+ 	/* check for invalid types: */
+ 	if(prevValType == LEXERTYPE_OPERATOR
+ 	   || prevValType == LEXERTYPE_ENDSTATEMENT) {
+	  c->err = COMPILERERR_UNEXPECTED_TOKEN;
+ 	  return false;
+ 	}
+ 
+ 	if(!write_from_stack(c, opStk, opLenStk, false, true)) {
+ 	  return false;
+ 	}
+ 	return true;
+      } else {
+ 	c->err = COMPILERERR_UNEXPECTED_TOKEN;
+ 	return false;
+      }
+    }
 
     case LEXERTYPE_BRACKETS:
       c->err = COMPILERERR_UNMATCHED_PARENTH;
-      return false;*/
+      return false;
 
     default:
       c->err = COMPILERERR_UNEXPECTED_TOKEN;

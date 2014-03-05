@@ -6,7 +6,8 @@
 function exported main(hello) {
 
   // variable declarations:
-  /*hello = 1;
+  var foo;
+  foo = 1;
   print("Hello " + "How are you?");
-  print(3 * 3 / 2 + 2);*/
+  print(3 * 3 / 2 + 2);
 }
