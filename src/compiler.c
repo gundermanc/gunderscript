@@ -684,6 +684,7 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
   /* check that lexer alloc didn't fail, and push symtbl for global variables */
   if(lexer == NULL || !symtblstk_push(compiler)) {
     compiler_set_err(compiler, COMPILERERR_ALLOC_FAILED);
+    lexer_free(lexer);
     return false;
   }
   compiler_set_err(compiler, COMPILERERR_SUCCESS);
@@ -694,6 +695,7 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
     /* TEMPORARILY COMMENTED OUT FOR STRAIGHT CODE PARSER DEVELOPMENT: */
     /* handle errors */
     if(compiler->err != COMPILERERR_SUCCESS) {
+      lexer_free(lexer);
       return false;
     }
   }
@@ -701,7 +703,7 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
   /* we're done here: pop globals symtable */
   symtbl_free(symtblstk_pop(compiler));
 
-  /* TODO: Enforce actual return value */
+  lexer_free(lexer);
   return true;
 }
 
@@ -775,6 +777,15 @@ void compiler_free(Compiler * compiler) {
   }
 
   if(compiler->functionHT != NULL) {
+    HTIter htIterator;
+    ht_iter_get(compiler->functionHT, &htIterator);
+
+    while(ht_iter_has_next(&htIterator)) {
+      DSValue value;
+      ht_iter_next(&htIterator, NULL, 0, &value, NULL, true);
+      compilerfunc_free(value.pointerVal);
+    }
+
     ht_free(compiler->functionHT);
   }
  

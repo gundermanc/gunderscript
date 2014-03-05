@@ -46,4 +46,6 @@ void compiler_free(Compiler * compiler);
 
 size_t compiler_bytecode_size(Compiler * compiler);
 
+bool compiler_bytecode(Compiler * compiler, char * buffer, size_t bufferSize);
+
 #endif /* COMPILER__H__ */

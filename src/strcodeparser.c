@@ -512,43 +512,14 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
   return true;
 }
 
-/**
- * Handles straight code:
- * This is a modified version of Djikstra's "Shunting Yard Algorithm" for
- * conversion to postfix notation. Code is converted to postfix and written to
- * the output buffer as a series of OP codes all in one step.
- * c: an instance of Compiler.
- * l: an instance of lexer that will provide the tokens.
- * innerCall: should be true if the current code is an argument to a function
- * call.
- * parenthEncountered: parsing terminated because of a close parenthesis, rather
- * than a comma.
- * returns: true if success, and false if errors occurred. If error occurred,
- * c->err is set.
- */
-bool parse_straight_code(Compiler * c, Lexer * l,
-			 bool innerCall, bool * parenthEncountered) {
-  /* TODO: return false for every sb_append* function upon failure */
+bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk, 
+			 Stk * opLenStk, bool innerCall, 
+			 bool * parenthEncountered) {
   LexerType type;
   LexerType prevValType = COMPILER_NO_PREV;
   size_t len;
   char * token = lexer_current_token(l, &type, &len);
   int parenthDepth = 0;
-
-  /* allocate stacks for operators and their lengths, a.k.a. 
-   * the "side track in shunting yard" 
-   */
-  TypeStk * opStk = typestk_new(initialOpStkDepth, opStkBlockSize);
-  Stk * opLenStk = stk_new(initialOpStkDepth);
-  if(opStk == NULL || opLenStk == NULL) {
-    c->err = COMPILERERR_ALLOC_FAILED;
-    return false;
-  }
-
-  /* set initial parenthEncountered value */
-  if(parenthEncountered != NULL) {
-    *parenthEncountered = false;
-  }
 
   /* straight code token parse loop */
   do {
@@ -638,6 +609,50 @@ bool parse_straight_code(Compiler * c, Lexer * l,
   /* we're missing a closing parenthesis if we reached this point */
   c->err = COMPILERERR_UNMATCHED_PARENTH;
   return false;
+}
+
+/**
+ * Handles straight code:
+ * This is a modified version of Djikstra's "Shunting Yard Algorithm" for
+ * conversion to postfix notation. Code is converted to postfix and written to
+ * the output buffer as a series of OP codes all in one step.
+ * c: an instance of Compiler.
+ * l: an instance of lexer that will provide the tokens.
+ * innerCall: should be true if the current code is an argument to a function
+ * call.
+ * parenthEncountered: parsing terminated because of a close parenthesis, rather
+ * than a comma.
+ * returns: true if success, and false if errors occurred. If error occurred,
+ * c->err is set.
+ */
+bool parse_straight_code(Compiler * c, Lexer * l,
+			 bool innerCall, bool * parenthEncountered) {
+  /* TODO: return false for every sb_append* function upon failure */
+  bool result;
+
+  /* allocate stacks for operators and their lengths, a.k.a. 
+   * the "side track in shunting yard" 
+   */
+  TypeStk * opStk = typestk_new(initialOpStkDepth, opStkBlockSize);
+  Stk * opLenStk = stk_new(initialOpStkDepth);
+  if(opStk == NULL || opLenStk == NULL) {
+    c->err = COMPILERERR_ALLOC_FAILED;
+    return false;
+  }
+
+  /* set initial parenthEncountered value */
+  if(parenthEncountered != NULL) {
+    *parenthEncountered = false;
+  }
+
+  result = parse_straight_code_loop(c, l, opStk, opLenStk, innerCall,
+				    parenthEncountered);
+
+  /* free stacks */
+  typestk_free(opStk);
+  stk_free(opLenStk);
+
+  return result;
 }
 
 /**
