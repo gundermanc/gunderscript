@@ -29,6 +29,21 @@ Gunderscript is designed to be a dynamically typed C style embeddable scripting
 language written in C89 standard portable C. It compiles down to an executable
 opcode and intended for use as a scripting language in games etc.
 
+BULDING:
+Clone the repository and make the commandline application for linux with:
+  make linuxapp
+Or make the static library only with:
+  make linuxlibrary
+Other targets do not yet have build files. To use the command line application,
+after building, run:
+  ./gunderscript [entrypoint] [scriptfiles]
+Where entrypoint is the name of the function to start execution, and scriptfiles
+is one or more space delimited gunderscript files. An example file is included in
+the repository. Although the script environment builds and handles memory
+correctly, it currently lacks support for if statements and loops. Furthermore,
+it does not yet have any built in native C functions. For demonstrative purposes,
+I included a print() function.
+
 DESIRED FEATURES:
    - C style commenting, syntax, function declarations, operators, end statement
      character, etc.
@@ -77,8 +92,10 @@ Lexer for Compiler -- lexer.c -- 100%
 Type Aware Stack -- typestk.c -- 100%
 Virtual Machine Object -- vm.c -- 90%
 VM Opcode interpreter -- ophandlers.c -- 85%
-Compiler -- compiler.c -- 50%
-Gunderscript Object -- gunderscript.c -- 0%
+Compiler -- compiler.c -- 75%
+Straight Code -- strcodeparser.c -- 98%
+Gunderscript Object -- gunderscript.c -- 50%
+Command Line Application -- main.c -- 25%
 
 The planning documents can be found in the docs directory. They are not up to date
 since my efforts are now focused on construction, but they are still a good indicator

@@ -58,7 +58,52 @@ VM * gunderscript_vm(Gunderscript * instance) {
   return instance->vm;
 }
 
+bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen) {
+  assert(instance != NULL);
+  assert(input != NULL);
+  assert(inputLen > 0);
+  return compiler_build(instance->compiler, input, inputLen);
+}
 
+bool gunderscript_build_err(Gunderscript * instance) {
+  assert(instance != NULL);
+  return compiler_get_err(instance->compiler);
+}
+
+bool gunderscript_function(Gunderscript * instance, char * entryPoint,
+			   size_t entryPointLen) {
+  CompilerFunc * function;
+  size_t byteCodeLen = compiler_bytecode_size(instance->compiler);
+  char * byteCode = calloc(sizeof(char), byteCodeLen + 1);
+  if(byteCode == NULL) {
+    return false;
+  }
+
+  /* copy bytecode to buffer */
+  if(!compiler_bytecode(instance->compiler, byteCode, byteCodeLen + 1)) {
+    free(byteCode);
+    return false;
+  }
+
+  /* get compiler function definitions */
+  function = compiler_function(instance->compiler, entryPoint, entryPointLen);
+  if(function == NULL) {
+    free(byteCode);
+    return false;
+  }
+  
+  /* execute function in the virtual machine */
+  if(!vm_exec(instance->vm, byteCode, byteCodeLen, 
+	      function->index, function->numArgs + function->numVars)) {
+    return false;
+  }
+  return true;
+}
+
+bool gunderscript_function_err(Gunderscript * instance) {
+  assert(instance != NULL);
+  return vm_get_err(instance->vm);
+}
 
 void gunderscript_free(Gunderscript * instance) {
   assert(instance != NULL);

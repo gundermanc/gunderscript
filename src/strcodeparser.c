@@ -592,13 +592,13 @@ bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk,
       prevValType = type;
       break;
 
-    case LEXERTYPE_ENDSTATEMENT:
+      /*case LEXERTYPE_ENDSTATEMENT:
       c->err = COMPILERERR_UNMATCHED_PARENTH;
       return false;
 
     case LEXERTYPE_BRACKETS:
       c->err = COMPILERERR_UNMATCHED_PARENTH;
-      return false;
+      return false;*/
 
     default:
       c->err = COMPILERERR_UNEXPECTED_TOKEN;

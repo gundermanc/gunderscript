@@ -3,14 +3,10 @@
  * (C) 2014 Christian Gunderman
  */
 
-function test(x, y) {
-  return (x / y);
-}
-
 function exported main(hello) {
-  // variable declarations
-  // inline initializations don't work yet :(
-  var x;
-  print(passthru(1) + 1);
-  print("Another");
+
+  // variable declarations:
+  /*hello = 1;
+  print("Hello " + "How are you?");
+  print(3 * 3 / 2 + 2);*/
 }

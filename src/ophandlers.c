@@ -322,7 +322,6 @@ bool op_add(VM * vm,  char * byteCode,
     typestk_push(vm->opStk, &value1, sizeof(double), type1);
 
   } else {
-    printf("Type 1: %i\n Type2: %i\n", type1, type2);
     vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
     return false;
   }
@@ -479,7 +478,6 @@ bool op_pop(VM * vm,  char * byteCode,
   void * value;
   VarType type;
 
-  printf("Popped.");
   /* check that there is at least one item in the stack to pop */
   if(typestk_size(vm->opStk) <= 0) {
     vm_set_err(vm, VMERR_STACK_EMPTY);
@@ -719,7 +717,6 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
   if(! ((*callback)(vm, args, numArgs)) ) {
     double value = 0;
     typestk_push(vm->opStk, &value, sizeof(double), TYPE_NUMBER);
-    printf("Push value.");
   }
   
   return true;
