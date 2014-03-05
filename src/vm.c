@@ -195,8 +195,6 @@ int vm_callback_index(VM * vm, char * name, size_t nameLen) {
 
   vm_set_err(vm, VMERR_SUCCESS);
 
-  printf("VM FUNCTION : %s\n", name);
-  printf("LEN: %i\n", nameLen);
   if(!ht_get_raw_key(vm->callbacksHT, name, nameLen, &value)) {
     vm_set_err(vm, VMERR_CALLBACK_NOT_EXIST);
     return -1;
@@ -238,7 +236,6 @@ bool vm_exec(VM * vm, char * byteCode,
   vm->index = startIndex;
 
   /* push new frame with selected number of arguments and vars. */
-  printf("NUMVARARGS: %i\n", numVarArgs);
   if(!frmstk_push(vm->frmStk, -1, numVarArgs)) {
      vm_set_err(vm, VMERR_STACK_OVERFLOW);
      return false;
@@ -248,7 +245,6 @@ bool vm_exec(VM * vm, char * byteCode,
 
     vm_set_err(vm, VMERR_SUCCESS);
 
-    printf("EVAL %i\n", vm->index);
     switch(byteCode[vm->index]) {
     case OP_VAR_PUSH:
       if(!op_var_push(vm, byteCode, byteCodeLen, &vm->index)) {

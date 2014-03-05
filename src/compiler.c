@@ -508,7 +508,7 @@ static bool func_do_body(Compiler * c, Lexer * l) {
   while(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
 
     /* run line of code */
-    if(!parse_function_call(c, l)) {
+    if(!parse_line(c, l)) {
       return false;
     }
 

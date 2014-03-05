@@ -83,6 +83,8 @@ typedef struct CompilerFunc {
 bool tokens_equal(char * token1, size_t num1,
 		  char * token2, size_t num2);
 
+OpCode operator_to_opcode(char * operator, size_t len);
+
 HT * symtblstk_peek(Compiler * c);
 
 int operator_precedence(char * operator, size_t operatorLen);

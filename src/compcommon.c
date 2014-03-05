@@ -24,6 +24,28 @@
 
 #include "compcommon.h"
 #include "lexer.h"
+#include "langkeywords.h"
+
+/**
+ * Gets the OP code associated with an operation from its string representation.
+ * operator: the operator to get the OPCode from.
+ * len: the number of characters in length that operator is.
+ * returns: the OPCode, or -1 if the operator is unrecognized.
+ */
+OpCode operator_to_opcode(char * operator, size_t len) {
+  if(tokens_equal(operator, len, LANG_OP_ADD, LANG_OP_ADD_LEN)) {
+    return OP_ADD;
+  } else if(tokens_equal(operator, len, LANG_OP_SUB, LANG_OP_SUB_LEN)) {
+    return OP_SUB;
+  } else if(tokens_equal(operator, len, LANG_OP_MUL, LANG_OP_MUL_LEN)) {
+    return OP_MUL;
+  } else if(tokens_equal(operator, len, LANG_OP_DIV, LANG_OP_DIV_LEN)) {
+    return OP_DIV;
+  } 
+
+  /* unknown operator */
+  return -1;
+}
 
 /**
  * Checks if two strings, "tokens", are equal. To be equal, the must have the

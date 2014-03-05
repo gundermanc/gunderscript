@@ -67,7 +67,6 @@ bool op_var_stor(VM * vm, char * byteCode,
     return false;
   }
 
-  printf("Stack depth: %i\n", frmstk_size(vm->frmStk));
   /* advance to next byte */
   (*index)++;
 
@@ -115,8 +114,6 @@ bool op_var_push(VM * vm,  char * byteCode,
 
   /* move to next byte */
   (*index)++;
-
-  printf("PUSH stack depth %i\n", frmstk_size(vm->frmStk));
 
   /* handle empty frame stack error case */
   if(!(frmstk_size(vm->frmStk) > 0)) {
@@ -467,7 +464,6 @@ bool op_num_push(VM * vm,  char * byteCode,
   }
 
   *index += sizeof(double);
-  printf("INDEX: %i\n", *index);
   return true;
 }
 
