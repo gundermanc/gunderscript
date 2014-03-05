@@ -39,7 +39,7 @@ linuxapp: linuxlibrary
 	$(CC) $(CFLAGS) -o gunderscript main.c gunderscript.a $(DATASTRUCTSDIR)/lib.a
 
 # build just the static library
-linuxlibrary: lexer.o frmstk.o vm.o compiler.o
+linuxlibrary: gunderscript.o lexer.o frmstk.o vm.o compiler.o
 	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o $(OBJDIR)/strcodeparser.o $(OBJDIR)/compiler.o $(OBJDIR)/compcommon.o
 
 # build lexer object
@@ -49,6 +49,10 @@ lexer.o: buildfs $(SRCDIR)/lexer.c
 # build typestk object
 typestk.o: buildfs $(SRCDIR)/typestk.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/typestk.c
+
+# build Gunderscript object
+gunderscript.o: buildfs vm.o compiler.o $(SRCDIR)/gunderscript.c
+	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/gunderscript.c
 
 # build vm object
 vm.o: buildfs c-datastructs-build frmstk.o typestk.o ophandlers.o $(SRCDIR)/vm.c
