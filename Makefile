@@ -35,11 +35,11 @@ all: c-datastructs-build buildfs
 all: testapp
 
 # builds the testing application
-testapp: library
-	$(CC) $(CFLAGS) -o testapp test_app.c gunderscript.a $(DATASTRUCTSDIR)/lib.a
+linuxapp: linuxlibrary
+	$(CC) $(CFLAGS) -o gunderscript main.c gunderscript.a $(DATASTRUCTSDIR)/lib.a
 
 # build just the static library
-library: lexer.o frmstk.o vm.o compiler.o
+linuxlibrary: lexer.o frmstk.o vm.o compiler.o
 	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o $(OBJDIR)/strcodeparser.o $(OBJDIR)/compiler.o $(OBJDIR)/compcommon.o
 
 # build lexer object
