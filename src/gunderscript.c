@@ -24,6 +24,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "gunderscript.h"
+
 bool gunderscript_new(Gunderscript * instance, size_t stackSize,
 		      int callbacksSize) {
   assert(instance != NULL);
@@ -55,6 +57,8 @@ VM * gunderscript_vm(Gunderscript * instance) {
   assert(instance != NULL);
   return instance->vm;
 }
+
+
 
 void gunderscript_free(Gunderscript * instance) {
   assert(instance != NULL);
