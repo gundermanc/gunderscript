@@ -42,8 +42,8 @@ CompilerFunc * compiler_function(Compiler * compiler, char * name, size_t len);
 
 CompilerErr compiler_get_err(Compiler * compiler);
 
-
-
 void compiler_free(Compiler * compiler);
+
+size_t compiler_bytecode_size(Compiler * compiler);
 
 #endif /* COMPILER__H__ */

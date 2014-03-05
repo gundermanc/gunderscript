@@ -82,4 +82,6 @@ int lexer_line_num(Lexer * l);
 
 LexerType lexer_token_type(char * token, size_t len, bool definitive);
 
+char * lexer_peek(Lexer * lexer, LexerType * type, size_t * len);
+
 #endif /* LEXER__H__*/

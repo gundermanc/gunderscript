@@ -87,8 +87,6 @@ bool frmstk_push(FrmStk * fs, size_t returnAddr, int numVarArgs) {
   assert(numVarArgs >= 0);
 
   /* if there is enough free space, create the frame */
-  printf("Free space: %i\n", free_space(fs));
-  printf("New Frame Size: %i\n", newFrameSize);
   if(free_space(fs) >= newFrameSize
      && numVarArgs >= 0) {
     FrameHeader * header = fs->buffer + fs->usedStack + varArgsSize;

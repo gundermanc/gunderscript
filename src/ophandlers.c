@@ -326,6 +326,7 @@ bool op_add(VM * vm,  char * byteCode,
     vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
     return false;
   }
+  return true;
 }
 
 /**

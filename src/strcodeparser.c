@@ -60,7 +60,6 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
   if(topstack_type(opStk, opLenStk) == LEXERTYPE_KEYVAR) {
     DSValue value;
     char * varToken;
-    LexerType varType;
     size_t varLen;
     
     /* Variable read op:
@@ -68,7 +67,7 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
      * this is a variable read operation.
      */
     if(!tokens_equal(token, len, LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN)
-       && typestk_peek(opStk, &varToken, sizeof(char*), &varType)) {
+       && typestk_peek(opStk, &varToken, sizeof(char*), NULL)) {
 
       /* get variable length */
       stk_peek(opLenStk, &value);
@@ -87,7 +86,7 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
 	char varSlot = value.intVal;
 
 	/* get variable string */
-	typestk_pop(opStk, &varToken, sizeof(char*), &varType);
+	typestk_pop(opStk, &varToken, sizeof(char*), NULL);
 
 	/* get variable length */
 	stk_pop(opLenStk, &value);
@@ -132,7 +131,7 @@ static bool parse_stacked_operator(Compiler * c,  char * token,
     if(tokens_equal(LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN, token, len)) {
 
       /* get variable name string */
-      if(!typestk_pop(opStk, &token, sizeof(char*), &type)
+      if(!typestk_pop(opStk, &token, sizeof(char*), NULL)
 	 || type != LEXERTYPE_KEYVAR) {
 	c->err = COMPILERERR_MALFORMED_ASSIGNMENT;
 	return false;
@@ -191,7 +190,6 @@ static bool parse_stacked_operator(Compiler * c,  char * token,
 static bool write_from_stack(Compiler * c, TypeStk * opStk, 
 				       Stk * opLenStk, bool parenthExpected,
 				       bool popParenth) {
-  bool topOperator = true;
   DSValue value;
   char * token = NULL;
   size_t len = 0;
@@ -228,9 +226,6 @@ static bool write_from_stack(Compiler * c, TypeStk * opStk,
     if(!parse_stacked_operator(c, token, len, type, opStk, opLenStk)) {
       return false;
     }
-
-    /* we're no longer at the top of the stack */
-    topOperator = false;
   }
 
   /* Is open parenthensis is expected SOMEWHERE in this sequence? If true,
@@ -646,8 +641,14 @@ bool parse_straight_code(Compiler * c, Lexer * l,
 }
 
 /**
- * Wwrites the function call op codes, telling VM to pop last 'arguments' number
+ * Writes the function call op codes, telling VM to pop last 'arguments' number
  * of args off of stack to use as arguments to the function call.
+ * c: compiler instance.
+ * functionName: the name of the function to look up and write the call for.
+ * functionNameLen: the length of the function name in chars.
+ * arguments: the number of arguments that this function accepts.
+ * result: returns true if success, and false if an error occurs. Upon error,
+ * c->err receives the error code.
  */
 static bool function_call(Compiler * c, char * functionName, 
 		   size_t functionNameLen, int arguments) {
@@ -677,7 +678,7 @@ static bool function_call(Compiler * c, char * functionName,
     /* function is native, write the OPCodes for native call */
     sb_append_char(c->outBuffer, OP_CALL_PTR_N);
     sb_append_char(c->outBuffer, arguments);
-    sb_append_str(c->outBuffer, &callbackIndex, sizeof(int));
+    sb_append_str(c->outBuffer, (char*)(&callbackIndex), sizeof(int));
     return true;
 
   } else {
@@ -699,12 +700,13 @@ static bool function_call(Compiler * c, char * functionName,
       sb_append_char(c->outBuffer, OP_CALL_B);
       sb_append_char(c->outBuffer, funcDef->numArgs + funcDef->numVars);
       sb_append_char(c->outBuffer, funcDef->numArgs);
-      sb_append_str(c->outBuffer, &funcDef->index, sizeof(int));
+      sb_append_str(c->outBuffer, (char*)(&funcDef->index), sizeof(int));
     } else {
       c->err = COMPILERERR_UNDEFINED_FUNCTION;
       return false;
     }
   }
+  return true;
 }
 
 /**
@@ -784,4 +786,5 @@ bool parse_line(Compiler * c, Lexer * l) {
       return false;
     }
   }
+  return true;
 }

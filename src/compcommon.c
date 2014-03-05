@@ -142,9 +142,8 @@ int topstack_precedence(TypeStk * stk, Stk * lenStk) {
 int topstack_type(TypeStk * stk, Stk * lenStk) {
 
   DSValue value;
-  LexerType type;
+  VarType type;
   char * token;
-  size_t len;
 
   /* get the token from the operator stack */
   if(!typestk_peek(stk, &token, sizeof(char*), &type)) {
@@ -155,8 +154,7 @@ int topstack_type(TypeStk * stk, Stk * lenStk) {
   if(!stk_peek(lenStk, &value)) {
     return 0;
   }
-  len = value.longVal;
 
   /* return the precedence of the operator */
-  return type;;
+  return (int)type;
 }

@@ -227,7 +227,7 @@ static bool next_parse_comments(Lexer * l) {
   }
 
   /* if there is another character after the current one, check it to see if they
-   * are single line line comment characters: "/*". If so, skip the comment chars
+   * are single line line comment characters. If so, skip the comment chars
    */
   if(remaining_chars(l) > 0
      && next_char(l) == '/'
@@ -275,7 +275,6 @@ static bool next_parse_strings(Lexer * l) {
       /* encountered end of string, return it along with the quotes*/
       if(next_char(l) == '"' && prev_char(l) != '\\') {
 	l->nextTokenLen = (l->index - beginStrIndex);
-	printf("TOKEN LEN: %i\n", l->nextTokenLen);
 	l->nextToken = l->input + beginStrIndex;
 	l->err = LEXERERR_SUCCESS;
 

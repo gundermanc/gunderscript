@@ -478,7 +478,6 @@ static bool func_do_body(Compiler * c, Lexer * l) {
   LexerType type;
   char * token;
   size_t len;
-  bool bracketEncountered = false;
 
   token = lexer_current_token(l, &type, &len);
 
@@ -680,7 +679,6 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
 
   Lexer * lexer = lexer_new(input, inputLen);
   LexerType type;
-  char * token;
   size_t tokenLen;
 
   /* check that lexer alloc didn't fail, and push symtbl for global variables */
@@ -691,7 +689,7 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
   compiler_set_err(compiler, COMPILERERR_SUCCESS);
 
   /* compile loop */
-  token = lexer_next(lexer, &type, &tokenLen);
+  lexer_next(lexer, &type, &tokenLen);
   while(build_parse_func_defs(compiler, lexer)) {
     /* TEMPORARILY COMMENTED OUT FOR STRAIGHT CODE PARSER DEVELOPMENT: */
     /* handle errors */
