@@ -402,7 +402,8 @@ static bool parse_parenthesis(Compiler * c, TypeStk * opStk, Stk * opLenStk,
     stk_push_long(opLenStk, len);
 
     /* check for invalid previous token types: */
-    if(prevTokenType != LEXERTYPE_OPERATOR &&
+    if(prevTokenType != COMPILER_NO_PREV &&
+       prevTokenType != LEXERTYPE_OPERATOR &&
        prevTokenType != LEXERTYPE_ARGDELIM &&
        prevTokenType != LEXERTYPE_PARENTHESIS &&
        prevTokenType != LEXERTYPE_KEYVAR) {
