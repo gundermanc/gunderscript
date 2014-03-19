@@ -25,13 +25,13 @@ function exported main() {
    */
   var x;
 
-  // demonstrates precedence of operators
+  // demonstrates precedence of operators and assignment statements:
   x = 1;
-  //x = 4 * 2 + 2;
+  x = 4 * 2 + x + 2;
 
   /* demonstrates function calls returning and native functions (print function
-   * is natively bound in main.c
+   * is natively bound in main.c) and some string contat operations
    */
-  //print(2 + test(x, 4) + 1);
-  print(1 + 2 * test(x, 1) + 1);
+   print("Here we did some " + "math operations: ");
+   print(1 + 2 * test(x, 1) + 1);
 }
