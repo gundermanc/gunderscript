@@ -95,8 +95,11 @@ bool gunderscript_function(Gunderscript * instance, char * entryPoint,
   /* execute function in the virtual machine */
   if(!vm_exec(instance->vm, byteCode, byteCodeLen, 
 	      function->index, function->numArgs + function->numVars)) {
+    free(byteCode);
     return false;
   }
+
+  free(byteCode);
   return true;
 }
 

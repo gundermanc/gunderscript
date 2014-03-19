@@ -485,7 +485,7 @@ static bool func_do_body(Compiler * c, Lexer * l) {
   while(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
 
     /* run line of code */
-    if(!parse_line(c, l)) {
+    if(!parse_line(c, l, false)) {
       return false;
     }
 
@@ -498,6 +498,7 @@ static bool func_do_body(Compiler * c, Lexer * l) {
     token = lexer_next(l, &type, &len);
   }
 
+  /* TODO: throw error if method doesn't end with curly brace */
   token = lexer_current_token(l, &type, &len);
  
   return true;

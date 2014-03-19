@@ -31,5 +31,5 @@
 #include "gsbool.h"
 #include "typestk.h"
 
-bool parse_line(Compiler * c, Lexer * l);
+bool parse_line(Compiler * c, Lexer * l, bool innerCall);
 #endif /* STRCODEPARSER__H__ */

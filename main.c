@@ -189,5 +189,7 @@ int main(int argc, char * argv[]) {
 
   printf("\n\n");
 
+  gunderscript_free(&ginst);
+
   return 0;
 }

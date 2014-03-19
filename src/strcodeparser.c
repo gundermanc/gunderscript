@@ -30,12 +30,12 @@
 
 /* preprocessor definitions: */
 #define COMPILER_NO_PREV        -1
-
+/* max number of digits in a number value */
+#define  COMPILER_NUM_MAX_DIGITS   50
 
 /* TODO: make STK type auto enlarge and remove */
 static const int initialOpStkDepth = 100;
-/* max number of digits in a number value */
-static const int numValMaxDigits = 50;
+
 /* number of items to add to the op stack on resize */
 static const int opStkBlockSize = 12;
 
@@ -118,7 +118,7 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
  */
 static bool parse_stacked_operator(Compiler * c,  char * token,
 				   size_t len, LexerType type, TypeStk * opStk, 
-				    Stk * opLenStk) {
+				   Stk * opLenStk) {
   DSValue value;
 
   /* handle OPERATORS and FUNCTIONS differently */
@@ -189,7 +189,7 @@ static bool parse_stacked_operator(Compiler * c,  char * token,
  */
 static bool write_from_stack(Compiler * c, TypeStk * opStk, 
 				       Stk * opLenStk, bool parenthExpected,
-				       bool popParenth) {
+			     bool popParenth, bool doAssignment) {
   DSValue value;
   char * token = NULL;
   size_t len = 0;
@@ -198,10 +198,23 @@ static bool write_from_stack(Compiler * c, TypeStk * opStk,
   /* while items remain */
   while(typestk_size(opStk) > 0) {
 
-    /* get token string */
-    typestk_pop(opStk, &token, sizeof(char*), &type);
+    /* peek token string and length*/
+    typestk_peek(opStk, &token, sizeof(char*), &type);
+    stk_peek(opLenStk, &value);
+    len = value.longVal;
 
-    /* get token length */
+    /* check if this is a stacked a assignment statement, and if we are at the
+     * end of the line. We don't want to perform an assignment mid line and
+     * lose all the trailing calculations of a lower precedence.
+     */
+    if(tokens_equal(LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN, token, len)
+       && !doAssignment) {
+      /* don't do the assignment this cycle. */
+      return true;
+    }
+
+    /* get token string and length */
+    typestk_pop(opStk, &token, sizeof(char*), &type);
     stk_pop(opLenStk, &value);
     len = value.longVal;
 
@@ -223,7 +236,8 @@ static bool write_from_stack(Compiler * c, TypeStk * opStk,
     /* checks top of stack for an operator. if one exists, it is written
      * to the output. also handles variable assignment statements.
      */
-    if(!parse_stacked_operator(c, token, len, type, opStk, opLenStk)) {
+    if(!parse_stacked_operator(c, token, len, type, opStk, 
+			       opLenStk)) {
       return false;
     }
   }
@@ -258,7 +272,7 @@ static bool parse_number(Compiler * c, LexerType prevTokenType,
   /* Reads a number, converts to double and writes it to output as so:
    * OP_NUM_PUSH [value as a double]
    */
-  char rawValue[numValMaxDigits];
+  char rawValue[COMPILER_NUM_MAX_DIGITS] = "";
   double value = 0;
 
   /* get double representation of number
@@ -349,11 +363,11 @@ static bool parse_keyvar(Compiler * c, Lexer * l, TypeStk * opStk,
   if(tokens_equal(parenthToken, parenthLen, LANG_OPARENTH, LANG_OPARENTH_LEN)) {
 
     /* delegate function call to function call parser */
-    if(!parse_line(c, l)) {
+    if(!parse_line(c, l, true)) {
       return false;
     }
     token = lexer_current_token(l, &type, &len);
-
+    (*prevValType) = type;
   } else {
 
     /* Not a function call. A variable operation. Store tokens on stack for
@@ -363,7 +377,7 @@ static bool parse_keyvar(Compiler * c, Lexer * l, TypeStk * opStk,
     stk_push_long(opLenStk, len);
 
     /* store type of current token for next iteration */
-    (*prevValType) = type;
+    (*prevValType) = LEXERTYPE_KEYVAR;
 
     /* advance to next token */
     token = lexer_next(l, &type, &len);
@@ -427,7 +441,7 @@ static bool parse_parenthesis(Compiler * c, TypeStk * opStk, Stk * opLenStk,
     /* pop operators from stack and write to output buffer
      * FAIL if there is no open parenthesis in the stack.
      */
-    if(!write_from_stack(c, opStk, opLenStk, true, true)) {
+    if(!write_from_stack(c, opStk, opLenStk, true, true, true)) {
       return false;
     }
 
@@ -489,7 +503,7 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
   } else {
 
     /* pop operators from stack and write to output buffer */
-    if(!write_from_stack(c, opStk, opLenStk, true, false)) {
+    if(!write_from_stack(c, opStk, opLenStk, true, false, false)) {
       return false;
     }
 
@@ -506,10 +520,11 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
     /* TODO: this error check does not distinguish between ( and ). Revise to
      * ensure that parenthesis is part of a matching pair too, and fix bug
      */
-    /* c->err = COMPILERERR_UNEXPECTED_TOKEN;*/
+    /* c->err = COMPILERERR_UNEXPECTED_TOKEN; */
     printf("UET parse_operators: %i\n", prevTokenType);
     /* return false; */
   }
+
   return true;
 }
 
@@ -531,8 +546,18 @@ bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk,
     switch(type) {
     case LEXERTYPE_ARGDELIM:
       if(innerCall) {
+	/* function exit point:
+	 * we're about to start popping items off of the stack. First check for
+	 * variables at the top.
+	 */
+	if(parse_topstack_variable_read(c, token, len, type, opStk, opLenStk)) {
+	  if(c->err != COMPILERERR_SUCCESS) {
+	    return false;
+	  }
+	}
+
 	/* finishing parsing the current argument, return */
-	if(!write_from_stack(c, opStk, opLenStk, true, true)) {
+	if(!write_from_stack(c, opStk, opLenStk, true, true, true)) {
 	  return false;
 	}
 	return true;
@@ -564,13 +589,15 @@ bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk,
 	return false;
       }
 
-      /* set end parenthesis encountered */
-      if(parenthDepth <= 0) {
+      /* if we reached an extra close parenth, its the end of the arguments
+       * set end parenthesis encountered 
+       */
+      if(parenthDepth < 0 && innerCall) {
 	if(tokens_equal(token, len, LANG_CPARENTH, LANG_CPARENTH_LEN) 
 	   && parenthEncountered != NULL) {
 	  *parenthEncountered = true;
+	  return true;
 	}
-	return true;
       }
       prevValType = type;
       token = lexer_next(l, &type, &len);
@@ -590,12 +617,15 @@ bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk,
 	return false;
       }
       token = lexer_current_token(l, &type, &len);
-      prevValType = type;
       break;
 
     case LEXERTYPE_ENDSTATEMENT: {
  
+      /* if not an inner call, this line should end with a semicolon.
+       * otherwise, it should end with a parenthesis. throw fits accordingly
+       */
       if(!innerCall) {
+
  	/* check for invalid types: */
  	if(prevValType == LEXERTYPE_OPERATOR
  	   || prevValType == LEXERTYPE_ENDSTATEMENT) {
@@ -603,7 +633,15 @@ bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk,
  	  return false;
  	}
  
- 	if(!write_from_stack(c, opStk, opLenStk, false, true)) {
+	/* check for pushed variables at the top of the stack */
+	if(parse_topstack_variable_read(c, token, len, type, opStk, opLenStk)) {
+	  if(c->err != COMPILERERR_SUCCESS) {
+	    return false;
+	  }
+	}
+
+	/* pop values from stack */
+ 	if(!write_from_stack(c, opStk, opLenStk, false, true, true)) {
  	  return false;
  	}
  	return true;
@@ -679,11 +717,14 @@ bool parse_straight_code(Compiler * c, Lexer * l,
  * functionName: the name of the function to look up and write the call for.
  * functionNameLen: the length of the function name in chars.
  * arguments: the number of arguments that this function accepts.
+ * returnCall: pointer to a buffer that recv's whether or not this function call
+ * is a call to return().
  * result: returns true if success, and false if an error occurs. Upon error,
  * c->err receives the error code.
  */
 static bool function_call(Compiler * c, char * functionName, 
-		   size_t functionNameLen, int arguments) {
+			  size_t functionNameLen, int arguments, 
+			  bool * returnCall) {
 
   DSValue value;
   int callbackIndex;
@@ -700,8 +741,11 @@ static bool function_call(Compiler * c, char * functionName,
     /* TODO: pop multiple frames if current frame isn't a function frame */
     /* return from current function to return value stored in stack frame */
     sb_append_char(c->outBuffer, OP_FRM_POP);
+    *returnCall = true;
     return true;
   }
+
+  *returnCall = false;
 
   /* check if the function name is a C built-in function */
   callbackIndex = vm_callback_index(c->vm, functionName, functionNameLen);
@@ -750,11 +794,12 @@ static bool function_call(Compiler * c, char * functionName,
  * l: an instance of lexer.
  * returns: false if an error occurs and sets c->err to the error code.
  */
-bool parse_line(Compiler * c, Lexer * l) {
+bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
   LexerType type;
   char * token;
   size_t len;
   bool endOfArgs = false;
+  bool noPop = false;
   size_t functionTokenLen;
   char * functionToken;
 
@@ -805,18 +850,22 @@ bool parse_line(Compiler * c, Lexer * l) {
     }
 
     /* writes a call to the specified function, or returns if error */
-    if(!function_call(c, functionToken, functionTokenLen, argCount)) {
+    if(!function_call(c, functionToken, functionTokenLen, argCount, &noPop)) {
       return false;
     }
 
-    /* function call write succeeded */
-    return true;
   } else {
 
     /* not a function call, delegate to the straight code parser */
     if(!parse_straight_code(c, l, false, NULL)) {
       return false;
     }
+  }
+
+  /* if noPop is false (this line is NOT a return value: */
+  if(!noPop && !innerCall) {
+    /* pop line return value off of stack */
+    sb_append_char(c->outBuffer, OP_POP);
   }
   return true;
 }

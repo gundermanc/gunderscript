@@ -139,6 +139,7 @@ static void advance_char(Lexer * l) {
  * returns: the previous character.
  */
 static char prev_char(Lexer * l) {
+  assert(l->index > 0);
   return l->input[l->index - 1];
 }
 
@@ -234,7 +235,7 @@ static bool next_parse_comments(Lexer * l) {
      && peek_char(l) == '*') {
 
     while(remaining_chars(l) > 0) {
-      if(prev_char(l) == '*' && next_char(l) == '/') {
+      if(l->index > 0 && prev_char(l) == '*' && next_char(l) == '/') {
 
 	/* prevent the closing / from being re-evaluated next iteration */
 	advance_char(l);
