@@ -181,7 +181,7 @@ bool typestk_peek(TypeStk * stack, void * value,
   if(stack->size > 0 && valueSize > 0 && valueSize <= VM_VAR_SIZE) {
     if(value != NULL) {
       assert(valueSize > 0);
-      memcpy(value, &stack->stack[stack->size-1].data, sizeof(valueSize));
+      memcpy(value, &stack->stack[stack->size-1].data, valueSize);
     }
 
     if(type != NULL) {
