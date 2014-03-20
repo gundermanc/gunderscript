@@ -409,8 +409,8 @@ bool op_dual_comparison(VM * vm,  char * byteCode,
     return false;
   }
 
-  typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
-  typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+  typestk_pop(vm->opStk, &value2, sizeof(double), &type1);
+  typestk_pop(vm->opStk, &value1, sizeof(double), &type2);
     
   /* check data types */
   if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {

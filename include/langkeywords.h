@@ -60,4 +60,6 @@
 #define LANG_OP_ASSIGN_LEN 1
 #define LANG_OP_EQUALS  "=="
 #define LANG_OP_EQUALS_LEN 2
+#define LANG_OP_LT      "<"
+#define LANG_OP_LT_LEN     1
 #endif /* LANGKEYWORDS__H__ */

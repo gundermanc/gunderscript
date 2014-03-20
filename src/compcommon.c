@@ -45,6 +45,8 @@ OpCode operator_to_opcode(char * operator, size_t len) {
     return OP_DIV;
   } else if(tokens_equal(operator, len, LANG_OP_EQUALS, LANG_OP_EQUALS_LEN)) {
     return OP_EQUALS;
+  } else if(tokens_equal(operator, len, LANG_OP_LT, LANG_OP_LT_LEN)) {
+    return OP_LT;
   }
 
   /* unknown operator */
@@ -104,9 +106,11 @@ int operator_precedence(char * operator, size_t operatorLen) {
     switch(operator[0]) {
     case '*':
     case '/':
-      return 3;
+      return 4;
     case '+':
     case '-':
+      return 3;
+    case '<':
       return 2;
     }
   } else {
