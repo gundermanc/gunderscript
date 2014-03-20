@@ -92,7 +92,6 @@ static bool resize_buffer(Buffer * buffer, size_t newSize) {
 bool buffer_append_char(Buffer * buffer, char c) {
   assert(buffer != NULL);
   buffer_set_char(buffer, c, buffer->index);
-  buffer->index++;
   return true;
 }
 

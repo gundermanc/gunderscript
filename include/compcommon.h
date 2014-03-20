@@ -29,7 +29,7 @@
 #include "stk.h"
 #include "vm.h"
 #include "ht.h"
-#include "sb.h"
+#include "buffer.h"
 
 /* errors that can occur during compile time */
 typedef enum {
@@ -66,7 +66,7 @@ typedef struct Compiler {
    */
   VM * vm;
   HT * functionHT;                /* hashtable of function structs */
-  SB * outBuffer;                 /* string builder that accepts the output */
+  Buffer * outBuffer;             /* buffer builder that accepts the output */
   CompilerErr err;                /* error code value */
 } Compiler;
 

@@ -77,13 +77,13 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
 
       /* implements true and false constants */
       if(tokens_equal(varToken, varLen, LANG_TRUE, LANG_TRUE_LEN)) {
-	sb_append_char(c->outBuffer, OP_BOOL_PUSH);
-	sb_append_char(c->outBuffer, true);
+	buffer_append_char(c->outBuffer, OP_BOOL_PUSH);
+	buffer_append_char(c->outBuffer, true);
 	return true;
       }
       if(tokens_equal(varToken, varLen, LANG_FALSE, LANG_FALSE_LEN)) {
-	sb_append_char(c->outBuffer, OP_BOOL_PUSH);
-	sb_append_char(c->outBuffer, false);
+	buffer_append_char(c->outBuffer, OP_BOOL_PUSH);
+	buffer_append_char(c->outBuffer, false);
 	return true;
       }
 
@@ -102,10 +102,10 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
 
 	/* get variable length */
 	stk_pop(opLenStk, &value);
-	sb_append_char(c->outBuffer, OP_VAR_PUSH);
-	sb_append_char(c->outBuffer, 0 
+	buffer_append_char(c->outBuffer, OP_VAR_PUSH);
+	buffer_append_char(c->outBuffer, 0 
 		       /* TODO: this val should chng with depth */);
-	sb_append_char(c->outBuffer, varSlot);
+	buffer_append_char(c->outBuffer, varSlot);
       } else {
 	/* variable was not defined in the variable hashtable. Throw error. */
 	c->err = COMPILERERR_UNDEFINED_VARIABLE;
@@ -165,9 +165,9 @@ static bool parse_stacked_operator(Compiler * c,  char * token,
        * Moves the last value from the OP stack in the VM to the variable
        * storage slot in the frame stack. */
       /* TODO: need to add ability to search LOWER frames for variables */
-      sb_append_char(c->outBuffer, OP_VAR_STOR);
-      sb_append_char(c->outBuffer, 0 /* this val should chng with depth */);
-      sb_append_char(c->outBuffer, value.intVal);
+      buffer_append_char(c->outBuffer, OP_VAR_STOR);
+      buffer_append_char(c->outBuffer, 0 /* this val should chng with depth */);
+      buffer_append_char(c->outBuffer, value.intVal);
     } else {
       /* current operator is NOT an assignment, get its opcode and write */
       OpCode opCode = operator_to_opcode(token, len);
@@ -179,7 +179,7 @@ static bool parse_stacked_operator(Compiler * c,  char * token,
       }
 
       /* write operator OP code to output buffer */
-      sb_append_char(c->outBuffer, opCode);
+      buffer_append_char(c->outBuffer, opCode);
     }
   }
   return true;
@@ -293,8 +293,8 @@ static bool parse_number(Compiler * c, LexerType prevTokenType,
   value = atof(rawValue);
 
   /* write number to output */
-  sb_append_char(c->outBuffer, OP_NUM_PUSH);
-  sb_append_str(c->outBuffer, (char*)(&value), sizeof(double));
+  buffer_append_char(c->outBuffer, OP_NUM_PUSH);
+  buffer_append_string(c->outBuffer, (char*)(&value), sizeof(double));
 
   /* check for invalid types in previous token: */
   if(prevTokenType != COMPILER_NO_PREV
@@ -332,9 +332,9 @@ static bool parse_string(Compiler * c, LexerType prevTokenType,
   }
 
   /* write output */
-  sb_append_char(c->outBuffer, OP_STR_PUSH);
-  sb_append_char(c->outBuffer, outLen);
-  sb_append_str(c->outBuffer, token, len);
+  buffer_append_char(c->outBuffer, OP_STR_PUSH);
+  buffer_append_char(c->outBuffer, outLen);
+  buffer_append_string(c->outBuffer, token, len);
 
   /* check for invalid types: */
   if(prevTokenType != COMPILER_NO_PREV
@@ -752,7 +752,7 @@ static bool function_call(Compiler * c, char * functionName,
 
     /* TODO: pop multiple frames if current frame isn't a function frame */
     /* return from current function to return value stored in stack frame */
-    sb_append_char(c->outBuffer, OP_FRM_POP);
+    buffer_append_char(c->outBuffer, OP_FRM_POP);
     *returnCall = true;
     return true;
   }
@@ -764,9 +764,9 @@ static bool function_call(Compiler * c, char * functionName,
   if(callbackIndex != -1) {
 
     /* function is native, write the OPCodes for native call */
-    sb_append_char(c->outBuffer, OP_CALL_PTR_N);
-    sb_append_char(c->outBuffer, arguments);
-    sb_append_str(c->outBuffer, (char*)(&callbackIndex), sizeof(int));
+    buffer_append_char(c->outBuffer, OP_CALL_PTR_N);
+    buffer_append_char(c->outBuffer, arguments);
+    buffer_append_string(c->outBuffer, (char*)(&callbackIndex), sizeof(int));
     return true;
 
   } else {
@@ -785,10 +785,10 @@ static bool function_call(Compiler * c, char * functionName,
       }
 
       /* function exists, lets write the OPCodes */
-      sb_append_char(c->outBuffer, OP_CALL_B);
-      sb_append_char(c->outBuffer, funcDef->numArgs + funcDef->numVars);
-      sb_append_char(c->outBuffer, funcDef->numArgs);
-      sb_append_str(c->outBuffer, (char*)(&funcDef->index), sizeof(int));
+      buffer_append_char(c->outBuffer, OP_CALL_B);
+      buffer_append_char(c->outBuffer, funcDef->numArgs + funcDef->numVars);
+      buffer_append_char(c->outBuffer, funcDef->numArgs);
+      buffer_append_string(c->outBuffer, (char*)(&funcDef->index), sizeof(int));
     } else {
       c->err = COMPILERERR_UNDEFINED_FUNCTION;
       return false;
@@ -877,7 +877,7 @@ bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
   /* if noPop is false (this line is NOT a return value: */
   if(!noPop && !innerCall) {
     /* pop line return value off of stack */
-    sb_append_char(c->outBuffer, OP_POP);
+    buffer_append_char(c->outBuffer, OP_POP);
   }
   return true;
 }

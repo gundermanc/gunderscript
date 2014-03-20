@@ -55,9 +55,7 @@ static const int HTBlockSize = 12;
 /* hashtable load factor upon which it will be rehashed */
 static const float HTLoadFactor = 0.75;
 /* number of bytes in each additional block of the buffer */
-static const int sbBlockSize = 100;
-
-/* !!UNDER CONSTRUCTION!! */
+static const int bufferBlockSize = 1000;
 
 /**
  * Creates a new compiler object that will contain the current state of the
@@ -77,8 +75,8 @@ Compiler * compiler_new(VM * vm) {
 
   /* TODO: make this stack auto expand when full */
   compiler->symTableStk = stk_new(maxFuncDepth);
-  compiler->functionHT = ht_new(initialHTSize, sbBlockSize, HTLoadFactor);
-  compiler->outBuffer = sb_new(sbBlockSize);
+  compiler->functionHT = ht_new(initialHTSize, HTBlockSize, HTLoadFactor);
+  compiler->outBuffer = buffer_new(bufferBlockSize, bufferBlockSize);
   compiler->vm = vm;
 
   /* check for further malloc errors */
@@ -320,7 +318,7 @@ static bool function_store_definition(Compiler * c, char * name, size_t nameLen,
   DSValue value;
 
   /* check for proper CompilerFunc allocation */
-  cp = compilerfunc_new(name, nameLen, sb_size(c->outBuffer), numArgs,
+  cp = compilerfunc_new(name, nameLen, buffer_size(c->outBuffer), numArgs,
 			numVars, exported);
   if(cp == NULL) {
     c->err = COMPILERERR_ALLOC_FAILED;
@@ -617,11 +615,11 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
 
   /* push default return value. if no other return is given, this value is 
    * returned */
-  sb_append_char(c->outBuffer, OP_BOOL_PUSH);
-  sb_append_char(c->outBuffer, false);
+  buffer_append_char(c->outBuffer, OP_BOOL_PUSH);
+  buffer_append_char(c->outBuffer, false);
 
   /* pop function frame and return to calling function */
-  sb_append_char(c->outBuffer, OP_FRM_POP);
+  buffer_append_char(c->outBuffer, OP_FRM_POP);
 
   token = lexer_next(l, &type, &len);
 
@@ -639,27 +637,21 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
  */
 size_t compiler_bytecode_size(Compiler * compiler) {
   assert(compiler != NULL);
-  return sb_size(compiler->outBuffer);
+  return buffer_size(compiler->outBuffer);
 }
 
 /**
- * Reads the bytecode compiled with compiler_build() into a new buffer of the
- * appropriate size.
- * compiler: an instance of Compiler that has some compiled bytecode.
- * buffer: a pointer to a buffer that will receive the compiled bytecode.
- * bufferSize: the size of the buffer in bytes.
- * returns: true if the operation succeeds and false if the buffer is too small,
- * or another error occurs. Does not set c->err.
+ * The compiler bytecode buffer.
+ * compiler: an instance of compiler.
+ * returns: The compiled bytecode or NULL if there is none.
  */
-bool compiler_bytecode(Compiler * compiler, char * buffer, size_t bufferSize) {
-  /* copy output to external buffer */
-  if(sb_size(compiler->outBuffer) > 0 
-     && sb_to_buffer(compiler->outBuffer, buffer, bufferSize, false)
-     != sb_size(compiler->outBuffer)) {
-    return false;
+char * compiler_bytecode(Compiler * compiler) {
+  assert(compiler != NULL);
+  if(compiler->err != COMPILERERR_SUCCESS) {
+    return NULL;
   }
 
-  return true;
+  return buffer_get_buffer(compiler->outBuffer);
 }
 
 /**
@@ -791,7 +783,7 @@ void compiler_free(Compiler * compiler) {
   }
  
   if(compiler->outBuffer != NULL) {
-    sb_free(compiler->outBuffer);
+    buffer_free(compiler->outBuffer);
   }
 
   free(compiler);

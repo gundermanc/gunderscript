@@ -73,33 +73,20 @@ bool gunderscript_build_err(Gunderscript * instance) {
 bool gunderscript_function(Gunderscript * instance, char * entryPoint,
 			   size_t entryPointLen) {
   CompilerFunc * function;
-  size_t byteCodeLen = compiler_bytecode_size(instance->compiler);
-  char * byteCode = calloc(sizeof(char), byteCodeLen + 1);
-  if(byteCode == NULL) {
-    return false;
-  }
-
-  /* copy bytecode to buffer */
-  if(!compiler_bytecode(instance->compiler, byteCode, byteCodeLen + 1)) {
-    free(byteCode);
-    return false;
-  }
 
   /* get compiler function definitions */
   function = compiler_function(instance->compiler, entryPoint, entryPointLen);
   if(function == NULL) {
-    free(byteCode);
     return false;
   }
   
   /* execute function in the virtual machine */
-  if(!vm_exec(instance->vm, byteCode, byteCodeLen, 
-	      function->index, function->numArgs + function->numVars)) {
-    free(byteCode);
+  if(!vm_exec(instance->vm, compiler_bytecode(instance->compiler), 
+	      compiler_bytecode_size(instance->compiler), function->index,
+	      function->numArgs + function->numVars)) {
     return false;
   }
 
-  free(byteCode);
   return true;
 }
 

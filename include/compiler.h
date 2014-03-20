@@ -28,7 +28,6 @@
 #include "compcommon.h"
 #include "stk.h"
 #include "ht.h"
-#include "sb.h"
 #include "vm.h"
 
 
@@ -46,6 +45,6 @@ void compiler_free(Compiler * compiler);
 
 size_t compiler_bytecode_size(Compiler * compiler);
 
-bool compiler_bytecode(Compiler * compiler, char * buffer, size_t bufferSize);
+char * compiler_bytecode(Compiler * compiler);
 
 #endif /* COMPILER__H__ */
