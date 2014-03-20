@@ -442,6 +442,11 @@ bool op_dual_comparison(VM * vm,  char * byteCode,
     printf("\n\nDEBUG: Invalid OPCode received. op_dual_comparison().\n\n");
     exit(0);
   }
+
+  /* move to next instruction byte */
+  (*index)++;
+
+  /* push result */
   typestk_push(vm->opStk, &result, sizeof(bool), TYPE_BOOLEAN);
   return true;
 }

@@ -33,6 +33,8 @@
  * returns: the OPCode, or -1 if the operator is unrecognized.
  */
 OpCode operator_to_opcode(char * operator, size_t len) {
+
+  /* TODO: improve running time complexity */
   if(tokens_equal(operator, len, LANG_OP_ADD, LANG_OP_ADD_LEN)) {
     return OP_ADD;
   } else if(tokens_equal(operator, len, LANG_OP_SUB, LANG_OP_SUB_LEN)) {
@@ -41,7 +43,9 @@ OpCode operator_to_opcode(char * operator, size_t len) {
     return OP_MUL;
   } else if(tokens_equal(operator, len, LANG_OP_DIV, LANG_OP_DIV_LEN)) {
     return OP_DIV;
-  } 
+  } else if(tokens_equal(operator, len, LANG_OP_EQUALS, LANG_OP_EQUALS_LEN)) {
+    return OP_EQUALS;
+  }
 
   /* unknown operator */
   return -1;
@@ -100,10 +104,15 @@ int operator_precedence(char * operator, size_t operatorLen) {
     switch(operator[0]) {
     case '*':
     case '/':
+      return 3;
+    case '+':
+    case '-':
       return 2;
     }
   } else {
-
+    if(tokens_equal(operator, operatorLen, LANG_OP_EQUALS, LANG_OP_EQUALS_LEN)) {
+      return 1;
+    }
   }
 
   return 1;

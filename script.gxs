@@ -32,6 +32,6 @@ function exported main() {
   /* demonstrates function calls returning and native functions (print function
    * is natively bound in main.c) and some string contat operations
    */
-   print("Here we did some " + "math operations: ");
-   print(1 + 2 * test(x, 1) + 1);
+   print("Here we did some " + "math operations: ", 1 + 2 * test(x, 1) + 1);
+   print(" Boolean Comparison: ", 1 == 1);
 }
