@@ -48,6 +48,10 @@
 #define LANG_RETURN     "return"
 #define LANG_RETURN_LEN   6
 
+/* these operands also have an associated precedence. If you change them here,
+ * you must also change them in src/compcommon.c in the operator_precedence
+ * function.
+ */
 #define LANG_OP_ADD     "+"
 #define LANG_OP_ADD_LEN   1
 #define LANG_OP_SUB     "-"
@@ -62,4 +66,10 @@
 #define LANG_OP_EQUALS_LEN 2
 #define LANG_OP_LT      "<"
 #define LANG_OP_LT_LEN     1
+#define LANG_OP_GT      ">"
+#define LANG_OP_GT_LEN     1
+#define LANG_OP_LTE      "<="
+#define LANG_OP_LTE_LEN     2
+#define LANG_OP_GTE      ">="
+#define LANG_OP_GTE_LEN     2
 #endif /* LANGKEYWORDS__H__ */
