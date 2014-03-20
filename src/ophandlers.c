@@ -452,6 +452,55 @@ bool op_dual_comparison(VM * vm,  char * byteCode,
 }
 
 /**
+ * Pops top two values from OP stack and compares them. If first is less than
+ * second, pushes true. Otherwise, pushes false.
+ * OP_LT
+ */
+bool op_boolean_logic(VM * vm,  char * byteCode, 
+			size_t byteCodeLen, int * index, OpCode code) {
+  bool value1;
+  bool value2;
+  bool result;
+  VarType type1;
+  VarType type2;
+
+  /* check for enough items in the stack */
+  if(typestk_size(vm->opStk) < 2) {
+    vm_set_err(vm, VMERR_STACK_EMPTY);
+    return false;
+  }
+
+  typestk_pop(vm->opStk, &value2, sizeof(bool), &type1);
+  typestk_pop(vm->opStk, &value1, sizeof(bool), &type2);
+    
+  /* check data types */
+  if(type1 != TYPE_BOOLEAN || type2 != TYPE_BOOLEAN) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+    return false;
+  }
+
+  switch(code) {
+  case OP_AND:
+    result = value1 && value2;
+    break;
+  case OP_OR:
+    result = value1 || value2;
+    break;
+  default:
+    /* TODO: remove in release version */
+    printf("\n\nDEBUG: Invalid OPCode received. op_dual_comparison().\n\n");
+    exit(0);
+  }
+
+  /* move to next instruction byte */
+  (*index)++;
+
+  /* push result */
+  typestk_push(vm->opStk, &result, sizeof(bool), TYPE_BOOLEAN);
+  return true;
+}
+
+/**
  * Pushes a number value to the OP stack.
  * OP_NUM_PUSH [double_number_value:sizeof(double)]
  */

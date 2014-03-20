@@ -53,6 +53,10 @@ OpCode operator_to_opcode(char * operator, size_t len) {
     return OP_LTE;
   } else if(tokens_equal(operator, len, LANG_OP_GTE, LANG_OP_GTE_LEN)) {
     return OP_GTE;
+  } else if(tokens_equal(operator, len, LANG_OP_AND, LANG_OP_AND_LEN)) {
+    return OP_AND;
+  } else if(tokens_equal(operator, len, LANG_OP_OR, LANG_OP_OR_LEN)) {
+    return OP_OR;
   }
 
   /* unknown operator */
@@ -112,20 +116,23 @@ int operator_precedence(char * operator, size_t operatorLen) {
     switch(operator[0]) {
     case '*':
     case '/':
-      return 4;
+      return 5;
     case '+':
     case '-':
-      return 3;
+      return 4;
     case '<':
     case '>':
-      return 2;
+      return 3;
     }
   } else {
     if(tokens_equal(operator, operatorLen, LANG_OP_EQUALS, LANG_OP_EQUALS_LEN)) {
-      return 1; /* == */
+      return 2; /* == */
     } else if(tokens_equal(operator, operatorLen, LANG_OP_LTE, LANG_OP_LTE_LEN)
 	      || tokens_equal(operator, operatorLen, LANG_OP_GTE, LANG_OP_GTE_LEN)) {
-      return 2; /* <= or >=*/
+      return 3; /* <= or >=*/
+    } else if(tokens_equal(operator, operatorLen, LANG_OP_AND, LANG_OP_AND_LEN)
+	      || tokens_equal(operator, operatorLen, LANG_OP_OR, LANG_OP_OR_LEN)) {
+      return 1; /* && or ||*/
     }
   }
 

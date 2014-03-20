@@ -46,6 +46,9 @@ bool op_dual_operand_math(VM * vm,  char * byteCode,
 bool op_dual_comparison(VM * vm,  char * byteCode, 
 			size_t byteCodeLen, int * index, OpCode code);
 
+bool op_boolean_logic(VM * vm,  char * byteCode, 
+		      size_t byteCodeLen, int * index, OpCode code);
+
 bool op_num_push(VM * vm,  char * byteCode, 
 		  size_t byteCodeLen, int * index);
 

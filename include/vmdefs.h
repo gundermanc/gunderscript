@@ -73,6 +73,8 @@ typedef enum {
   OP_FCOND_GOTO,
   OP_NOT_EQUALS,
   OP_POP,
+  OP_AND,
+  OP_OR,
 } OpCode;
 
 #endif /* VMDEFS__H__ */

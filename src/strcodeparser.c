@@ -75,6 +75,18 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
 
       assert(stk_size(c->symTableStk) > 0);
 
+      /* implements true and false constants */
+      if(tokens_equal(varToken, varLen, LANG_TRUE, LANG_TRUE_LEN)) {
+	sb_append_char(c->outBuffer, OP_BOOL_PUSH);
+	sb_append_char(c->outBuffer, true);
+	return true;
+      }
+      if(tokens_equal(varToken, varLen, LANG_FALSE, LANG_FALSE_LEN)) {
+	sb_append_char(c->outBuffer, OP_BOOL_PUSH);
+	sb_append_char(c->outBuffer, false);
+	return true;
+      }
+
       /* check that the variable was previously declared */
       if(ht_get_raw_key(symtblstk_peek(c), varToken, varLen, &value)) {
 

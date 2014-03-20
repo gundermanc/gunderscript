@@ -291,6 +291,13 @@ bool vm_exec(VM * vm, char * byteCode,
 	return false;
       }
       break;
+    case OP_AND:
+    case OP_OR:
+      if(!op_boolean_logic(vm, byteCode, byteCodeLen,
+			     &vm->index, byteCode[vm->index])) {
+	return false;
+      }
+      break;
     case OP_GOTO:
       printf("Not yet implemented!");
       break;

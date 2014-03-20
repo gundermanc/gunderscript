@@ -47,6 +47,10 @@
 #define LANG_VAR_DECL_LEN 3
 #define LANG_RETURN     "return"
 #define LANG_RETURN_LEN   6
+#define LANG_TRUE       "true"
+#define LANG_TRUE_LEN     4
+#define LANG_FALSE       "false"
+#define LANG_FALSE_LEN     5
 
 /* these operands also have an associated precedence. If you change them here,
  * you must also change them in src/compcommon.c in the operator_precedence
@@ -72,4 +76,8 @@
 #define LANG_OP_LTE_LEN     2
 #define LANG_OP_GTE      ">="
 #define LANG_OP_GTE_LEN     2
+#define LANG_OP_AND      "&&"
+#define LANG_OP_AND_LEN     2
+#define LANG_OP_OR       "||"
+#define LANG_OP_OR_LEN     2
 #endif /* LANGKEYWORDS__H__ */
