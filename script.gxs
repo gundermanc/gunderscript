@@ -33,5 +33,5 @@ function exported main() {
    * is natively bound in main.c) and some string contat operations
    */
    print("Here we did some " + "math operations: ", 1 + 2 * test(x, 1) + 1);
-   print(" Boolean Comparison: ", false && true);
+   print(" Boolean Comparison: ", (3 + 3) > (2 + 2) || 5 <= 7);
 }
