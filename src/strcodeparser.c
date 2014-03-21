@@ -36,9 +36,10 @@
 
 /* TODO: make STK type auto enlarge and remove */
 static const int initialOpStkDepth = 100;
-
 /* number of items to add to the op stack on resize */
 static const int opStkBlockSize = 12;
+
+static bool parse_line(Compiler * c, Lexer * l, bool innerCall);
 
 /**
  * During parsing, all keyvars, including variables, are pushed to the stack.
@@ -798,64 +799,160 @@ static bool function_call(Compiler * c, char * functionName,
   return true;
 }
 
-
 /**
- * Evaluates function body code. In other words, all code that may be found
- * within a function body, including loops, ifs, straight code, assignment
- * statements, but excluding variable declarations.
- * c: an instance of compiler.
- * l: an instance of lexer that will provide all tokens that will be parsed.
- * returns: true if successful, and false if an error occurs. In the case of
- * an error, c->err is set to a relevant error code.
+ * Parses arguments to a function call, if, while, etc. This function should be
+ * called when the lexer is right inside of the "(". The arguments are converted to
+ * the appropriate bytecode.
+ * compiler: an instance of compiler.
+ * token: the current token.
+ * type: the LEXERTYPE of the token.
+ * len: the length of the current token.
+ * returns: the number of arguments.
  */
-bool func_do_body(Compiler * c, Lexer * l) {
-  LexerType type;
-  char * token;
-  size_t len;
+static int parse_arguments(Compiler * c, Lexer * l, char * token,
+		    LexerType type, size_t len) {
+  int argCount = 0;
+  bool endOfArgs = false;
 
-  token = lexer_current_token(l, &type, &len);
+  /* check if this function has arguments */
+  if(!tokens_equal(token, len, LANG_CPARENTH, LANG_CPARENTH_LEN)) {
 
-  /* keep executing lines of code until we hit a '}' */
-  while(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
+    /* loop through the arguments one by one */
+    do {
+      
+      /* delegate current argument to the straight code parser */
+      if(!parse_straight_code(c, l, true, &endOfArgs)) {
+	return false;
+      }
 
-    /* run line of code */
-    if(!parse_line(c, l, false)) {
-      return false;
-    }
-
-    /* check for terminating semicolon */
-    token = lexer_current_token(l, &type, &len);
-    if(type != LEXERTYPE_ENDSTATEMENT) {
-      c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
-      return false;
-    }
+      /* skip the comma or closing parenth if there is one */
+      token = lexer_next(l, &type, &len);
+      argCount++;
+    } while(!endOfArgs);
+  } else {
     token = lexer_next(l, &type, &len);
   }
+  return argCount;
+}
 
-  /* TODO: throw error if method doesn't end with curly brace */
+static bool parse_while_statement(Compiler * c, Lexer * l) {
+  char * token;
+  size_t len;
+  LexerType type;
+  int beforeWhileAddr;
+  int jumpInstAddr;
+  int elseJumpInstAddr;
+  int address = 0;
+  int argCount = 0;
+
   token = lexer_current_token(l, &type, &len);
- 
+
+  /* check if this is an while statement */
+  if(!tokens_equal(token, len, LANG_WHILE, LANG_WHILE_LEN)) {
+    return false;
+  }
+
+  token = lexer_next(l, &type, &len);
+
+  /* check for an open parenthesis token */
+  if(!tokens_equal(token, len, LANG_OPARENTH, LANG_OPARENTH_LEN)) {
+    c->err = COMPILERERR_MALFORMED_IFORLOOP;
+    return false;
+  }
+
+  token = lexer_next(l, &type, &len);
+
+  /* store address where argument is pushed to stack, and 
+   * compile argument code and get number of args 
+   */
+  beforeWhileAddr = buffer_size(c->outBuffer);
+  argCount = parse_arguments(c, l, token, type, len);
+
+  /* check for proper number of arguments */
+  if(argCount != 1) {
+    c->err = COMPILERERR_MALFORMED_IFORLOOP;
+    return true;
+  }
+
+  /* fill jump instruction with placeholder bytes since we don't know the
+   * end of the function address yet
+   */
+  buffer_append_char(c->outBuffer, OP_FCOND_GOTO);
+  jumpInstAddr = buffer_size(c->outBuffer);
+  buffer_append_string(c->outBuffer, (char*)(&address), sizeof(int));
+
+  /* retrieve current token */
+  token = lexer_current_token(l, &type, &len);
+
+  /* check for opening brace defining start of body "{" */
+  if(!tokens_equal(token, len, LANG_OBRACKET, LANG_OBRACKET_LEN)) {
+    c->err = COMPILERERR_EXPECTED_OBRACKET;
+    return true;
+  }
+
+  token = lexer_next(l, &type, &len);
+  
+  /****************** Do while body ********************************/
+  
+  if(!parse_body(c, l)) {
+    return true;
+  }
+  
+  /* retrieve current token (it was modified by parse_body) */
+  token = lexer_current_token(l, &type, &len);
+
+  /**************************************************************/
+
+  /* check for closing brace defining end of body "}" */
+  if(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
+    c->err = COMPILERERR_EXPECTED_CBRACKET;
+    return true;
+  }
+  token = lexer_next(l, &type, &len);
+
+  /* write jump to beginning of loop instruction */
+  buffer_append_char(c->outBuffer, OP_GOTO);
+  buffer_append_string(c->outBuffer, (char*)(&beforeWhileAddr), sizeof(int));
+
+  /* write jump to end of body address for while statement */
+  address = buffer_size(c->outBuffer);
+  buffer_set_string(c->outBuffer, (char*)&address, sizeof(int), jumpInstAddr);
+
   return true;
 }
 
-/* TODO: add in support for return call */
-static bool parse_if_statement(Compiler * c, Lexer * l, char * functionName, 
-			  size_t functionNameLen, int arguments) {
+static bool parse_if_statement(Compiler * c, Lexer * l) {
   char * token;
   size_t len;
   LexerType type;
   int ifJumpInstAddr;
   int elseJumpInstAddr;
   int address = 0;
+  int argCount = 0;
+
+  token = lexer_current_token(l, &type, &len);
 
   /* check if this is an if statement */
-  if(!tokens_equal(functionName, functionNameLen, LANG_IF, LANG_IF_LEN)) {
+  if(!tokens_equal(token, len, LANG_IF, LANG_IF_LEN)) {
     return false;
   }
 
+  token = lexer_next(l, &type, &len);
+
+  /* check for an open parenthesis token */
+  if(!tokens_equal(token, len, LANG_OPARENTH, LANG_OPARENTH_LEN)) {
+    c->err = COMPILERERR_MALFORMED_IFORLOOP;
+    return true;
+  }
+
+  token = lexer_next(l, &type, &len);
+
+  /* compile argument code and get number of args */
+  argCount = parse_arguments(c, l, token, type, len);
+
   /* check for proper number of arguments */
-  if(arguments != 1) {
-    c->err = COMPILERERR_INCORRECT_NUMARGS;
+  if(argCount != 1) {
+    c->err = COMPILERERR_MALFORMED_IFORLOOP;
     return true;
   }
 
@@ -879,11 +976,11 @@ static bool parse_if_statement(Compiler * c, Lexer * l, char * functionName,
   
   /****************** Do if body ********************************/
   
-  if(!func_do_body(c, l)) {
+  if(!parse_body(c, l)) {
     return true;
   }
   
-  /* retrieve current token (it was modified by func_do_body) */
+  /* retrieve current token (it was modified by parse_body) */
   token = lexer_current_token(l, &type, &len);
 
   /**************************************************************/
@@ -925,11 +1022,11 @@ static bool parse_if_statement(Compiler * c, Lexer * l, char * functionName,
   
   /****************** Do else body ********************************/
 
-  if(!func_do_body(c, l)) {
+  if(!parse_body(c, l)) {
     return true;
   }
   
-  /* retrieve current token (it was modified by func_do_body) */
+  /* retrieve current token (it was modified by parse_body) */
   token = lexer_current_token(l, &type, &len);
 
   /**************************************************************/
@@ -949,6 +1046,44 @@ static bool parse_if_statement(Compiler * c, Lexer * l, char * functionName,
   return true;
 }
 
+static bool parse_function_call(Compiler * c, Lexer * l, bool * noPop) {
+  int argCount = 0;
+  char * functionToken = NULL;
+  size_t functionTokenLen = 0;
+  char * token;
+  size_t len;
+  LexerType type;
+
+  token = lexer_current_token(l, &type, &len);
+
+  /* check if first token is a keyvar */
+  if(type != LEXERTYPE_KEYVAR) {
+    return false;
+  }
+
+  /* peek ahead one token */
+  token = lexer_peek(l, NULL, &len);
+
+  /* check if peeked token is a parenth */
+  if(!tokens_equal(token, len,LANG_OPARENTH, LANG_OPARENTH_LEN)) {
+    return false;
+  }
+
+  /* save function name */
+  functionToken = lexer_current_token(l, NULL, &functionTokenLen);
+
+  /* skip to the arguments tokens */
+  token = lexer_next(l, &type, &len);
+  token = lexer_next(l, &type, &len);
+
+  argCount = parse_arguments(c, l, token, type, len);
+
+  /* writes a call to the specified function, or returns if error */
+  function_call(c, functionToken, functionTokenLen, argCount, &noPop);
+
+  return true;
+}
+
 /**
  * Attempts to parse current location as a line of code. First, checks if this
  * is a function call. If so, dispatches subparsers to handle the arguments. If
@@ -958,11 +1093,10 @@ static bool parse_if_statement(Compiler * c, Lexer * l, char * functionName,
  * l: an instance of lexer.
  * returns: false if an error occurs and sets c->err to the error code.
  */
-bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
+static bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
   LexerType type;
   char * token;
   size_t len;
-  bool endOfArgs = false;
   bool noPop = false;
   size_t functionTokenLen;
   char * functionToken;
@@ -970,77 +1104,73 @@ bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
   /* get current token */
   token = lexer_current_token(l, &type, &len);
   
-  /* check if this is a keyword or variable */
-  if(type != LEXERTYPE_KEYVAR) {
-
-    /* malformed expression,
-     * does not start with KEYVAR...is not var assignment or function call
-     */
-    c->err = COMPILERERR_UNEXPECTED_TOKEN;
-    return false;
-  }
-
-  /* peek ahead one token */
-  token = lexer_peek(l, NULL, &len);
-
-  /* check if this is a function call by seeing if peeked token is a parenth */
-  if(tokens_equal(token, len,LANG_OPARENTH, LANG_OPARENTH_LEN)) {
-    int argCount = 0;
-
-    /* save function name */
-    functionToken = lexer_current_token(l, NULL, &functionTokenLen);
-
-    /* skip to the arguments tokens */
-    token = lexer_next(l, &type, &len);
-    token = lexer_next(l, &type, &len);
-
-    /* check if this function has arguments */
-    if(!tokens_equal(token, len, LANG_CPARENTH, LANG_CPARENTH_LEN)) {
-
-      /* loop through the arguments one by one */
-      do {
-
-	/* delegate current argument to the straight code parser */
-	if(!parse_straight_code(c, l, true, &endOfArgs)) {
-	  return false;
-	}
-
-	/* skip the comma or closing parenth if there is one */
-	token = lexer_next(l, &type, &len);
-	argCount++;
-      } while(!endOfArgs);
-    } else {
-      token = lexer_next(l, &type, &len);
-    }
-
-    /* checks if this is an if statement */
-    if(parse_if_statement(c, l, functionToken, functionTokenLen,
-			  argCount)) {
-
-      /* error occurred while parsing if statement code */
-      if(c->err != COMPILERERR_SUCCESS) {
-	return false;
-      }
-      return true;
-    }
-
-    /* writes a call to the specified function, or returns if error */
-    if(!function_call(c, functionToken, functionTokenLen, argCount, &noPop)) {
+  if(parse_function_call(c, l, &noPop)) {
+    if(c->err != COMPILERERR_SUCCESS) {
       return false;
     }
-
   } else {
-
     /* not a function call, delegate to the straight code parser */
     if(!parse_straight_code(c, l, false, NULL)) {
       return false;
     }
   }
 
-  /* if noPop is false (this line is NOT a return value: */
+  /* if noPop is false (this line is NOT a return value): */
   if(!noPop && !innerCall) {
     /* pop line return value off of stack */
     buffer_append_char(c->outBuffer, OP_POP);
   }
+  return true;
+}
+
+/**
+ * Evaluates function body code. In other words, all code that may be found
+ * within a function body, including loops, ifs, straight code, assignment
+ * statements, but excluding variable declarations.
+ * c: an instance of compiler.
+ * l: an instance of lexer that will provide all tokens that will be parsed.
+ * returns: true if successful, and false if an error occurs. In the case of
+ * an error, c->err is set to a relevant error code.
+ */
+bool parse_body(Compiler * c, Lexer * l) {
+  LexerType type;
+  char * token;
+  size_t len;
+
+  token = lexer_current_token(l, &type, &len);
+
+  /* keep executing lines of code until we hit a '}' */
+  while(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
+
+    /* attempt each logical structure subparser, one by one */
+    if(parse_if_statement(c, l)) {
+      if(c->err != COMPILERERR_SUCCESS) {
+	return false;
+      }
+    } else if(parse_while_statement(c, l)) {
+      if(c->err != COMPILERERR_SUCCESS) {
+	return false;
+      }
+    } else {
+
+      /* not a logical structure, evaluate as normal line of code */
+      if(!parse_line(c, l, false)) {
+	return false;
+      }
+
+      /* check for terminating semicolon */
+      token = lexer_current_token(l, &type, &len);
+      if(type != LEXERTYPE_ENDSTATEMENT) {
+	c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+	return false;
+      }
+      token = lexer_next(l, &type, &len);
+    }
+    token = lexer_current_token(l, &type, &len);
+  }
+
+  /* TODO: throw error if method doesn't end with curly brace */
+  token = lexer_current_token(l, &type, &len);
+ 
   return true;
 }

@@ -24,6 +24,7 @@ function exported main() {
    * just like in C89.
    */
   var x;
+  var i;
 
   // demonstrates precedence of operators and assignment statements:
   x = 1;
@@ -35,13 +36,18 @@ function exported main() {
    if(true) {
      if(true) {
        print("Look! A nested if statement. ");
-     };
+     }
 
      print("Here we did some " + "math operations: ", 1 + 2 * test(x, 1) + 1);
    } else {
      print(false);
      print(" Boolean Comparison: ", (3 + 3) > (2 + 2) || 5 <= 7);
-   };
-
-   print("Post if/else");
+   }
+   
+   /* count down from ten, a loop example */
+   i = 10;
+   while(i >= 0) {
+     print(i, ", ");
+     i = i - 1;
+   }
 }

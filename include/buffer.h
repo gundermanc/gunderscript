@@ -48,6 +48,8 @@ char * buffer_get_buffer(Buffer * buffer);
 bool buffer_set_string(Buffer * buffer, char * input,
 		       size_t inputLen, int index);
 
+int buffer_size(Buffer * buffer);
+
 void buffer_free(Buffer * buffer);
 
 

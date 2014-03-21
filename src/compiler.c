@@ -217,7 +217,7 @@ static bool is_keyword(char * token, size_t tokenLen) {
 }
 
 /**
- * A build_parse_func_def() subparser that parses the arguments from a function
+ * A parse_function_definitions() subparser that parses the arguments from a function
  * definition. The function then stores the arguments in the current symbol
  * table and returns the number of arguments that were provided.
  * c: an instance of Compiler.
@@ -227,7 +227,7 @@ static bool is_keyword(char * token, size_t tokenLen) {
  * COMPILERERR_SUCCESS. If an error occurred, or there is a mistake in the
  * script, the function returns -1, but c->err is set to a relevant error code.
  */
-static int func_defs_parse_args(Compiler * c, Lexer * l) {
+static int parse_arguments(Compiler * c, Lexer * l) {
 
   assert(c != NULL);
   assert(l != NULL);
@@ -340,7 +340,7 @@ static bool function_store_definition(Compiler * c, char * name, size_t nameLen,
 /* returns true if current token is start of a variable declaration expression */
 
 /**
- * Subparser for func_do_var_defs(). Performs definition of variables.
+ * Subparser for define_variables(). Performs definition of variables.
  * Looks at the current token. If it is 'var', the parser takes over and starts
  * defining the current variable. It defines ONLY 1 and returns. To define
  * additional, you must make multiple calls to this subparser.
@@ -355,7 +355,7 @@ static bool function_store_definition(Compiler * c, char * name, size_t nameLen,
  * the current token is something else. c->err variable is set to an error code
  * upon a mistake in the script or other error.
  */
-static bool var_def(Compiler * c, Lexer * l) {
+static bool define_variable(Compiler * c, Lexer * l) {
 
   /* variable declarations: 
    *
@@ -419,10 +419,9 @@ static bool var_def(Compiler * c, Lexer * l) {
   return true;
 }
 
-/* performs variable declarations */
 /**
- * Subparser for build_parse_func_defs(). Parses function definitions. Where
- * var_def() function defines ONE variable from a declaration, this function
+ * Subparser for parse_function_definitions(). Parses function definitions. Where
+ * define_variable() function defines ONE variable from a declaration, this function
  * continues defining variable until the first non-variable declaration token
  * is found.
  * c: an instance of Compiler.
@@ -431,7 +430,7 @@ static bool var_def(Compiler * c, Lexer * l) {
  * no variable declarations, and false if an error occurred. Upon an error,
  * c->err is set to a relevant error code.
  */
-static int func_do_var_defs(Compiler * c, Lexer * l) {
+static int define_variables(Compiler * c, Lexer * l) {
   LexerType type;
   char * token;
   size_t len;
@@ -443,7 +442,7 @@ static int func_do_var_defs(Compiler * c, Lexer * l) {
    * var [variable_name_2];
    */
   do {
-    if(var_def(c, l)) {
+    if(define_variable(c, l)) {
       varCount++;
       if(c->err != COMPILERERR_SUCCESS) {
 	return -1;
@@ -471,7 +470,7 @@ static int func_do_var_defs(Compiler * c, Lexer * l) {
  * ('function'), and true if it is. If an error occurs, function returns true,
  * but c->err is set to a relevant error code.
  */
-static bool build_parse_func_defs(Compiler * c, Lexer * l) {
+static bool parse_function_definitions(Compiler * c, Lexer * l) {
 
   /*
    * A Function definition looks like so:
@@ -527,7 +526,7 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   }
 
   /* parse the arguments, return if the process fails */
-  if((numArgs = func_defs_parse_args(c, l)) == -1) {
+  if((numArgs = parse_arguments(c, l)) == -1) {
     return true;
   }
 
@@ -542,11 +541,11 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
   /****************************** Do function body ****************************/
   
   /* handle variable declarations */
-  if((numVars = func_do_var_defs(c, l)) == -1) {
+  if((numVars = define_variables(c, l)) == -1) {
     return false;
   }
 
-  /* retrieve next token (it was modified by func_do_var_def */
+  /* retrieve next token (it was modified by define_variable */
   token = lexer_current_token(l, &type, &len);
 
   /* store the function name, location in the output, and # of args and vars */
@@ -554,11 +553,11 @@ static bool build_parse_func_defs(Compiler * c, Lexer * l) {
     return true;
   }
 
-  if(!func_do_body(c, l)) {
+  if(!parse_body(c, l)) {
     return true;
   }
 
-  /* retrieve current token (it was modified by func_do_body) */
+  /* retrieve current token (it was modified by parse_body) */
   token = lexer_current_token(l, &type, &len);
 
   /****************************** End function body ***************************/
@@ -640,7 +639,7 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
 
   /* compile loop */
   lexer_next(lexer, &type, &tokenLen);
-  while(build_parse_func_defs(compiler, lexer)) {
+  while(parse_function_definitions(compiler, lexer)) {
     /* TEMPORARILY COMMENTED OUT FOR STRAIGHT CODE PARSER DEVELOPMENT: */
     /* handle errors */
     if(compiler->err != COMPILERERR_SUCCESS) {
