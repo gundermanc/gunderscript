@@ -458,50 +458,6 @@ static int func_do_var_defs(Compiler * c, Lexer * l) {
 }
 
 
-
-/* returns false if invalid operator encountered */
-
-
-
-/**
- * Evaluates function body code. In other words, all code that may be found
- * within a function body, including loops, ifs, straight code, assignment
- * statements, but excluding variable declarations.
- * c: an instance of compiler.
- * l: an instance of lexer that will provide all tokens that will be parsed.
- * returns: true if successful, and false if an error occurs. In the case of
- * an error, c->err is set to a relevant error code.
- */
-static bool func_do_body(Compiler * c, Lexer * l) {
-  LexerType type;
-  char * token;
-  size_t len;
-
-  token = lexer_current_token(l, &type, &len);
-
-  /* keep executing lines of code until we hit a '}' */
-  while(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
-
-    /* run line of code */
-    if(!parse_line(c, l, false)) {
-      return false;
-    }
-
-    /* check for terminating semicolon */
-    token = lexer_current_token(l, &type, &len);
-    if(type != LEXERTYPE_ENDSTATEMENT) {
-      c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
-      return false;
-    }
-    token = lexer_next(l, &type, &len);
-  }
-
-  /* TODO: throw error if method doesn't end with curly brace */
-  token = lexer_current_token(l, &type, &len);
- 
-  return true;
-}
-
 /**
  * A subparser function for compiler_build() that looks at the current token,
  * checks for a 'function' token. If found, it proceeds to evaluate the function

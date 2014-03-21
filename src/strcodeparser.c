@@ -27,6 +27,7 @@
 #include "strcodeparser.h"
 #include "langkeywords.h"
 #include "lexer.h"
+#include "buffer.h"
 
 /* preprocessor definitions: */
 #define COMPILER_NO_PREV        -1
@@ -797,6 +798,107 @@ static bool function_call(Compiler * c, char * functionName,
   return true;
 }
 
+
+/**
+ * Evaluates function body code. In other words, all code that may be found
+ * within a function body, including loops, ifs, straight code, assignment
+ * statements, but excluding variable declarations.
+ * c: an instance of compiler.
+ * l: an instance of lexer that will provide all tokens that will be parsed.
+ * returns: true if successful, and false if an error occurs. In the case of
+ * an error, c->err is set to a relevant error code.
+ */
+bool func_do_body(Compiler * c, Lexer * l) {
+  LexerType type;
+  char * token;
+  size_t len;
+
+  token = lexer_current_token(l, &type, &len);
+
+  /* keep executing lines of code until we hit a '}' */
+  while(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
+
+    /* run line of code */
+    if(!parse_line(c, l, false)) {
+      return false;
+    }
+
+    /* check for terminating semicolon */
+    token = lexer_current_token(l, &type, &len);
+    if(type != LEXERTYPE_ENDSTATEMENT) {
+      c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+      return false;
+    }
+    token = lexer_next(l, &type, &len);
+  }
+
+  /* TODO: throw error if method doesn't end with curly brace */
+  token = lexer_current_token(l, &type, &len);
+ 
+  return true;
+}
+
+/* TODO: add in support for return call */
+static bool parse_if_statement(Compiler * c, Lexer * l, char * functionName, 
+			  size_t functionNameLen, int arguments) {
+  char * token;
+  size_t len;
+  LexerType type;
+  int jumpInstAddr;
+  int address = 0;
+
+  /* check if this is an if statement */
+  if(!tokens_equal(functionName, functionNameLen, LANG_IF, LANG_IF_LEN)) {
+    return false;
+  }
+
+  /* check for proper number of arguments */
+  if(arguments != 1) {
+    c->err = COMPILERERR_INCORRECT_NUMARGS;
+    return true;
+  }
+
+  /* fill jump instruction with placeholder bytes since we don't know the
+   * end of the function address yet
+   */
+  buffer_append_char(c->outBuffer, OP_FCOND_GOTO);
+  jumpInstAddr = buffer_size(c->outBuffer);
+  buffer_append_string(c->outBuffer, (char*)(&address), sizeof(int));
+
+  /* retrieve current token */
+  token = lexer_current_token(l, &type, &len);
+
+  /* check for opening brace defining start of body "{" */
+  if(!tokens_equal(token, len, LANG_OBRACKET, LANG_OBRACKET_LEN)) {
+    c->err = COMPILERERR_EXPECTED_OBRACKET;
+    return true;
+  }
+
+  token = lexer_next(l, &type, &len);
+  
+  /****************** Do if body ********************************/
+  
+  if(!func_do_body(c, l)) {
+    return true;
+  }
+  
+  /* retrieve current token (it was modified by func_do_body) */
+  token = lexer_current_token(l, &type, &len);
+
+  /* check for closing brace defining end of body "}" */
+  if(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
+    c->err = COMPILERERR_EXPECTED_CBRACKET;
+    return true;
+  }
+
+  /* write jump instruction for if statement */
+  address = buffer_size(c->outBuffer);
+  buffer_set_string(c->outBuffer, (int*)&address, sizeof(int), jumpInstAddr);
+  token = lexer_next(l, &type, &len);
+
+  return true;
+}
+
 /**
  * Attempts to parse current location as a line of code. First, checks if this
  * is a function call. If so, dispatches subparsers to handle the arguments. If
@@ -859,6 +961,17 @@ bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
       } while(!endOfArgs);
     } else {
       token = lexer_next(l, &type, &len);
+    }
+
+    /* checks if this is an if statement */
+    if(parse_if_statement(c, l, functionToken, functionTokenLen,
+			  argCount)) {
+
+      /* error occurred while parsing if statement code */
+      if(c->err != COMPILERERR_SUCCESS) {
+	return false;
+      }
+      return true;
     }
 
     /* writes a call to the specified function, or returns if error */

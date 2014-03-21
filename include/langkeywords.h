@@ -50,7 +50,9 @@
 #define LANG_TRUE       "true"
 #define LANG_TRUE_LEN     4
 #define LANG_FALSE       "false"
-#define LANG_FALSE_LEN     5
+#define LANG_FALSE_LEN    5
+#define LANG_IF          "if"
+#define LANG_IF_LEN       2
 
 /* these operands also have an associated precedence. If you change them here,
  * you must also change them in src/compcommon.c in the operator_precedence

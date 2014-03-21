@@ -68,7 +68,6 @@ static bool resize_buffer(Buffer * buffer, size_t newSize) {
    * can act as null terminator for string
    */
   void * newBuffer = calloc(newSize + 1, sizeof(char));
-  int i = 0;
   if(newBuffer == NULL) {
     return false;
   }
