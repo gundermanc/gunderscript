@@ -1,12 +1,12 @@
 /**
- * strcodeparser.h
+ * parsers.h
  * (C) 2013 Christian Gunderman
  * Modified by:
  * Author Email: gundermanc@gmail.com
  * Modifier Email:
  *
  * Description:
- * See strcodeparser.c for description.
+ * See parsers.c for description.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by
@@ -22,8 +22,8 @@
  * along with this program.  If not, see <http://www.gnu.org/licenses/>.
  */
 
-#ifndef STRCODEPARSER__H__
-#define STRCODEPARSER__H__
+#ifndef PARSERS__H__
+#define PARSERS__H__
 
 #include <stdlib.h>
 #include "lexer.h"
@@ -33,4 +33,4 @@
 
 bool parse_body(Compiler * c, Lexer * l);
 
-#endif /* STRCODEPARSER__H__ */
+#endif /* PARSERS__H__ */

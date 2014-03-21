@@ -39,7 +39,7 @@
 #include <assert.h>
 #include <limits.h>
 #include "compiler.h"
-#include "strcodeparser.h"
+#include "parsers.h"
 #include "lexer.h"
 #include "langkeywords.h"
 #include "vm.h"

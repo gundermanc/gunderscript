@@ -1,5 +1,5 @@
 /**
- * strcodeparser.c
+ * parsers.c
  * (C) 2013 Christian Gunderman
  * Modified by:
  * Author Email: gundermanc@gmail.com
@@ -24,7 +24,7 @@
 
 #include <assert.h>
 #include <limits.h>
-#include "strcodeparser.h"
+#include "parsers.h"
 #include "langkeywords.h"
 #include "lexer.h"
 #include "buffer.h"

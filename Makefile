@@ -40,7 +40,7 @@ linuxapp: linuxlibrary
 
 # build just the static library
 linuxlibrary: gunderscript.o lexer.o frmstk.o vm.o compiler.o
-	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o $(OBJDIR)/strcodeparser.o $(OBJDIR)/compiler.o $(OBJDIR)/compcommon.o $(OBJDIR)/gunderscript.o $(OBJDIR)/buffer.o
+	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o $(OBJDIR)/parsers.o $(OBJDIR)/compiler.o $(OBJDIR)/compcommon.o $(OBJDIR)/gunderscript.o $(OBJDIR)/buffer.o
 
 # build lexer object
 lexer.o: buildfs $(SRCDIR)/lexer.c
@@ -66,12 +66,12 @@ ophandlers.o: buildfs c-datastructs-build $(SRCDIR)/ophandlers.c
 compcommon.o: buildfs $(SRCDIR)/compcommon.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/compcommon.c
 
-# build strcodeparser object
-strcodeparser.o: buildfs compcommon.o $(SRCDIR)/strcodeparser.c
-	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/strcodeparser.c
+# build parsers object
+parsers.o: buildfs compcommon.o $(SRCDIR)/parsers.c
+	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/parsers.c
 
 # build compiler object
-compiler.o: buildfs c-datastructs-build buffer.o compcommon.o lexer.o strcodeparser.o $(SRCDIR)/compiler.c
+compiler.o: buildfs c-datastructs-build buffer.o compcommon.o lexer.o parsers.o $(SRCDIR)/compiler.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/compiler.c
 
 # build buffer object
