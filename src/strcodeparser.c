@@ -844,7 +844,8 @@ static bool parse_if_statement(Compiler * c, Lexer * l, char * functionName,
   char * token;
   size_t len;
   LexerType type;
-  int jumpInstAddr;
+  int ifJumpInstAddr;
+  int elseJumpInstAddr;
   int address = 0;
 
   /* check if this is an if statement */
@@ -862,7 +863,7 @@ static bool parse_if_statement(Compiler * c, Lexer * l, char * functionName,
    * end of the function address yet
    */
   buffer_append_char(c->outBuffer, OP_FCOND_GOTO);
-  jumpInstAddr = buffer_size(c->outBuffer);
+  ifJumpInstAddr = buffer_size(c->outBuffer);
   buffer_append_string(c->outBuffer, (char*)(&address), sizeof(int));
 
   /* retrieve current token */
@@ -885,15 +886,64 @@ static bool parse_if_statement(Compiler * c, Lexer * l, char * functionName,
   /* retrieve current token (it was modified by func_do_body) */
   token = lexer_current_token(l, &type, &len);
 
+  /**************************************************************/
+  /* check for closing brace defining end of body "}" */
+  if(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
+    c->err = COMPILERERR_EXPECTED_CBRACKET;
+    return true;
+  }
+  token = lexer_next(l, &type, &len);
+ 
+  /* check if this if block has an else as well */
+  if(!tokens_equal(token, len, LANG_ELSE, LANG_ELSE_LEN)) {
+    /* write jump address for if statement */
+    address = buffer_size(c->outBuffer);
+    buffer_set_string(c->outBuffer, (int*)&address, sizeof(int), ifJumpInstAddr);
+    return true;
+  }
+
+  /* fill jump instruction with placeholder bytes since we don't know the
+   * end of the function address yet
+   */
+  buffer_append_char(c->outBuffer, OP_GOTO);
+  elseJumpInstAddr = buffer_size(c->outBuffer);
+  buffer_append_string(c->outBuffer, (char*)(&address), sizeof(int));
+
+  /* write jump address for if statement so that it is after the else jump */
+  address = buffer_size(c->outBuffer);
+  buffer_set_string(c->outBuffer, (int*)&address, sizeof(int), ifJumpInstAddr);
+
+  token = lexer_next(l, &type, &len);
+
+  /* check for opening brace defining start of else body "{" */
+  if(!tokens_equal(token, len, LANG_OBRACKET, LANG_OBRACKET_LEN)) {
+    c->err = COMPILERERR_EXPECTED_OBRACKET;
+    return true;
+  }
+
+  token = lexer_next(l, &type, &len);
+  
+  /****************** Do else body ********************************/
+
+  if(!func_do_body(c, l)) {
+    return true;
+  }
+  
+  /* retrieve current token (it was modified by func_do_body) */
+  token = lexer_current_token(l, &type, &len);
+
+  /**************************************************************/
+
+
   /* check for closing brace defining end of body "}" */
   if(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
     c->err = COMPILERERR_EXPECTED_CBRACKET;
     return true;
   }
 
-  /* write jump instruction for if statement */
+  /* write jump address for else statement */
   address = buffer_size(c->outBuffer);
-  buffer_set_string(c->outBuffer, (int*)&address, sizeof(int), jumpInstAddr);
+  buffer_set_string(c->outBuffer, (int*)&address, sizeof(int), elseJumpInstAddr);
   token = lexer_next(l, &type, &len);
 
   return true;

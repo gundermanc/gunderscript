@@ -299,7 +299,10 @@ bool vm_exec(VM * vm, char * byteCode,
       }
       break;
     case OP_GOTO:
-      printf("Not yet implemented!");
+      if(!op_goto(vm, byteCode, byteCodeLen,
+			     &vm->index)) {
+	return false;
+      }
       break;
     case OP_BOOL_PUSH:
       if(!op_bool_push(vm, byteCode, byteCodeLen, &vm->index)) {

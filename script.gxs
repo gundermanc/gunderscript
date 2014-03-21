@@ -33,7 +33,15 @@ function exported main() {
    * is natively bound in main.c) and some string contat operations
    */
    if(true) {
+     if(true) {
+       print("Look! A nested if statement. ");
+     };
+
      print("Here we did some " + "math operations: ", 1 + 2 * test(x, 1) + 1);
+   } else {
+     print(false);
      print(" Boolean Comparison: ", (3 + 3) > (2 + 2) || 5 <= 7);
    };
+
+   print("Post if/else");
 }

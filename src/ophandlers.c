@@ -719,6 +719,35 @@ bool op_cond_goto(VM * vm, char * byteCode,
 }
 
 /**
+ * Performs goto operation to specified index in the opcode buffer.
+ * OP_GOTO [goto_address:sizeof(int)]
+ */
+bool op_goto(VM * vm, char * byteCode, 
+	     size_t byteCodeLen, int * index) {
+  int addr;
+
+  (*index)++;
+
+  /* check that there are enough bytes in byte code for the address */
+  if(!((byteCodeLen - *index) >= sizeof(int))) {
+    vm_set_err(vm, VMERR_UNEXPECTED_END_OF_OPCODES);
+    return false;
+  }
+
+  memcpy(&addr, byteCode + *index, sizeof(int));
+
+  if(addr < 0 || addr >= byteCodeLen) {
+    vm_set_err(vm, VMERR_INVALID_ADDR);
+    return false;
+  }
+ 
+  /* change address */
+  *index = addr;
+
+  return true;
+}
+
+/**
  * Calls the specified native function, using the specified number of values
  * from the top of the stack as arguments. callback_index is the index where
  * the desired function is stored in the callbacks array.

@@ -67,6 +67,9 @@ bool op_not(VM * vm, char * byteCode,
 bool op_cond_goto(VM * vm, char * byteCode, 
 		   size_t byteCodeLen, int * index, bool negGoto);
 
+bool op_goto(VM * vm, char * byteCode, 
+		  size_t byteCodeLen, int * index);
+
 bool op_call_ptr_n(VM * vm, char * byteCode, 
 		    size_t byteCodeLen, int * index);
 
