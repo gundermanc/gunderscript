@@ -31,6 +31,6 @@
 #include "gsbool.h"
 #include "typestk.h"
 
-bool func_do_body(Compiler * c, Lexer * l);
+bool parse_body(Compiler * c, Lexer * l);
 
 #endif /* STRCODEPARSER__H__ */

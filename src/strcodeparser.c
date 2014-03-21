@@ -39,6 +39,7 @@ static const int initialOpStkDepth = 100;
 /* number of items to add to the op stack on resize */
 static const int opStkBlockSize = 12;
 
+/* private function declarations */
 static bool parse_line(Compiler * c, Lexer * l, bool innerCall);
 
 /**
@@ -145,7 +146,7 @@ static bool parse_stacked_operator(Compiler * c,  char * token,
     if(tokens_equal(LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN, token, len)) {
 
       /* get variable name string */
-      if(!typestk_pop(opStk, &token, sizeof(char*), &type)
+      if(!typestk_pop(opStk, &token, sizeof(char*), (VarType*)&type)
 	 || type != LEXERTYPE_KEYVAR) {
 	c->err = COMPILERERR_MALFORMED_ASSIGNMENT;
 	return false;
@@ -841,7 +842,6 @@ static bool parse_while_statement(Compiler * c, Lexer * l) {
   LexerType type;
   int beforeWhileAddr;
   int jumpInstAddr;
-  int elseJumpInstAddr;
   int address = 0;
   int argCount = 0;
 
@@ -995,7 +995,7 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
   if(!tokens_equal(token, len, LANG_ELSE, LANG_ELSE_LEN)) {
     /* write jump address for if statement */
     address = buffer_size(c->outBuffer);
-    buffer_set_string(c->outBuffer, (int*)&address, sizeof(int), ifJumpInstAddr);
+    buffer_set_string(c->outBuffer, (char*)&address, sizeof(int), ifJumpInstAddr);
     return true;
   }
 
@@ -1008,7 +1008,7 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
 
   /* write jump address for if statement so that it is after the else jump */
   address = buffer_size(c->outBuffer);
-  buffer_set_string(c->outBuffer, (int*)&address, sizeof(int), ifJumpInstAddr);
+  buffer_set_string(c->outBuffer, (char*)&address, sizeof(int), ifJumpInstAddr);
 
   token = lexer_next(l, &type, &len);
 
@@ -1040,7 +1040,7 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
 
   /* write jump address for else statement */
   address = buffer_size(c->outBuffer);
-  buffer_set_string(c->outBuffer, (int*)&address, sizeof(int), elseJumpInstAddr);
+  buffer_set_string(c->outBuffer, (char*)&address, sizeof(int), elseJumpInstAddr);
   token = lexer_next(l, &type, &len);
 
   return true;
@@ -1079,7 +1079,7 @@ static bool parse_function_call(Compiler * c, Lexer * l, bool * noPop) {
   argCount = parse_arguments(c, l, token, type, len);
 
   /* writes a call to the specified function, or returns if error */
-  function_call(c, functionToken, functionTokenLen, argCount, &noPop);
+  function_call(c, functionToken, functionTokenLen, argCount, noPop);
 
   return true;
 }
@@ -1094,16 +1094,7 @@ static bool parse_function_call(Compiler * c, Lexer * l, bool * noPop) {
  * returns: false if an error occurs and sets c->err to the error code.
  */
 static bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
-  LexerType type;
-  char * token;
-  size_t len;
   bool noPop = false;
-  size_t functionTokenLen;
-  char * functionToken;
-
-  /* get current token */
-  token = lexer_current_token(l, &type, &len);
-  
   if(parse_function_call(c, l, &noPop)) {
     if(c->err != COMPILERERR_SUCCESS) {
       return false;
