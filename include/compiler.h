@@ -47,4 +47,6 @@ size_t compiler_bytecode_size(Compiler * compiler);
 
 char * compiler_bytecode(Compiler * compiler);
 
+int compiler_err_line(Compiler * compiler);
+
 #endif /* COMPILER__H__ */

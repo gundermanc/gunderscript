@@ -69,6 +69,7 @@ typedef struct Compiler {
   HT * functionHT;                /* hashtable of function structs */
   Buffer * outBuffer;             /* buffer builder that accepts the output */
   CompilerErr err;                /* error code value */
+  int errorLineNum;               /* line number where error occurred */
 } Compiler;
 
 /* a function struct */

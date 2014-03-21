@@ -70,6 +70,11 @@ bool gunderscript_build_err(Gunderscript * instance) {
   return compiler_get_err(instance->compiler);
 }
 
+int gunderscript_err_line(Gunderscript * instance) {
+  assert(instance != NULL);
+  return compiler_err_line(instance->compiler);
+}
+
 bool gunderscript_function(Gunderscript * instance, char * entryPoint,
 			   size_t entryPointLen) {
   CompilerFunc * function;

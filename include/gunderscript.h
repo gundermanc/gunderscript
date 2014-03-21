@@ -50,5 +50,7 @@ bool gunderscript_function(Gunderscript * instance, char * entryPoint,
 
 bool gunderscript_function_err(Gunderscript * instance);
 
+int gunderscript_err_line(Gunderscript * instance);
+
 void gunderscript_free(Gunderscript * instance);
 #endif /* GUNDERSCRIPT__H__ */

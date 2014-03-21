@@ -640,9 +640,9 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
   /* compile loop */
   lexer_next(lexer, &type, &tokenLen);
   while(parse_function_definitions(compiler, lexer)) {
-    /* TEMPORARILY COMMENTED OUT FOR STRAIGHT CODE PARSER DEVELOPMENT: */
     /* handle errors */
     if(compiler->err != COMPILERERR_SUCCESS) {
+      compiler->errorLineNum = lexer_line_num(lexer);
       lexer_free(lexer);
       return false;
     }
@@ -742,4 +742,18 @@ void compiler_free(Compiler * compiler) {
   }
 
   free(compiler);
+}
+
+/**
+ * Gets the line where the error occurred.
+ * c: an instance of compiler.
+ * return: the line where the error occurred, or 0 if no error occurred.
+ */
+int compiler_err_line(Compiler * compiler) {
+  assert(compiler != NULL);
+  if(compiler->err != COMPILERERR_SUCCESS) {
+    return compiler->errorLineNum;
+  }
+
+  return 0;
 }
