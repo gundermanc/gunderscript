@@ -365,11 +365,21 @@ static bool parse_string(Compiler * c, LexerType prevTokenType,
  * returns true upon success, and false upon an error.
  */
 static bool parse_keyvar(Compiler * c, Lexer * l, TypeStk * opStk,
-			 Stk * opLenStk, LexerType * prevValType, LexerType type,
+			 Stk * opLenStk, LexerType * prevTokenType, LexerType type,
 			 char * token, size_t len) {
   char * parenthToken;
   size_t parenthLen;
   LexerType parenthType;
+
+  /* TODO: make sure that prevTokenType checks aren't neccessary here */
+  /* check for invalid types: */
+  if(*prevTokenType != COMPILER_NO_PREV
+     && *prevTokenType != LEXERTYPE_PARENTHESIS
+     && *prevTokenType != LEXERTYPE_OPERATOR
+     && *prevTokenType != LEXERTYPE_BRACKETS) {
+    c->err = COMPILERERR_UNEXPECTED_TOKEN;
+    return false;
+  }
 
   /* look ahead one token without advancing and see what's there */
   parenthToken = lexer_peek(l, &parenthType, &parenthLen);
@@ -382,7 +392,7 @@ static bool parse_keyvar(Compiler * c, Lexer * l, TypeStk * opStk,
       return false;
     }
     token = lexer_current_token(l, &type, &len);
-    (*prevValType) = type;
+    (*prevTokenType) = LEXERTYPE_PARENTHESIS;
   } else {
 
     /* Not a function call. A variable operation. Store tokens on stack for
@@ -392,13 +402,11 @@ static bool parse_keyvar(Compiler * c, Lexer * l, TypeStk * opStk,
     stk_push_long(opLenStk, len);
 
     /* store type of current token for next iteration */
-    (*prevValType) = LEXERTYPE_KEYVAR;
+    (*prevTokenType) = LEXERTYPE_KEYVAR;
 
     /* advance to next token */
     token = lexer_next(l, &type, &len);
   }
-
-  /* TODO: make sure that prevTokenType checks aren't neccessary here */
 
   return true;
 }
@@ -535,9 +543,10 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
     /* TODO: this error check does not distinguish between ( and ). Revise to
      * ensure that parenthesis is part of a matching pair too, and fix bug
      */
-    /* c->err = COMPILERERR_UNEXPECTED_TOKEN; */
-    printf("UET parse_operators: %i\n", prevTokenType);
-    /* return false; */
+    printf("\nNOTE: this error case is experimental and may reflect a bug in Gunderscript"
+	   ", not your code. After checking your code, if it seems ok, it may be a bug\n\n");
+    c->err = COMPILERERR_UNEXPECTED_TOKEN;
+    return false;
   }
 
   return true;
@@ -667,7 +676,7 @@ bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk,
     }
 
     case LEXERTYPE_BRACKETS:
-      c->err = COMPILERERR_UNMATCHED_PARENTH;
+      c->err = COMPILERERR_UNEXPECTED_TOKEN;
       return false;
 
     default:

@@ -110,9 +110,9 @@ static char * load_file(char * file, size_t * size) {
 }
 
 static void print_compile_error(Gunderscript * ginst) {
-  printf("Compiler Error: %i\nLine Number: %i\n", 
-	 gunderscript_build_err(ginst),
-	 gunderscript_err_line(ginst));
+  printf("Compiler Error Number: %i\n", gunderscript_build_err(ginst));
+  printf("Detected around Line Number: %i\n", gunderscript_err_line(ginst));
+  printf("Error: %s\n", gunderscript_err_message(ginst));
 }
 
 static void print_exec_error(Gunderscript * ginst) {

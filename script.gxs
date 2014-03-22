@@ -39,6 +39,7 @@ function exported main() {
        print("Look! A nested if statement. ");
      }
 
+     // string concat operation, basic math, precedence, and nested function call
      print("Here we did some " + "math operations: ", 1 + 2 * fact(x) + 1);
      print(" Boolean Comparison: ", (3 + 3) > (2 + 2) || 5 <= 7);
    } else {

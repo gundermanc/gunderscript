@@ -45,6 +45,8 @@ bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen);
 
 bool gunderscript_build_err(Gunderscript * instance);
 
+char * gunderscript_err_message(Gunderscript * instance);
+
 bool gunderscript_function(Gunderscript * instance, char * entryPoint,
 			   size_t entryPointLen);
 

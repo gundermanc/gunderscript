@@ -652,6 +652,10 @@ char * lexer_current_token(Lexer * l, LexerType * type, size_t * len) {
   assert(l != NULL);
   assert(len != NULL);
 
+  if(l->err != LEXERERR_SUCCESS) {
+    return NULL;
+  }
+
   *len = l->currTokenLen;
   set_type(type, l->currTokenType);
   return l->currToken;
@@ -709,6 +713,10 @@ static void update_tokens(Lexer * lexer) {
  * returns: the token after the current token.
  */
 char * lexer_peek(Lexer * lexer, LexerType * type, size_t * len) {
+  if(lexer->err != LEXERERR_SUCCESS) {
+    return NULL;
+  }
+
   set_type(type, lexer->nextTokenType);
   *len = lexer->nextTokenLen;
   return lexer->nextToken;
@@ -735,6 +743,10 @@ char * lexer_next(Lexer * lexer, LexerType * type, size_t * len) {
   assert(type != NULL);
   assert(len != NULL);
 
+  if(lexer->err != LEXERERR_SUCCESS) {
+    return NULL;
+  }
+
   /* move lexer object's "nextToken" and "currentToken" fields
    * forward one token
    */
@@ -743,4 +755,16 @@ char * lexer_next(Lexer * lexer, LexerType * type, size_t * len) {
   set_type(type, lexer->currTokenType);
   *len = lexer->currTokenLen;
   return lexer->currToken;
+}
+
+/**
+ * Gets a string representation of the lexer error. NOTE: these strings are
+ * not dynamically allocated, but are constants that cannot be freed, and die
+ * when this module terminates.
+ * lexer: an instance of lexer.
+ * err: the error to translate to text.
+ * returns: the text form of this error.
+ */
+char * lexer_err_to_string(LexerErr err) {
+  return lexerErrorMessages[err];
 }

@@ -70,6 +70,17 @@ bool gunderscript_build_err(Gunderscript * instance) {
   return compiler_get_err(instance->compiler);
 }
 
+char * gunderscript_err_message(Gunderscript * instance) {
+  assert(instance != NULL);
+
+  if(compiler_get_err(instance->compiler) == COMPILERERR_LEXER_ERR) {
+    return lexer_err_to_string(compiler_lex_err(instance->compiler));
+  } else {
+    return compiler_err_to_string(instance->compiler,
+				  compiler_get_err(instance->compiler));
+  }
+}
+
 int gunderscript_err_line(Gunderscript * instance) {
   assert(instance != NULL);
   return compiler_err_line(instance->compiler);

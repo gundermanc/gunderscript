@@ -30,6 +30,7 @@
 #include "vm.h"
 #include "ht.h"
 #include "buffer.h"
+#include "lexer.h"
 
 /* errors that can occur during compile time */
 typedef enum {
@@ -43,7 +44,6 @@ typedef enum {
   COMPILERERR_EXPECTED_CBRACKET,
   COMPILERERR_PREV_DEFINED_FUNC,
   COMPILERERR_PREV_DEFINED_VAR,
-  COMPILERERR_EXPECTED_VAR_NAME,
   COMPILERERR_EXPECTED_ENDSTATEMENT,
   COMPILERERR_STRING_TOO_LONG,
   COMPILERERR_UNKNOWN_OPERATOR,
@@ -53,7 +53,32 @@ typedef enum {
   COMPILERERR_UNDEFINED_FUNCTION,
   COMPILERERR_INCORRECT_NUMARGS,
   COMPILERERR_MALFORMED_IFORLOOP,
+  COMPILERERR_LEXER_ERR,
 } CompilerErr;
+
+/* english translations of compiler errors */
+static const const char * const compilerErrorMessages [] = {
+  "Success",
+  "Memory allocation failed",
+  "Expected function name, but none present",
+  "Expected '(', but none present",
+  "Expected variable name, but none present",
+  "Unexpected token, check for missing operators or unneccessary symbols",
+  "Expected '{', but none present",
+  "Expected '}', but none present",
+  "A function of this name already exists",
+  "A variable of this name already exists",
+  "Missing ';'",
+  "String is too long (len >= 255)",
+  "Unknown operator",
+  "Mismatched parenthesis",
+  "Malformed assignment statement",
+  "Undefined variable",
+  "Undefined function",
+  "Incorrect number of arguments for this function",
+  "Malformed loop or if statement",
+  "Lex error: call compiler_lex_err() for the LexerErr",
+};
 
 /* a compiler instance type */
 typedef struct Compiler {
@@ -70,6 +95,7 @@ typedef struct Compiler {
   Buffer * outBuffer;             /* buffer builder that accepts the output */
   CompilerErr err;                /* error code value */
   int errorLineNum;               /* line number where error occurred */
+  LexerErr lexerErr;              /* the error code passed by the lexer */
 } Compiler;
 
 /* a function struct */
@@ -94,5 +120,7 @@ int operator_precedence(char * operator, size_t operatorLen);
 int topstack_precedence(TypeStk * stk, Stk * lenStk);
 
 int topstack_type(TypeStk * stk, Stk * lenStk);
+
+char * compiler_err_to_string(Compiler * compiler, CompilerErr err);
 
 #endif /* COMPCOMMON__H__ */

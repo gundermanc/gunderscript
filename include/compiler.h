@@ -30,7 +30,6 @@
 #include "ht.h"
 #include "vm.h"
 
-
 Compiler * compiler_new(VM * vm);
 
 bool compiler_build(Compiler * compiler, char * input, size_t inputLen);
@@ -48,5 +47,9 @@ size_t compiler_bytecode_size(Compiler * compiler);
 char * compiler_bytecode(Compiler * compiler);
 
 int compiler_err_line(Compiler * compiler);
+
+LexerErr compiler_lex_err(Compiler * compiler);
+
+char * compiler_err_to_string(Compiler * compiler, CompilerErr err);
 
 #endif /* COMPILER__H__ */

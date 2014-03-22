@@ -381,7 +381,7 @@ static bool define_variable(Compiler * c, Lexer * l) {
   /* check that next token is a keyvar type, neccessary for variable names */
   varName = lexer_next(l, &type, &varNameLen);
   if(type != LEXERTYPE_KEYVAR) {
-    c->err = COMPILERERR_EXPECTED_VAR_NAME;
+    c->err = COMPILERERR_EXPECTED_VARNAME;
     return true;
   }
 
@@ -494,6 +494,7 @@ static bool parse_function_definitions(Compiler * c, Lexer * l) {
 
   /* check that this is a function declaration token */
   if(!tokens_equal(token, len, LANG_FUNCTION, LANG_FUNCTION_LEN)) {
+    c->err = COMPILERERR_UNEXPECTED_TOKEN;
     return false;
   }
 
@@ -639,9 +640,18 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
 
   /* compile loop */
   lexer_next(lexer, &type, &tokenLen);
-  while(parse_function_definitions(compiler, lexer)) {
+  while(lexer_current_token(lexer, &type, &tokenLen) != NULL) {
+    parse_function_definitions(compiler, lexer);
     /* handle errors */
+    if(lexer_get_err(lexer) != LEXERERR_SUCCESS) {
+      compiler->err = COMPILERERR_LEXER_ERR;
+      compiler->lexerErr = lexer_get_err(lexer);
+      compiler->errorLineNum = lexer_line_num(lexer);
+      lexer_free(lexer);
+    }
+
     if(compiler->err != COMPILERERR_SUCCESS) {
+      compiler->lexerErr = lexer_get_err(lexer);
       compiler->errorLineNum = lexer_line_num(lexer);
       lexer_free(lexer);
       return false;
@@ -756,4 +766,27 @@ int compiler_err_line(Compiler * compiler) {
   }
 
   return 0;
+}
+
+/**
+ * Gets the lexer error from the last call to compiler_build.
+ * c: an instance of compiler.
+ * return: the lexer error code.
+ */
+LexerErr compiler_lex_err(Compiler * compiler) {
+  assert(compiler != NULL);
+  return compiler->lexerErr;
+}
+
+/**
+ * Gets a string representation of the compiler error. NOTE: these strings are
+ * not dynamically allocated, but are constants that cannot be freed, and die
+ * when this module terminates.
+ * compiler: an instance of compiler.
+ * err: the error to translate to text.
+ * returns: the text form of this error.
+ */
+char * compiler_err_to_string(Compiler * compiler, CompilerErr err) {
+  assert(compiler != NULL);
+  return compilerErrorMessages[err];
 }

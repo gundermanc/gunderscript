@@ -39,6 +39,17 @@ typedef enum {
   LEXERERR_TRAILING_DECIMAL_PT
 } LexerErr;
 
+/* english translations of lexer errors */
+static const char * const lexerErrorMessages [] = {
+  "Success",
+  "Unterminated string constant",
+  "Unterminated multiline comment",
+  "New line character in string",
+  "Muliple decimal points in numeric constant",
+  "Trailing decimal point in number; all decimal points must"
+    "be followed by digits",
+};
+
 /* Lexer Token Types */
 typedef enum {
   LEXERTYPE_UNKNOWN,
@@ -83,5 +94,7 @@ int lexer_line_num(Lexer * l);
 LexerType lexer_token_type(char * token, size_t len, bool definitive);
 
 char * lexer_peek(Lexer * lexer, LexerType * type, size_t * len);
+
+char * lexer_err_to_string(LexerErr err);
 
 #endif /* LEXER__H__*/
