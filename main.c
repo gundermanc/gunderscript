@@ -49,7 +49,7 @@ static void print_build_fail() {
 }
 
 static void print_exec_fail() {
-  printf("Error executing compiled bytecode.");
+  printf("Error compiling and executing bytecode.");
 }
 
 /*static void process_arguments(int argc, char * argv[], size_t * stackSize) {
@@ -110,13 +110,14 @@ static char * load_file(char * file, size_t * size) {
 }
 
 static void print_compile_error(Gunderscript * ginst) {
-  printf("Compiler Error Number: %i\n", gunderscript_build_err(ginst));
+  printf("\n\nCompiler Error Number: %i\n", gunderscript_build_err(ginst));
   printf("Detected around Line Number: %i\n", gunderscript_err_line(ginst));
-  printf("Error: %s\n", gunderscript_err_message(ginst));
+  printf("Compiler Error: %s\n", gunderscript_err_message(ginst));
 }
 
 static void print_exec_error(Gunderscript * ginst) {
-  printf("VM Error: %i\n", gunderscript_function_err(ginst));
+  printf("\n\nVM Error: %i\n", gunderscript_function_err(ginst));
+  printf("Virtual Machine Error: %s\n", gunderscript_err_message(ginst));
 }
 
 /* vm native function */

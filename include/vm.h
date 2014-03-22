@@ -46,8 +46,26 @@ typedef enum {
   VMERR_CALLBACKS_BUFFER_FULL,        /* too many callbacks were registered */
   VMERR_CALLBACK_EXISTS,              /* a function with this name exists */
   VMERR_CALLBACK_NOT_EXIST,           /* invalid callback string, or index */
-  VMERR_INVALID_NUMBER_OF_ARGUMENTS,   /* too many/few arguments to function */
 } VMErr;
+
+/* english translations of vm errors */
+static const char * const vmErrorMessages [] = {
+  "Success",
+  "Invalid op code",
+  "Stack overflow",
+  "Operand stack is empty",
+  "Memory allocation failed",
+  "Reached end of OP codes mid instruction.",
+  "Invalid type in operation",
+  "Divide by zero",
+  "Frame stack empty",
+  "Unable to read desired frame stack variable slot",
+  "Invalid parameter in instruction",
+  "Invalid memory address in goto",
+  "Cannot register callback, callbacks buffer full",
+  "A callback with this name already exists",
+  "The callback does not exist",
+};
 
 typedef struct VMArg {
   char data[VM_VAR_SIZE];
@@ -87,6 +105,8 @@ int vm_num_callbacks(VM * vm);
 void vm_set_err(VM * vm, VMErr err);
 
 VMErr vm_get_err(VM * vm);
+
+char * vm_err_to_string(VMErr err);
 
 void vm_free(VM * vm);
 

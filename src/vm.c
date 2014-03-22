@@ -390,6 +390,18 @@ VMErr vm_get_err(VM * vm) {
 }
 
 /**
+ * Gets a string representation of the vm error. NOTE: these strings are
+ * not dynamically allocated, but are constants that cannot be freed, and die
+ * when this module terminates.
+ * lexer: an instance of lexer.
+ * err: the error to translate to text.
+ * returns: the text form of this error.
+ */
+char * vm_err_to_string(VMErr err) {
+  return vmErrorMessages[err];
+}
+
+/**
  * Frees a VM instance
  * vm: a VM instance.
  */

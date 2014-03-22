@@ -73,11 +73,15 @@ bool gunderscript_build_err(Gunderscript * instance) {
 char * gunderscript_err_message(Gunderscript * instance) {
   assert(instance != NULL);
 
-  if(compiler_get_err(instance->compiler) == COMPILERERR_LEXER_ERR) {
-    return lexer_err_to_string(compiler_lex_err(instance->compiler));
-  } else {
-    return compiler_err_to_string(instance->compiler,
+  if(compiler_get_err(instance->compiler) != COMPILERERR_SUCCESS) {
+    if(compiler_get_err(instance->compiler) == COMPILERERR_LEXER_ERR) {
+      return lexer_err_to_string(compiler_lex_err(instance->compiler));
+    } else {
+      return compiler_err_to_string(instance->compiler,
 				  compiler_get_err(instance->compiler));
+    }
+  } else {
+    return vm_err_to_string(vm_get_err(instance->vm));
   }
 }
 
