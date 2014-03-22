@@ -32,7 +32,7 @@ DOCSDIR = docs
 all: c-datastructs-build buildfs
 
 # builds everything!!
-all: testapp
+all: linuxapp
 
 # builds the testing application
 linuxapp: linuxlibrary
