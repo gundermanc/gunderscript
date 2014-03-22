@@ -647,7 +647,6 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
       compiler->err = COMPILERERR_LEXER_ERR;
       compiler->lexerErr = lexer_get_err(lexer);
       compiler->errorLineNum = lexer_line_num(lexer);
-      lexer_free(lexer);
     }
 
     if(compiler->err != COMPILERERR_SUCCESS) {
