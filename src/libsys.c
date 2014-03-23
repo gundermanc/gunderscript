@@ -140,6 +140,60 @@ static bool vmn_getchar(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
+ * VMNative: _type( )
+ * Accepts no arguments. Reads in a line from the console and returns it as a
+ * string.
+ */
+static bool vmn_type(VM * vm, VMArg * arg, int argc) {
+  char line[LIBSYS_GETLINE_MAXLEN];
+  VMLibData * result;
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+
+  /* get the input from the console */
+  switch(arg[0].type) {
+  case TYPE_NULL:
+    result = vmarg_new_string("NULL", 4);
+    break;
+  case TYPE_BOOLEAN:
+    result = vmarg_new_string("BOOLEAN", 7);
+    break;
+  case TYPE_NUMBER:
+    result = vmarg_new_string("NUMBER", 6);
+    break;
+  case TYPE_LIBDATA: {
+    char libDataType[20];
+    strcpy(libDataType, "LIBDATA{");
+    strcat(libDataType, vmarg_libdata(arg[0])->type);
+    strcat(libDataType, "}");
+    result = vmarg_new_string(libDataType, strlen(libDataType));
+    break;
+  }
+  }
+    
+    
+  /* check for malloc error */
+  if(result == NULL) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
+   
+  /* push return value */
+  if(!vmarg_push_libdata(vm, result)) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
+
+  return true;
+}
+
+/**
  * VMNative: _sys_shell( command )
  * Accepts one argument. Feeds the command into the shell.
  */
@@ -178,7 +232,8 @@ bool libsys_install(Gunderscript * gunderscript) {
   if(!vm_reg_callback(gunderscript_vm(gunderscript), "_sys_print", 10, vmn_print)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_shell", 10, vmn_shell)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getline", 12, vmn_getline)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getchar", 12, vmn_getchar)) {
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getchar", 12, vmn_getchar)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "_type", 5, vmn_type)) {
     return false;
   }
 
