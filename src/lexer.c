@@ -335,7 +335,7 @@ static bool is_digit(char c) {
  */
 static bool next_parse_keyvars(Lexer * l) {
 
-  if(is_letter(next_char(l))) {
+  if(is_letter(next_char(l)) || next_char(l) == '_') {
     int beginStrIndex = l->index;
 
     /* extract entire word */

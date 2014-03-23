@@ -46,6 +46,8 @@ typedef enum {
   VMERR_CALLBACKS_BUFFER_FULL,        /* too many callbacks were registered */
   VMERR_CALLBACK_EXISTS,              /* a function with this name exists */
   VMERR_CALLBACK_NOT_EXIST,           /* invalid callback string, or index */
+  VMERR_INCORRECT_NUMARGS,            /* incorrect number of arguments */
+  VMERR_INVALID_TYPE_ARGUMENT,        /* argument is wrong type */
 } VMErr;
 
 /* english translations of vm errors */
@@ -65,6 +67,8 @@ static const char * const vmErrorMessages [] = {
   "Cannot register callback, callbacks buffer full",
   "A callback with this name already exists",
   "The callback does not exist",
+  "Incorrect number of arguments to native function",
+  "Argument to native function is invalid type",
 };
 
 typedef struct VMArg {
@@ -99,6 +103,8 @@ struct VM {
 };
 
 
+typedef struct VMLibData VMLibData;
+
 VM * vm_new(size_t stackSize, int callbacksSize);
 
 bool vm_exec(VM * vm, char * byteCode,
@@ -128,14 +134,23 @@ double vmarg_number(VMArg arg, bool * success);
 
 bool vmarg_boolean(VMArg arg, bool * success);
 
+char * vmarg_string(VMArg arg);
+
+VMLibData * vmarg_new_string(char * string, size_t stringLen);
+
+bool vmarg_is_string(VMArg arg) ;
+
+bool vmarg_push_libdata(VM * vm, VMLibData * data);
+
+bool vmarg_push_number(VM * vm, double value);
+
+bool vmarg_push_boolean(VM * vm, bool value);
 
 /* define built in LIBDATA object types */
 #define VM_LIBDATA_TYPELEN    10
 #define GXS_STRING_TYPE           "GXS.STRING"
 #define GXS_STRING_TYPE_LEN       10
 
-
-typedef struct VMLibData VMLibData;
 
 /**
  * The function prototype for a library data type cleanup routine.

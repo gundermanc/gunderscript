@@ -36,8 +36,6 @@
 #define OP_FALSE            0
 #define OP_NO_RETURN       -1
 
-static void string_cleanup(VM * vm, VMLibData * data) ;
-
 /**
  * Pushes an operand onto the operand stack.
  * vm: an instance of vm.
@@ -681,6 +679,24 @@ bool op_pop(VM * vm,  char * byteCode,
 }
 
 /**
+ * Pushes a NULL to the stack.
+ * OP_PUSH_NULL
+ */
+bool op_null_push(VM * vm,  char * byteCode, 
+	    size_t byteCodeLen, int * index) {
+  double value = 0;
+
+  /* push null to stack */
+  if(!opstk_push(vm, &value, sizeof(double), TYPE_NULL)) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
+  (*index)++;
+
+  return true;
+}
+
+/**
  * Pushes a boolean value to the stack. 
  * OP_BOOL_PUSH [true_or_false:1]
  */
@@ -930,10 +946,15 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
   }
 
   /* call the callback function
-   * if returns false, no return value was given. push a zero as our "null" */
+   * if returns false, no return value was given. push a null */
   if(! ((*callback)(vm, args, numArgs)) ) {
     double value = 0;
-    opstk_push(vm, &value, sizeof(double), TYPE_NUMBER);
+    opstk_push(vm, &value, sizeof(double), TYPE_NULL);
+  }
+
+  /* check for native function errors */
+  if(vm->err != VMERR_SUCCESS) {
+    return false;
   }
 
   /* decrement any variable reference counters */
@@ -954,7 +975,7 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
  * its ref counters, etc.
  * returns: always returns true because this function cannot fail.
  */
-static void string_cleanup(VM * vm, VMLibData * data) {
+void string_cleanup(VM * vm, VMLibData * data) {
   free(data->libData);
 }
 

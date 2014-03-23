@@ -29,6 +29,7 @@
 #include "vmdefs.h"
 #include "typestk.h"
 #include "compiler.h"
+#include "libsys.h"
 #include "ht.h"
 #include <string.h>
 #include "gunderscript.h"
@@ -120,34 +121,6 @@ static void print_exec_error(Gunderscript * ginst) {
   printf("Virtual Machine Error: %s\n", gunderscript_err_message(ginst));
 }
 
-/* vm native function */
-static bool vmn_print(VM * vm, VMArg * arg, int argc) {
-  int i = 0;
-
-  for(i = 0; i < argc; i++) {
-    switch(vmarg_type(arg[i])) {
-    case TYPE_LIBDATA : {
-      VMLibData * data = vmarg_libdata(arg[i]);
-      if(vmlibdata_is_type(data, GXS_STRING_TYPE, GXS_STRING_TYPE_LEN)) {
-	printf("%s", vmlibdata_data(data));
-      }
-      break;
-    }
-    case TYPE_NUMBER:
-      printf("%f", vmarg_number(arg[i], NULL));
-      break;
-    case TYPE_BOOLEAN:
-      printf("%s", vmarg_boolean(arg[i], NULL) ? "true":"false");
-      break;
-    default:
-      printf("DEBUG: Unrecognised type.");
-    }
-  }
-
-  /* this function does not return a value */
-  return false;
-}
-
 int main(int argc, char * argv[]) {
   Gunderscript ginst;
   size_t stackSize = 100000;
@@ -162,8 +135,8 @@ int main(int argc, char * argv[]) {
     return 1;
   }
 
-  /* register the native print function */
-  vm_reg_callback(gunderscript_vm(&ginst), "print", 5, vmn_print);
+  /* initialize system library */
+  libsys_install(&ginst);
 
   /* check for proper number of arguments */
   if(argc < 2) {

@@ -353,6 +353,11 @@ bool vm_exec(VM * vm, char * byteCode,
 	return false;
       }
       break;
+    case OP_NULL_PUSH:
+      if(!op_null_push(vm, byteCode, byteCodeLen, &vm->index)) {
+	return false;
+      }
+      break;
     default:
       printf("Invalid OpCode at Index: %i\n", vm->index);
       vm_set_err(vm, VMERR_INVALID_OPCODE);
@@ -411,11 +416,7 @@ void vm_free(VM * vm) {
     VarType type;
 
     /* pop all items off and free strings */
-    while(typestk_pop(vm->opStk, &value, sizeof(void*), &type)) {
-      if(type == TYPE_STRING) {
-	free(value);
-      }
-    }
+    while(typestk_pop(vm->opStk, &value, sizeof(void*), &type));
 
     typestk_free(vm->opStk);
   }
@@ -535,6 +536,88 @@ bool vmarg_boolean(VMArg arg, bool * success) {
   return false;
 }
 
+/**
+ * If this argument is a string, gets it.
+ * arg: The arguement to unbox.
+ * returns: the string if it is one, or null if not a string.
+ */
+char * vmarg_string(VMArg arg) {
+
+  /* make sure its a string */
+  if(!vmarg_is_string(arg)) {
+    return NULL;
+  }
+
+  return vmlibdata_data((VMLibData*)vmarg_libdata(arg));
+}
+
+/**
+ * Creates a new string encased in a VMLibData struct, ready to be
+ * pushed to the stack as a native function return value.
+ * string: the text for the string.
+ * stringLen: the length of the new string.
+ * returns: a new VMLibData struct, or NULL if the malloc fails.
+ */
+VMLibData * vmarg_new_string(char * string, size_t stringLen) {
+  VMLibData * result;
+  char * newString = calloc(stringLen + 1, sizeof(char));
+  if(newString == NULL) {
+    return NULL;
+  }
+  strncpy(newString, string, stringLen);
+
+  result = vmlibdata_new(GXS_STRING_TYPE, GXS_STRING_TYPE_LEN, 
+			 string_cleanup, newString);
+
+  return result;
+}
+
+/**
+ * Checks to see if the current vmarg is a string.
+ * arg: a vm arg.
+ * returns: true if a string, false if not.
+ */
+bool vmarg_is_string(VMArg arg) {
+  if(arg.type == TYPE_LIBDATA
+     && vmlibdata_is_type(vmarg_libdata(arg), GXS_STRING_TYPE, GXS_STRING_TYPE_LEN)) {
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Pushes a return value onto the stack.
+ * vm: an instance of VM.
+ * data: pointer to a VMLibData struct.
+ * returns: true if success, false if fails.
+ */
+bool vmarg_push_libdata(VM * vm, VMLibData * data) {
+  vmlibdata_inc_refcount(data);
+  vmlibdata_inc_refcount(data);
+  return typestk_push(vm->opStk, &data, sizeof(VMLibData*), TYPE_LIBDATA);
+}
+
+/**
+ * Pushes a return value onto the stack.
+ * vm: an instance of VM.
+ * value: value to push.
+ * returns: true if success, false if fails.
+ */
+bool vmarg_push_number(VM * vm, double value) {
+  return typestk_push(vm->opStk, &value, sizeof(double), TYPE_NUMBER);
+}
+
+/**
+ * Pushes a return value onto the stack.
+ * vm: an instance of VM.
+ * value: value to push.
+ * returns: true if success, false if fails.
+ */
+bool vmarg_push_boolean(VM * vm, bool value) {
+  return typestk_push(vm->opStk, &value, sizeof(bool), TYPE_BOOLEAN);
+}
+
 
 
 /**
@@ -599,7 +682,7 @@ void vmlibdata_inc_refcount(VMLibData * data) {
  */
 void vmlibdata_dec_refcount(VMLibData * data) {
   assert(data != NULL);
-  assert(data-> refCount > 0);
+  /*assert(data-> refCount > 0);*/
   data->refCount--;
 }
 
@@ -633,6 +716,7 @@ bool vmlibdata_is_type(VMLibData * data, char * type, size_t typeLen) {
 
   return strncmp(data->type, type, typeLen) == 0;
 }
+
 
 /**
  * Frees a VMLibData structure and calls its cleanup method.

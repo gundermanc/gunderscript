@@ -51,6 +51,8 @@
 #define LANG_TRUE_LEN     4
 #define LANG_FALSE       "false"
 #define LANG_FALSE_LEN    5
+#define LANG_NULL        "null"
+#define LANG_NULL_LEN    4
 #define LANG_IF          "if"
 #define LANG_IF_LEN       2
 #define LANG_ELSE        "else"

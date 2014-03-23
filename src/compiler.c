@@ -571,8 +571,7 @@ static bool parse_function_definitions(Compiler * c, Lexer * l) {
 
   /* push default return value. if no other return is given, this value is 
    * returned */
-  buffer_append_char(c->outBuffer, OP_BOOL_PUSH);
-  buffer_append_char(c->outBuffer, false);
+  buffer_append_char(c->outBuffer, OP_NULL_PUSH);
 
   /* pop function frame and return to calling function */
   buffer_append_char(c->outBuffer, OP_FRM_POP);

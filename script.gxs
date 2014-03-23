@@ -14,6 +14,16 @@ function fact(n) {
   return (n * fact(n - 1));
 }
 
+
+function prompt_for_name() {
+  var name;
+  _sys_print("What is your name?");
+  name = _sys_getline();
+  //name = "sfsf";
+  _sys_shell("clear");
+  _sys_print("Hello " + name);
+}
+
 /**
  * Entry point to the script. Exported keyword tells the compiler to remember
  * the location in byte code of this function for use as an entry point.
@@ -27,6 +37,7 @@ function exported main() {
    */
   var x;
   var i;
+  prompt_for_name();
 
   // demonstrates precedence of operators and assignment statements:
   x = 1;
@@ -36,23 +47,20 @@ function exported main() {
    */
    if(true) {
      if(true) {
-       print("Look! A nested if statement. ");
+       _sys_print("Look! A nested if statement. ");
      }
 
      // string concat operation, basic math, precedence, and nested function call
-     print("Here we did some " + "math operations: ", 1 + 2 * fact(x) + 1);
-     print(" Boolean Comparison: ", (3 + 3) > (2 + 2) || 5 <= 7);
+     _sys_print("Here we did some " + "math operations: ", 1 + 2 * fact(x) + 1);
+     _sys_print(" Boolean Comparison: ", (3 + 3) > (2 + 2) || 5 <= 7);
    } else {
-     print(false);
+     _sys_print(false);
    }
    
    /* count down from ten, a loop example */
    i = 10;
    while(i != 0) {
-     print(i, ", ");
+     _sys_print(i, ", ");
      i = i - 1;
-   }
-
-   i = "dfsfsf";
-   print(i);
+   } 
 }

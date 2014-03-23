@@ -38,6 +38,7 @@
 
 /* variable datatypes */
 typedef enum {
+  TYPE_NULL,
   TYPE_BOOLEAN,
   TYPE_NUMBER,
 
@@ -78,6 +79,7 @@ typedef enum {
   OP_POP,
   OP_AND,
   OP_OR,
+  OP_NULL_PUSH,
 } OpCode;
 
 #endif /* VMDEFS__H__ */

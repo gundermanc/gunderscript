@@ -89,6 +89,10 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
 	buffer_append_char(c->outBuffer, false);
 	return true;
       }
+      if(tokens_equal(varToken, varLen, LANG_NULL, LANG_NULL_LEN)) {
+	buffer_append_char(c->outBuffer, OP_NULL_PUSH);
+	return true;
+      }
 
       /* check that the variable was previously declared */
       if(ht_get_raw_key(symtblstk_peek(c), varToken, varLen, &value)) {
