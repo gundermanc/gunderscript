@@ -74,18 +74,28 @@ typedef struct VMArg {
 
 typedef struct VM VM;
 
+/* a library data type struct */
+typedef struct {
+  char type[10];            /* a type identifier */
+  void * libData;           /* pointer to library data */
+} VMLibData;
+
+/* the function prototype for a library data type cleanup routine */
+typedef bool (*VMLibDataCleanupCallback) (VM * vm, VMLibData * data);
+
 /* the function prototype for a native VM function */
 typedef bool (*VMCallback) (VM * vm, VMArg * arg, int argc);
 
+/* VM instance struct */
 struct VM {
-  FrmStk * frmStk;
-  TypeStk * opStk;
-  VMCallback * callbacks;
-  HT * callbacksHT;
-  int callbacksSize;
-  int numCallbacks;
-  int index;
-  VMErr err;
+  FrmStk * frmStk;                /* the stack of stack frames */
+  TypeStk * opStk;                /* the stack of operands */
+  VMCallback * callbacks;         /* the array of native bound functions */
+  HT * callbacksHT;               /* a pointer to the callbacks hashtable */
+  int callbacksSize;              /* the size of the callbacks array */
+  int numCallbacks;               /* the number of callbacks in array */
+  int index;                      /* current execution index */
+  VMErr err;                      /* VM error state */
 };
 
 

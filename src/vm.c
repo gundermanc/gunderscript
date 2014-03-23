@@ -21,9 +21,6 @@
  * of a double. This is done twice, once for each number. Finally, the last
  * byte is a OP_ADD byte that signals the VM to pop both values, add them,
  * and push the result.
- *
- * TODO: This file needs to be cleaned up and still needs some OP codes
- * implemented.
  * 
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU Lesser General Public License as published by

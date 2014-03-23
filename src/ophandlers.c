@@ -231,6 +231,17 @@ bool op_frame_pop(VM * vm,  char * byteCode,
 		   size_t byteCodeLen, int * index) {
 
   int returnAddr = frmstk_ret_addr(vm->frmStk);
+  int i = 0;
+  char * arg;
+  VarType type;
+
+  /* free strings that were popped and passed */
+  for(i = 0; frmstk_var_read(vm->frmStk, 0, i, &arg, 
+			     sizeof(char*), &type); i++) {
+    if(type == TYPE_STRING) {
+      free(arg);
+    }
+  }
 
   /* pop frame off of the stack */
   if(!frmstk_pop(vm->frmStk)) {
@@ -549,7 +560,8 @@ bool op_pop(VM * vm,  char * byteCode,
 
   /* strings are dynamically allocated. free them */
   if(type == TYPE_STRING) {
-    free(value);
+    /* TODO: figure out how to free strings only when needed */
+    free(value); 
   }
 
   return true;
@@ -806,6 +818,13 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
   if(! ((*callback)(vm, args, numArgs)) ) {
     double value = 0;
     typestk_push(vm->opStk, &value, sizeof(double), TYPE_NUMBER);
+  }
+
+  /* free any string arguments since they were popped */
+  for(i = 0; i < numArgs; i++) {
+    if(args[i].type == TYPE_STRING) {
+      free(vmarg_string(args[i]));
+    }
   }
   
   return true;

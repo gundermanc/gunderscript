@@ -29,7 +29,7 @@
 /* size allocated for VM variables on the stack:
  * largest field is a double which is 8 bytes
  */
-#define VM_VAR_SIZE          8
+#define VM_VAR_SIZE          sizeof(double)
 
 /* maximum number of arguments for a native
  * function
@@ -41,7 +41,7 @@ typedef enum {
   TYPE_BOOLEAN,
   TYPE_NUMBER,
   TYPE_STRING,
-  TYPE_USERDATA,
+  TYPE_LIBDATA,
 }VarType;
 
 /* VM OP Code values */
