@@ -26,6 +26,7 @@
 #include "gunderscript.h"
 #include "vm.h"
 #include <string.h>
+#include <unistd.h>
 
 #define LIBSYS_GETLINE_MAXLEN          255
 
@@ -145,7 +146,6 @@ static bool vmn_getchar(VM * vm, VMArg * arg, int argc) {
  * string.
  */
 static bool vmn_type(VM * vm, VMArg * arg, int argc) {
-  char line[LIBSYS_GETLINE_MAXLEN];
   VMLibData * result;
   /* check for correct number of arguments */
   if(argc != 1) {
@@ -174,7 +174,7 @@ static bool vmn_type(VM * vm, VMArg * arg, int argc) {
     strcat(libDataType, "}");
     result = vmarg_new_string(libDataType, strlen(libDataType));
     break;
-  }
+    }
   }
     
     
@@ -192,6 +192,37 @@ static bool vmn_type(VM * vm, VMArg * arg, int argc) {
 
   return true;
 }
+
+/**
+ * VMNative: _file_delete( fileName )
+ * Deletes file with path/name fileName. Returns true if success, false if fail
+ */
+static bool vmn_file_delete(VM * vm, VMArg * arg, int argc) {
+  char * fileName;
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* check argument 1 type */
+  if((fileName = vmarg_string(arg[0])) == NULL) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+   
+  /* push return value */
+  if(!vmarg_push_boolean(vm, unlink(fileName) == 0)) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
+
+  return true;
+}
+
+
 
 /**
  * VMNative: _sys_shell( command )
@@ -233,7 +264,8 @@ bool libsys_install(Gunderscript * gunderscript) {
      || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_shell", 10, vmn_shell)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getline", 12, vmn_getline)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getchar", 12, vmn_getchar)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "_type", 5, vmn_type)) {
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "_type", 5, vmn_type)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "_file_delete", 12, vmn_file_delete)) {
     return false;
   }
 
