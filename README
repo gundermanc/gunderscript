@@ -17,34 +17,38 @@ along with this program.  If not, see <http://www.gnu.org/licenses/>.
 Contact Email: gundermanc@gmail.com
 
 
+ATTENTION:
+I am seeking developers to help me complete Gunderscript and test it. If anyone
+is interested, please email gundermanc@gmail.com.
+
 INTRODUCTION:
-This repository contains/will contain the code for the Gunderscript
-scripting language, currently under construction. This project is in no way
-ready for actual use yet, but is growing quickly. Currently, I am just trying
-to get the basic system up and running. For more information about the project,
-see the EMACS org-mode file pseudocode.org in the docs directory.
+This repository containsthe code for the Gunderscript scripting language, 
+currently under construction. This project is about 75% complete and is maturing
+quickly. Currently, I am just trying to get the basic features completed. For
+more information about the project, see the Features and Completion Status sub-
+headers below.
 
 PROJECT GOALS:
 Gunderscript is designed to be a dynamically typed C style embeddable scripting
 language written in C89 standard portable C. It compiles down to an executable
-opcode and intended for use as a scripting language in games etc.
+opcode and intended for use as a scripting language in games etc. At the moment,
+it works cross platform and has been tested on 64 bit Windows, and linux_32 and 
+linux64 for x86. I intend to support ARM as well, but have yet to test it.
 
 BUILDING:
 Clone the repository and make the commandline application for linux with:
   make linuxapp
 Or make the static library only with:
   make linuxlibrary
-Other targets do not yet have build files. To use the command line application,
-after building, run:
+Other targets can be built with the same commands under MinGW on Windows.
+To use the command line application, after building, run:
   ./gunderscript [entrypoint] [scriptfiles]
 Where entrypoint is the name of the function to start execution, and scriptfiles
 is one or more space delimited gunderscript files. An example file is included in
-the repository. Although the script environment builds and handles memory
-correctly, it currently lacks support for if statements and loops. Furthermore,
-it does not yet have any built in native C functions. For demonstrative purposes,
-I included a print() function.
+the repository. You can run this example file with:
+  ./gunderscript main script.gxs
 
-DESIRED FEATURES:
+FEATURES, Current:
    - C style commenting, syntax, function declarations, operators, end statement
      character, etc.
 
@@ -62,28 +66,35 @@ DESIRED FEATURES:
      + Native C Custom :: Used by native developers to create file contexts, etc.
    - Auto conversion between types
    - Compiles to system independent bytecode. Runs on built in stack based VM.
-     Byte code comes in two variations:
-     + System Independent :: Refers to native functions in byte code by their
-	  string names. This byte code is slower, however, it can be executed on
-	  any GunderScript VM machine.
-     + Optimized :: Refers to native functions in byte code by a pointer to their
-		    current location in memory. This byte code is only valid for
-		    the current execution of GunderScript, since pointers change
-		    every execution. However, this bytecode is much faster since
-		    it doesn't require looking up a function from its name in a
-		    hashtable. This bytecode can be generated from system
-		    independent bytecode right before execution.
+   - Recursion
    - While loops
    - Return Statements
-   - For loops
    - Nestable logic
    - Local variables
    - Compile Time Error Checking
    - Compile to byte code
+   - File Interaction Library
+   - Print to Console
+   - Read From Console
+   - Cross platform, tested on Windows (MingGW) and Linux (GCC).
+   - 100% memory leak/error free. Checked with VALGRIND
 
-There MAY be support for structs, object, garbage collection, etc. in the future,
-but for now I am focusing on the basics neccessary for implementing logic and use
-as a plugin system.
+
+FEATURES, Future:
+   - Apache2 module (maybe some day...not begun yet)
+   - For loops
+   - Object orientation/namespaces (this MIGHT happen)
+   - Arrays (should be in the next week or so)
+   - Datastructures:
+     + Hashtables
+     + Stacks
+     + HashSet
+     + Linked List
+     + StringBuilder
+   - File Manipulation Libraries (in progress)
+   - System call libraries (in progress)
+   - Configuration File Class
+
 
 COMPLETION STATUS:
 C-Datastructs and Hashtable -- c-datastructs/ -- 100%
@@ -95,12 +106,19 @@ Virtual Machine Object -- vm.c -- 95%
 VM Opcode interpreter -- ophandlers.c -- 98%
 Compiler -- compiler.c -- 75%
 Straight Code -- parsers.c -- 98%
-Ifs and Whiles -- parsers.c -- 75%
+Ifs and Whiles -- parsers.c -- 95%
+For Loops -- parsers.c -- 0%
 Gunderscript Object -- gunderscript.c -- 50%
 Command Line Application -- main.c -- 25%
+File Manipulation Library -- libsys.c -- 25%
+String Manipulation Library -- libstring.c -- 0%
+Datastructures Library -- libdatastructs.c -- 0%  (should be quick since they
+   are already implemented..just need interfaces)
+Gtk+ Library -- libgtk.c -- 0% ..a pipe dream. I'm going to attempt this summer 2014
 
-The planning documents can be found in the docs directory. They are not up to date
+
+The planning documents can be found in the docs directory. They are WAY out of date
 since my efforts are now focused on construction, but they are still a good indicator
 of the intentions for the project.
 
-This project is built upon the c-datastructs library by Christian Gunderman.
+This project is built is 100% coded by Christian Gunderman.
