@@ -614,6 +614,17 @@ bool vmarg_push_number(VM * vm, double value) {
  * value: value to push.
  * returns: true if success, false if fails.
  */
+bool vmarg_push_null(VM * vm) {
+  double value = 0;
+  return typestk_push(vm->opStk, &value, sizeof(double), TYPE_NULL);
+}
+
+/**
+ * Pushes a return value onto the stack.
+ * vm: an instance of VM.
+ * value: value to push.
+ * returns: true if success, false if fails.
+ */
 bool vmarg_push_boolean(VM * vm, bool value) {
   return typestk_push(vm->opStk, &value, sizeof(bool), TYPE_BOOLEAN);
 }

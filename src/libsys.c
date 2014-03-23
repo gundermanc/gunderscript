@@ -97,6 +97,43 @@ static bool vmn_getline(VM * vm, VMArg * arg, int argc) {
     }
 
     return true;
+  } else {
+    vmarg_push_null(vm);
+  }
+
+  return false;
+}
+
+/**
+ * VMNative: _sys_getchar( )
+ * Accepts no arguments. Reads in a char from the console and returns it as a
+ * number.
+ */
+static bool vmn_getchar(VM * vm, VMArg * arg, int argc) {
+  int c = 0;
+
+  /* check for correct number of arguments */
+  if(argc != 0) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  c = fgetc(stdin);
+
+  /* get the input from the console */
+  if(c != EOF) {
+
+    /* push return value */
+    if(!vmarg_push_number(vm, (double)c)) {
+      vm_set_err(vm, VMERR_ALLOC_FAILED);
+      return false;
+    }
+
+    return true;
+  } else {
+    vmarg_push_null(vm);
   }
 
   return false;
@@ -140,7 +177,8 @@ static bool vmn_shell(VM * vm, VMArg * arg, int argc) {
 bool libsys_install(Gunderscript * gunderscript) {
   if(!vm_reg_callback(gunderscript_vm(gunderscript), "_sys_print", 10, vmn_print)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_shell", 10, vmn_shell)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getline", 12, vmn_getline)) {
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getline", 12, vmn_getline)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getchar", 12, vmn_getchar)) {
     return false;
   }
 
