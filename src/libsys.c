@@ -222,6 +222,35 @@ static bool vmn_file_delete(VM * vm, VMArg * arg, int argc) {
   return true;
 }
 
+/**
+ * VMNative: _file_exists( fileName )
+ * Checks if file exists. Returns true if so
+ */
+static bool vmn_file_exists(VM * vm, VMArg * arg, int argc) {
+  char * fileName;
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* check argument 1 type */
+  if((fileName = vmarg_string(arg[0])) == NULL) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+   
+  /* push return value */
+  if(!vmarg_push_boolean(vm, access(fileName, F_OK) == 0)) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
+
+  return true;
+}
+
 
 
 /**
@@ -265,7 +294,8 @@ bool libsys_install(Gunderscript * gunderscript) {
      || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getline", 12, vmn_getline)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getchar", 12, vmn_getchar)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "_type", 5, vmn_type)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "_file_delete", 12, vmn_file_delete)) {
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "_file_delete", 12, vmn_file_delete)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "_file_exists", 12, vmn_file_exists)) {
     return false;
   }
 
