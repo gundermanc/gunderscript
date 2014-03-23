@@ -464,15 +464,15 @@ VarType vmarg_type(VMArg arg) {
  * The following three functions would be better as MACROS
  */
 /**
- * Converts a VMArg to a string.
+ * Converts a VMArg to a libdata pointer.
  * arg: The arg to convert/
  * returns: a char*, or NULL if the arg is not a string.
  */
-char * vmarg_string(VMArg arg) {
+VMLibData * vmarg_libdata(VMArg arg) {
 
-  if(arg.type == TYPE_STRING) {
-    char * argument;
-    memcpy(&argument, arg.data, sizeof(char*));
+  if(arg.type == TYPE_LIBDATA) {
+    VMLibData * argument;
+    memcpy(&argument, arg.data, sizeof(VMLibData*));
     return argument;
   }
 
@@ -533,4 +533,118 @@ bool vmarg_boolean(VMArg arg, bool * success) {
   }
 
   return false;
+}
+
+
+
+/**
+ * Creates a new VMLibData structure instance.
+ * type: a string that specifies the type of this VMLibData struct. This string
+ * is limited to VM_LIBDATA_TYPELEN in length.
+ * typeLen: the length of the type string. Cannot be more than 
+ * VM_LIBDATA_TYPELEN.
+ * cleanupCallback: a function that will free any memory allocated by the lib
+ * implementing this type when the object goes out of scope.
+ * libData: a pointer allocated by the library implementor. This pointer can be
+ * used to store data required to implement the desired functionality.
+ * return: a new instance, or NULL if the malloc fails. NOTE: assert failure if
+ * type is longer than VM_LIBDATA_TYPELEN.
+ */
+
+VMLibData * vmlibdata_new(char * type, size_t typeLen,
+			  VMLibDataCleanupCallback cleanupCallback, void * libData) {
+  assert(!(typeLen > VM_LIBDATA_TYPELEN));
+  assert(type != NULL);
+
+  VMLibData * data = calloc(1, sizeof(VMLibData));
+
+  if(data == NULL) {
+    return NULL;
+  }
+
+  strncpy(data->type, type, typeLen);
+  data->libData = libData;
+  data->cleanupCallback = cleanupCallback;
+  data->refCount = 0;
+
+  return data;
+}
+
+/**
+ * Gets the pointer to the data associated with this type. For example, in the
+ * string type, the string is stored at this pointer.
+ * data: an instance of VMLibData.
+ * return: the data pointer.
+ */
+void * vmlibdata_data(VMLibData * data) {
+  assert(data != NULL);
+  return data->libData;
+}
+
+
+/**
+ * Used by the VM to track usage of an object, this increments the internal
+ * reference counter for this VMLibData.
+ * data: an instance.
+ */
+void vmlibdata_inc_refcount(VMLibData * data) {
+  assert(data != NULL);
+  data->refCount++;
+}
+
+/**
+ * Used by the VM to track usage of an object, this decrements the internal
+ * reference counter for this VMLibData.
+ * data: an instance.
+ */
+void vmlibdata_dec_refcount(VMLibData * data) {
+  assert(data != NULL);
+  assert(data-> refCount > 0);
+  data->refCount--;
+}
+
+/**
+ * Used by the VM to track usage of an object, checks the reference counter
+ * for the specified object. If the reference count is 0, the VM automatically
+ * destroys this object.
+ * data: an instance.
+ */
+void vmlibdata_check_cleanup(VM * vm, VMLibData * data) {
+  assert(vm != NULL);
+  assert(data != NULL);
+  if(data->refCount <= 0) {
+    vmlibdata_free(vm, data);
+  }
+}
+
+/**
+ * Checks if data is the specified type.
+ * data: an instance.
+ * type: type to check against.
+ * typeLen: the length of the type string. Strings, for example are
+ * GXS_STRING_TYPE.
+ * returns: true if data is of type, type and false if not.
+ */
+bool vmlibdata_is_type(VMLibData * data, char * type, size_t typeLen) {
+  assert(data != NULL);
+  if(typeLen > VM_LIBDATA_TYPELEN) {
+    return false;
+  }
+
+  return strncmp(data->type, type, typeLen) == 0;
+}
+
+/**
+ * Frees a VMLibData structure and calls its cleanup method.
+ * vm: the VM instance.
+ * data: an instance of VMLibData.
+ */
+void vmlibdata_free(VM * vm, VMLibData * data) {
+  assert(vm != NULL);
+  assert(data != NULL);
+
+  if(data->cleanupCallback != NULL) {
+    ((*data->cleanupCallback)(vm, data));
+  }
+  free(data);
 }

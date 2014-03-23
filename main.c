@@ -126,9 +126,13 @@ static bool vmn_print(VM * vm, VMArg * arg, int argc) {
 
   for(i = 0; i < argc; i++) {
     switch(vmarg_type(arg[i])) {
-    case TYPE_STRING:
-      printf("%s", vmarg_string(arg[i]));
+    case TYPE_LIBDATA : {
+      VMLibData * data = vmarg_libdata(arg[i]);
+      if(vmlibdata_is_type(data, GXS_STRING_TYPE, GXS_STRING_TYPE_LEN)) {
+	printf("%s", vmlibdata_data(data));
+      }
       break;
+    }
     case TYPE_NUMBER:
       printf("%f", vmarg_number(arg[i], NULL));
       break;

@@ -74,16 +74,16 @@ typedef struct VMArg {
 
 typedef struct VM VM;
 
-/* a library data type struct */
-typedef struct {
-  char type[10];            /* a type identifier */
-  void * libData;           /* pointer to library data */
-} VMLibData;
 
-/* the function prototype for a library data type cleanup routine */
-typedef bool (*VMLibDataCleanupCallback) (VM * vm, VMLibData * data);
-
-/* the function prototype for a native VM function */
+/**
+ * The function prototype for a native VM function.
+ * vm: an instance of VM.
+ * arg: an array of arguments that is argc in size. Check an argument's type
+ * with vmarg_type(). Once you know its type, unbox it with vmarg_*() functions.
+ * argc: the number of arguments that this call received.
+ * returns True if this function pushed a return value to the stack, and false
+ * if not...vm automatically pushes a default return.
+ */
 typedef bool (*VMCallback) (VM * vm, VMArg * arg, int argc);
 
 /* VM instance struct */
@@ -124,12 +124,55 @@ int vm_exit_index(VM * vm);
 
 VarType vmarg_type(VMArg arg);
 
-char * vmarg_string(VMArg arg);
-
 double vmarg_number(VMArg arg, bool * success);
 
 bool vmarg_boolean(VMArg arg, bool * success);
 
 
+/* define built in LIBDATA object types */
+#define VM_LIBDATA_TYPELEN    10
+#define GXS_STRING_TYPE           "GXS.STRING"
+#define GXS_STRING_TYPE_LEN       10
 
+
+typedef struct VMLibData VMLibData;
+
+/**
+ * The function prototype for a library data type cleanup routine.
+ * For each TYPE_LIBDATA type (strings and other "objects") are defined
+ * using VmLibData structs that can be used as values by pushing their
+ * pointers to the operand stack with the type TYPE_LIBDATA. When these types
+ * go out of scope, this function is called (if defined for the VMLibData) to
+ * destroy any dynamic memory associated with value.
+ * vm: an instance of vm.
+ * data: the VMLibData structure that is to be destroyed. If the library
+ * creator used the data->libData pointer, now is the time to free its target.
+ */
+typedef void (*VMLibDataCleanupCallback) (VM * vm, VMLibData * data);
+
+/* a library data type struct */
+struct VMLibData {
+  char type[VM_LIBDATA_TYPELEN];          /* a type identifier */
+  void * libData;                         /* pointer to library data */
+  int refCount;                           /* # refs to this object */
+  VMLibDataCleanupCallback cleanupCallback;
+};
+
+
+VMLibData * vmlibdata_new(char * type, size_t typeLen,
+			  VMLibDataCleanupCallback cleanupCallback, void * libData);
+
+void * vmlibdata_data(VMLibData * data);
+
+void vmlibdata_inc_refcount(VMLibData * data);
+
+void vmlibdata_dec_refcount(VMLibData * data);
+
+void vmlibdata_check_cleanup(VM * vm, VMLibData * data);
+
+bool vmlibdata_is_type(VMLibData * data, char * type, size_t typeLen);
+
+void vmlibdata_free(VM * vm, VMLibData * data);
+
+VMLibData * vmarg_libdata(VMArg arg);
 #endif /* VM__H__ */

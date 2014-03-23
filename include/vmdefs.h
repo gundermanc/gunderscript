@@ -40,7 +40,10 @@
 typedef enum {
   TYPE_BOOLEAN,
   TYPE_NUMBER,
-  TYPE_STRING,
+
+  /* Stores any non-primitive datatype, including strings. Use vmlibdata_*()
+   * to interact with this.
+   */
   TYPE_LIBDATA,
 }VarType;
 

@@ -25,14 +25,77 @@
 
 #include "gsbool.h"
 #include "vm.h"
+#include "ophandlers.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
+#include <assert.h>
 
 /* define boolean values used in the op_bool_push function */
 #define OP_TRUE             1
 #define OP_FALSE            0
 #define OP_NO_RETURN       -1
+
+static void string_cleanup(VM * vm, VMLibData * data) ;
+
+/**
+ * Pushes an operand onto the operand stack.
+ * vm: an instance of vm.
+ * data: pointer to the data to push to the stack.
+ * dataSize: the size of the operand in bytes.
+ * type: the type of this operand.
+ * returns: true if success, and false if typestk error occurs. See typestk.c
+ * for more info.
+ */
+static bool opstk_push(VM * vm, void * data, size_t dataSize, VarType type) {
+
+  /* increment ref count for this object */
+  if(type == TYPE_LIBDATA) {
+    vmlibdata_inc_refcount( *((VMLibData**)data) );
+  }
+
+  return typestk_push(vm->opStk, data, dataSize, type);
+}
+
+/**
+ * Pops an operand from the operand stack.
+ * vm: an instance of VM.
+ * data: pointer to a buffer to receive the value.
+ * dataSize: the size of the data buffer in bytes.
+ * type: pointer to a VarType that will receive the type of the operand.
+ * returns: true if success, and false if typestk error occurs. See typestk.c.
+ */
+static bool opstk_pop(VM * vm, void * data, size_t dataSize, VarType * type) {
+  bool result = typestk_pop(vm->opStk, data, dataSize, type);
+  
+  /* decrement ref count for this object */
+  if(*type == TYPE_LIBDATA) {
+    vmlibdata_dec_refcount( *((VMLibData**)data) );
+  }
+
+  return result;
+}
+
+/**
+ * Peeks an operand from the operand stack.
+ * vm: an instance of VM.
+ * data: pointer to a buffer to receive the value.
+ * dataSize: the size of the data buffer in bytes.
+ * type: pointer to a VarType that will receive the type of the operand.
+ * returns: true if success, and false if typestk error occurs. See typestk.c.
+ */
+bool opstk_peek(VM * vm, void * data, size_t dataSize, VarType * type) {
+
+  return typestk_peek(vm->opStk, data, dataSize, type);
+}
+
+
+
+
+
+
+
+
 
 /**
  * All OP functions have more or less the same arguments. To save space
@@ -47,7 +110,6 @@
  */
 
 
-
 /**
  * Handles OP_VAR_STOR opcode. Stores the top value from the op stack in the
  * frmstk at the specified stack depth and the specified index.
@@ -58,8 +120,11 @@ bool op_var_stor(VM * vm, char * byteCode,
 
   char stackDepth = byteCode[++(*index)];
   char varArgsIndex = byteCode[++(*index)];
+  VMLibData * dataStruct;
+  VMLibData * oldDataStruct;
   char data[VM_VAR_SIZE];
   VarType type;
+  VarType oldType;
 
   /* check that there are enough tokens in the input */
   if((byteCodeLen - *index) < 2) {
@@ -82,16 +147,30 @@ bool op_var_stor(VM * vm, char * byteCode,
     return false;
   }
 
-  typestk_peek(vm->opStk, data, VM_VAR_SIZE, &type);
+  opstk_peek(vm, data, VM_VAR_SIZE, &type);
+  opstk_peek(vm, &dataStruct, sizeof(VMLibData*), &type);
+
+  /* increment ref counter for this object */
+  if(type == TYPE_LIBDATA) {
+    vmlibdata_inc_refcount(dataStruct);
+  }
+
+  /* decrement ref counter for previous value if it was an object */
+  frmstk_var_read(vm->frmStk, stackDepth, 
+		  varArgsIndex, &oldDataStruct, sizeof(VMLibData*), &oldType);
+  if(oldType == TYPE_LIBDATA) {
+    vmlibdata_dec_refcount(oldDataStruct);
+    vmlibdata_check_cleanup(vm, oldDataStruct);
+  }
 
   /* write the value to a variable slot in the frame stack */
-  if(frmstk_var_write(vm->frmStk, stackDepth, 
+  if(!frmstk_var_write(vm->frmStk, stackDepth, 
 		      varArgsIndex, data, VM_VAR_SIZE, type)) {
-    return true;
-  } else {
     vm_set_err(vm, VMERR_FRMSTK_VAR_ACCESS_FAILED);
     return false;
-  }			 
+  }
+
+  return true;
 }
 
 /**
@@ -104,6 +183,7 @@ bool op_var_push(VM * vm,  char * byteCode,
   char stackDepth = byteCode[++(*index)];
   char varArgsIndex = byteCode[++(*index)];
   char data[VM_VAR_SIZE];
+  VMLibData * dataStruct;
   VarType type;  
 
   /* check that there are enough tokens in the input */
@@ -122,15 +202,22 @@ bool op_var_push(VM * vm,  char * byteCode,
   }
 
   /* read value from framestack variable slot */
-  if(frmstk_var_read(vm->frmStk, stackDepth, 
+  if(!frmstk_var_read(vm->frmStk, stackDepth, 
 		     varArgsIndex, data, VM_VAR_SIZE, &type)) {
-  } else {
     vm_set_err(vm, VMERR_FRMSTK_VAR_ACCESS_FAILED);
     return false;
   }
 
+  /* increment ref count for objects */
+  frmstk_var_read(vm->frmStk, stackDepth, 
+		  varArgsIndex, &dataStruct, sizeof(VMLibData*), &type);
+  if(type == TYPE_LIBDATA) {
+    vmlibdata_inc_refcount(dataStruct);
+  }
+  
+
   /* push value to op stack */
-  if(!typestk_push(vm->opStk, data, VM_VAR_SIZE, type)) {
+  if(!opstk_push(vm, data, VM_VAR_SIZE, type)) {
     vm_set_err(vm, VMERR_ALLOC_FAILED);
     return false;
   }
@@ -201,7 +288,7 @@ bool op_frame_push(VM * vm,  char * byteCode,
       char data[VM_VAR_SIZE];
       VarType type;
 
-      typestk_pop(vm->opStk, &data, VM_VAR_SIZE, &type);
+      opstk_pop(vm, &data, VM_VAR_SIZE, &type);
       frmstk_var_write(vm->frmStk, FRMSTK_TOP, i, &data, VM_VAR_SIZE, type);
     }
 
@@ -232,17 +319,18 @@ bool op_frame_pop(VM * vm,  char * byteCode,
 
   int returnAddr = frmstk_ret_addr(vm->frmStk);
   int i = 0;
-  char * arg;
+  VMLibData * arg;
   VarType type;
 
-  /* free strings that were popped and passed */
+  /* free objects that were popped and passed */
   for(i = 0; frmstk_var_read(vm->frmStk, 0, i, &arg, 
-			     sizeof(char*), &type); i++) {
-    if(type == TYPE_STRING) {
-      free(arg);
+			     sizeof(VMLibData*), &type); i++) {
+    if(type == TYPE_LIBDATA) {
+      vmlibdata_dec_refcount(arg);
+      vmlibdata_check_cleanup(vm, arg);
     }
   }
-
+  
   /* pop frame off of the stack */
   if(!frmstk_pop(vm->frmStk)) {
     vm_set_err(vm, VMERR_STACK_EMPTY);
@@ -287,18 +375,32 @@ bool op_add(VM * vm,  char * byteCode,
   (*index)++;
 
   /* check the types of the top two objects on the stack */
-  typestk_peek(vm->opStk, NULL, sizeof(char*), &type1);
-  typestk_peek(vm->opStk, NULL, sizeof(char*), &type2);
+  opstk_peek(vm, NULL, sizeof(char*), &type1);
+  opstk_peek(vm, NULL, sizeof(char*), &type2);
 
   /* handle string to string concat operation */
-  if(type1 == TYPE_STRING || type2 == TYPE_STRING) {
+  if(type1 == TYPE_LIBDATA && type2 == TYPE_LIBDATA) {
 
+    VMLibData * data1;
+    VMLibData * data2;
+    VMLibData * result;
     char * string1;
     char * string2;
 
-    /* pop topmost two strings */
-    typestk_pop(vm->opStk, &string1, sizeof(char*), &type1);
-    typestk_pop(vm->opStk, &string2, sizeof(char*), &type2);
+    /* pop topmost libdata structs */
+    opstk_pop(vm, &data1, sizeof(VMLibData*), &type1);
+    opstk_pop(vm, &data2, sizeof(VMLibData*), &type2);
+
+    /* check to make sure these libdata structs contain strings */
+    if(!vmlibdata_is_type(data1, GXS_STRING_TYPE, GXS_STRING_TYPE_LEN)
+       || !vmlibdata_is_type(data2, GXS_STRING_TYPE, GXS_STRING_TYPE_LEN)) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
+
+    /* get strings */
+    string1 = vmlibdata_data(data1);
+    string2 = vmlibdata_data(data2);
 
     /* allocate and push new string, and free old ones */
     newString = calloc(strlen(string1) + strlen(string2) + 1, sizeof(char));
@@ -307,30 +409,41 @@ bool op_add(VM * vm,  char * byteCode,
       return false;
     }
 
+    /* copy contents of both strings to new string */
     strcpy(newString, string2);
     strcat(newString, string1);
 
-    /* handle typestk realloc error */
-    if(!typestk_push(vm->opStk, &newString, sizeof(char*), TYPE_STRING)) {
+    /* create result LibData struct */
+    result = vmlibdata_new(GXS_STRING_TYPE, GXS_STRING_TYPE_LEN, 
+			   string_cleanup, newString);
+    vmlibdata_inc_refcount(result);
+
+    /* handle LibData alloc and typestk realloc error */
+    if(result == NULL
+       || !opstk_push(vm, &result, sizeof(VMLibData*), TYPE_LIBDATA)) {
       vm_set_err(vm, VMERR_ALLOC_FAILED);
       return false;
     }
 
-    free(string1);
-    free(string2);
+    /* cleanup memory */
+    vmlibdata_dec_refcount(data1);
+    vmlibdata_dec_refcount(data2);
+    vmlibdata_check_cleanup(vm, data1);
+    vmlibdata_check_cleanup(vm, data2);
+
     return true;
-  } else if(type1 == TYPE_NUMBER || type2 == TYPE_NUMBER) {
+  } else if(type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) {
     /* handle add operation: */
 
     double value1;
     double value2;
 
     /* pop topmost two double values */
-    typestk_pop(vm->opStk, &value1, sizeof(double), &type1);
-    typestk_pop(vm->opStk, &value2, sizeof(double), &type2);
+    opstk_pop(vm, &value1, sizeof(double), &type1);
+    opstk_pop(vm, &value2, sizeof(double), &type2);
     
     value1 += value2;
-    typestk_push(vm->opStk, &value1, sizeof(double), type1);
+    opstk_push(vm, &value1, sizeof(double), type1);
 
   } else {
     vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
@@ -357,8 +470,8 @@ bool op_dual_operand_math(VM * vm,  char * byteCode,
     return false;
   }
 
-  typestk_pop(vm->opStk, &value2, sizeof(double), &type1);
-  typestk_pop(vm->opStk, &value1, sizeof(double), &type2);
+  opstk_pop(vm, &value2, sizeof(double), &type1);
+  opstk_pop(vm, &value1, sizeof(double), &type2);
     
   /* check that both operands are numbers..fail other types */
   if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
@@ -396,7 +509,7 @@ bool op_dual_operand_math(VM * vm,  char * byteCode,
 
   (*index)++;
 
-  typestk_push(vm->opStk, &value1, sizeof(double), TYPE_NUMBER);
+  opstk_push(vm, &value1, sizeof(double), TYPE_NUMBER);
   return true;
 }
 
@@ -420,8 +533,8 @@ bool op_dual_comparison(VM * vm,  char * byteCode,
     return false;
   }
 
-  typestk_pop(vm->opStk, &value2, sizeof(double), &type1);
-  typestk_pop(vm->opStk, &value1, sizeof(double), &type2);
+  opstk_pop(vm, &value2, sizeof(double), &type1);
+  opstk_pop(vm, &value1, sizeof(double), &type2);
     
   /* check data types */
   if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
@@ -458,7 +571,7 @@ bool op_dual_comparison(VM * vm,  char * byteCode,
   (*index)++;
 
   /* push result */
-  typestk_push(vm->opStk, &result, sizeof(bool), TYPE_BOOLEAN);
+  opstk_push(vm, &result, sizeof(bool), TYPE_BOOLEAN);
   return true;
 }
 
@@ -481,8 +594,8 @@ bool op_boolean_logic(VM * vm,  char * byteCode,
     return false;
   }
 
-  typestk_pop(vm->opStk, &value2, sizeof(bool), &type1);
-  typestk_pop(vm->opStk, &value1, sizeof(bool), &type2);
+  opstk_pop(vm, &value2, sizeof(bool), &type1);
+  opstk_pop(vm, &value1, sizeof(bool), &type2);
     
   /* check data types */
   if(type1 != TYPE_BOOLEAN || type2 != TYPE_BOOLEAN) {
@@ -507,7 +620,7 @@ bool op_boolean_logic(VM * vm,  char * byteCode,
   (*index)++;
 
   /* push result */
-  typestk_push(vm->opStk, &result, sizeof(bool), TYPE_BOOLEAN);
+  opstk_push(vm, &result, sizeof(bool), TYPE_BOOLEAN);
   return true;
 }
 
@@ -529,7 +642,7 @@ bool op_num_push(VM * vm,  char * byteCode,
   (*index)++;
   memcpy(&value, byteCode + *index, sizeof(double));
 
-  if(!typestk_push(vm->opStk, &value, sizeof(double), TYPE_NUMBER)) {
+  if(!opstk_push(vm, &value, sizeof(double), TYPE_NUMBER)) {
     vm_set_err(vm, VMERR_ALLOC_FAILED);
     return false;
   }
@@ -555,13 +668,13 @@ bool op_pop(VM * vm,  char * byteCode,
     return false;
   }
 
-  typestk_pop(vm->opStk, &value, sizeof(char*), &type);
+  opstk_pop(vm, &value, sizeof(char*), &type);
   (*index)++;
 
-  /* strings are dynamically allocated. free them */
-  if(type == TYPE_STRING) {
-    /* TODO: figure out how to free strings only when needed */
-    /* free(value); */
+   /* free objects that were popped and passed */
+  if(type == TYPE_LIBDATA) {
+    vmlibdata_dec_refcount((VMLibData*)value);
+    vmlibdata_check_cleanup(vm, (VMLibData*)value);
   }
 
   return true;
@@ -592,7 +705,7 @@ bool op_bool_push(VM * vm,  char * byteCode,
     return false;
   }
 
-  if(!typestk_push(vm->opStk, &value, sizeof(bool), TYPE_BOOLEAN)) {
+  if(!opstk_push(vm, &value, sizeof(bool), TYPE_BOOLEAN)) {
     vm_set_err(vm, VMERR_ALLOC_FAILED);
     return false;
   }
@@ -612,6 +725,7 @@ bool op_str_push(VM * vm, char * byteCode,
 
   char strLen;
   char * string;
+  VMLibData * obj;
 
   /* check there is at least one byte left for the string length */
   if((byteCodeLen - *index) <= 0) {
@@ -637,7 +751,9 @@ bool op_str_push(VM * vm, char * byteCode,
 
   /* push new string */
   strncpy(string, byteCode + *index, strLen);
-  if(!typestk_push(vm->opStk, &string, sizeof(char*), TYPE_STRING)) {
+  obj = vmlibdata_new(GXS_STRING_TYPE, GXS_STRING_TYPE_LEN, string_cleanup, string);
+  vmlibdata_inc_refcount(obj);
+  if(!opstk_push(vm, &obj, sizeof(VMLibData*), TYPE_LIBDATA)) {
     vm_set_err(vm, VMERR_ALLOC_FAILED);
     return false;
   }
@@ -662,14 +778,14 @@ bool op_not(VM * vm, char * byteCode,
     return false;
   }
   
-  typestk_pop(vm->opStk, &value, sizeof(bool), &type);
+  opstk_pop(vm, &value, sizeof(bool), &type);
 
   value = !value;
 
   (*index)++;
 
   /* make sure that push doesn't fail */
-  if(!typestk_push(vm->opStk, &value, sizeof(bool), type)) {
+  if(!opstk_push(vm, &value, sizeof(bool), type)) {
     vm_set_err(vm, VMERR_ALLOC_FAILED);
     return false;
   }
@@ -695,7 +811,7 @@ bool op_cond_goto(VM * vm, char * byteCode,
     return false;
   }
 
-  typestk_pop(vm->opStk, &value, sizeof(bool), &type);
+  opstk_pop(vm, &value, sizeof(bool), &type);
 
   (*index)++;
 
@@ -810,22 +926,35 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
 
   /* create array of arguments */
   for(i = numArgs - 1; i >= 0; i--) {
-    typestk_pop(vm->opStk, &args[i].data, VM_VAR_SIZE, &args[i].type);
+    opstk_pop(vm, &args[i].data, VM_VAR_SIZE, &args[i].type);
   }
 
   /* call the callback function
    * if returns false, no return value was given. push a zero as our "null" */
   if(! ((*callback)(vm, args, numArgs)) ) {
     double value = 0;
-    typestk_push(vm->opStk, &value, sizeof(double), TYPE_NUMBER);
+    opstk_push(vm, &value, sizeof(double), TYPE_NUMBER);
   }
 
-  /* free any string arguments since they were popped */
+  /* decrement any variable reference counters */
   for(i = 0; i < numArgs; i++) {
-    if(args[i].type == TYPE_STRING) {
-      /* free(vmarg_string(args[i])); */
+    if(args[i].type == TYPE_LIBDATA) {
+       vmlibdata_dec_refcount(vmarg_libdata(args[i]));
+       vmlibdata_check_cleanup(vm, vmarg_libdata(args[i]));
     }
   }
-  
   return true;
 }
+
+/**
+ * Clean up callback function for strings. This function is called by the VM
+ * to free the memory used by a string whenever the string goes out of scope.
+ * vm: an instance of vm.
+ * data: a pointer to the VMLibData structure that contains the string and 
+ * its ref counters, etc.
+ * returns: always returns true because this function cannot fail.
+ */
+static void string_cleanup(VM * vm, VMLibData * data) {
+  free(data->libData);
+}
+

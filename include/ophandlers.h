@@ -73,5 +73,4 @@ bool op_goto(VM * vm, char * byteCode,
 bool op_call_ptr_n(VM * vm, char * byteCode, 
 		    size_t byteCodeLen, int * index);
 
-
 #endif /* OPHANDLERS__H__ */
