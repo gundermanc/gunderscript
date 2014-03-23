@@ -52,4 +52,7 @@ function exported main() {
      print(i, ", ");
      i = i - 1;
    }
+
+   i = "dfsfsf";
+   print(i);
 }

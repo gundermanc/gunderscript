@@ -561,7 +561,7 @@ bool op_pop(VM * vm,  char * byteCode,
   /* strings are dynamically allocated. free them */
   if(type == TYPE_STRING) {
     /* TODO: figure out how to free strings only when needed */
-    free(value); 
+    /* free(value); */
   }
 
   return true;
@@ -823,7 +823,7 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
   /* free any string arguments since they were popped */
   for(i = 0; i < numArgs; i++) {
     if(args[i].type == TYPE_STRING) {
-      free(vmarg_string(args[i]));
+      /* free(vmarg_string(args[i])); */
     }
   }
   
