@@ -23,7 +23,7 @@ ARFLAGS = rcs
 INCDIR = include
 OBJDIR = objs
 DATASTRUCTSDIR = c-datastructs
-CFLAGS  = -g -std=gnu89 -Wall -I $(INCDIR) -I $(DATASTRUCTSDIR)/include
+CFLAGS  = -std=gnu89 -Wall -I $(INCDIR) -I $(DATASTRUCTSDIR)/include
 LIBCFLAGS = $(CFLAGS) -o $(OBJDIR)/$@
 SRCDIR = src
 DOCSDIR = docs
@@ -35,7 +35,14 @@ all: c-datastructs-build buildfs
 all: linuxapp
 
 # builds the testing application
-linuxapp: linuxlibrary
+debugapp: CFLAGS += -g
+debugapp: app
+	
+# builds the testing application
+releaseapp: app
+
+# builds the testing application
+app: linuxlibrary
 	$(CC) $(CFLAGS) -o gunderscript main.c gunderscript.a $(DATASTRUCTSDIR)/lib.a
 
 # build just the static library
@@ -99,5 +106,5 @@ c-datastructs-clean:
 
 # remove all binaries and annoying Emacs Backups
 clean: c-datastructs-clean
-	$(RM) gunderscript.a testapp $(SRCDIR)/*~ $(INCDIR)/*~ $(DOCSDIR)/*~ *~
+	$(RM) gunderscript.a gunderscript.exe gunderscript $(SRCDIR)/*~ $(INCDIR)/*~ $(DOCSDIR)/*~ *~
 	$(RM) -rf objs

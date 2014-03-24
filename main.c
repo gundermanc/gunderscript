@@ -37,6 +37,7 @@
 static void print_help() {
   printf("Gunderscript Scripting Environment\n");
   printf("By: Christian Gunderman\n\n");
+  printf("http://github.com/gundermanc/gunderscript");
   printf("Usage: gunderscript [entrypoint] [scripts]\n");
   /*printf("  -s [stackSize]         : sets the size of the stack in bytes\n");*/
 }

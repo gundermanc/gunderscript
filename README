@@ -37,7 +37,7 @@ linux64 for x86. I intend to support ARM as well, but have yet to test it.
 
 BUILDING:
 Clone the repository and make the commandline application for linux with:
-  make linuxapp
+  make releaseapp
 Or make the static library only with:
   make linuxlibrary
 Other targets can be built with the same commands under MinGW on Windows.
