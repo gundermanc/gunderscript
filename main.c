@@ -35,9 +35,19 @@
 #include "gunderscript.h"
 
 static void print_help() {
-  printf("Gunderscript Scripting Environment\n");
-  printf("By: Christian Gunderman\n\n");
-  printf("http://github.com/gundermanc/gunderscript");
+  printf("Gunderscript Scripting Environment ");
+  
+#ifdef _WIN64
+  printf("- Win64 Build\n");
+#elif _WIN32
+  printf("- Win32 Build\n");
+#elif __linux__
+  printf("- Linux Build\n");
+#else
+  printf("- Unknown Platform\n");
+#endif
+  printf("(C) 2013-2014 Christian Gunderman\n");
+  printf("http://github.com/gundermanc/gunderscript\n\n");
   printf("Usage: gunderscript [entrypoint] [scripts]\n");
   /*printf("  -s [stackSize]         : sets the size of the stack in bytes\n");*/
 }
