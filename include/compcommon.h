@@ -32,6 +32,13 @@
 #include "buffer.h"
 #include "lexer.h"
 
+/* initial size of all hashtables */
+#define COMPILER_INITIAL_HTSIZE   11
+/* number of items to add to hashtable on rehash */
+#define COMPILER_HTBLOCKSIZE      12
+/* hashtable load factor upon which it will be rehashed */
+#define COMPILER_HTLOADFACTOR     0.75
+
 /* errors that can occur during compile time */
 typedef enum {
   COMPILERERR_SUCCESS,
@@ -113,7 +120,11 @@ bool tokens_equal(char * token1, size_t num1,
 
 OpCode operator_to_opcode(char * operator, size_t len);
 
-HT * symtblstk_peek(Compiler * c);
+bool symtblstk_push(Compiler * c);
+
+HT * symtblstk_pop(Compiler * c);
+
+HT * symtblstk_peek(Compiler * c, int offset);
 
 int operator_precedence(char * operator, size_t operatorLen);
 

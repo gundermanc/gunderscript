@@ -311,6 +311,7 @@ bool op_frame_push(VM * vm,  char * byteCode,
  * a function or logical block is left. If the stack frame has a recorded return
  * value (it was pushed with OP_CALL_B) then the code returns to that point of
  * execution.
+ * OP_FRM_POP
  */
 bool op_frame_pop(VM * vm,  char * byteCode, 
 		   size_t byteCodeLen, int * index) {
@@ -320,7 +321,7 @@ bool op_frame_pop(VM * vm,  char * byteCode,
   VMLibData * arg;
   VarType type;
 
-  /* free objects that were popped and passed */
+  /* decrement refcounters for objects that were variables */
   for(i = 0; frmstk_var_read(vm->frmStk, 0, i, &arg, 
 			     sizeof(VMLibData*), &type); i++) {
     if(type == TYPE_LIBDATA) {

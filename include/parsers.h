@@ -32,5 +32,5 @@
 #include "typestk.h"
 
 bool parse_body(Compiler * c, Lexer * l);
-
+int define_variables(Compiler * c, Lexer * l);
 #endif /* PARSERS__H__ */

@@ -48,12 +48,6 @@
 
 /* TODO: make symTableStk auto expand and remove this */
 static const int maxFuncDepth = 100;
-/* initial size of all hashtables */
-static const int initialHTSize = 11;
-/* number of items to add to hashtable on rehash */
-static const int HTBlockSize = 12;
-/* hashtable load factor upon which it will be rehashed */
-static const float HTLoadFactor = 0.75;
 /* number of bytes in each additional block of the buffer */
 static const int bufferBlockSize = 1000;
 
@@ -75,7 +69,7 @@ Compiler * compiler_new(VM * vm) {
 
   /* TODO: make this stack auto expand when full */
   compiler->symTableStk = stk_new(maxFuncDepth);
-  compiler->functionHT = ht_new(initialHTSize, HTBlockSize, HTLoadFactor);
+  compiler->functionHT = ht_new(COMPILER_INITIAL_HTSIZE, COMPILER_HTBLOCKSIZE, COMPILER_HTLOADFACTOR);
   compiler->outBuffer = buffer_new(bufferBlockSize, bufferBlockSize);
   compiler->vm = vm;
 
@@ -133,55 +127,6 @@ static void compilerfunc_free(CompilerFunc * cf) {
   free(cf);
 }
 
-/* pushes another symbol table onto the stack of symbol tables
- * returns true if success, false if malloc fails
- */
-/**
- * Pushes a new symbol table onto the stack of symbol tables. The symbol table
- * is a structure that contains records of all variables and their respective
- * locations in the stack in the VM. The symbol table's position in the stack
- * represents the VM stack frame's position in the stack as well.
- * c: an instance of Compiler that will receive the new frame.
- * returns: true if success, false if an allocation failure occurs.
- */
-static bool symtblstk_push(Compiler * c) {
-
-  assert(c != NULL);
-
-  HT * symTbl = ht_new(initialHTSize, HTBlockSize, HTLoadFactor);
-
-  /* check that hashtable was successfully allocated */
-  if(symTbl == NULL) {
-    return false;
-  }
-
-  if(!stk_push_pointer(c->symTableStk, symTbl)) {
-    return false;
-  }
-
-  return true;
-}
-
-/**
- * Gets the top symbol table from the symbol table stack and returns a pointer,
- * and removes the table from the stack. This function does NOT free the table.
- * You must free the table manually when finished with symtbl_free(), or the memory
- * will leak.
- * c: an instance of Compiler.
- * returns: a pointer to the symbol table formerly at the top of the stack, or
- * NULL if the stack is empty.
- */
-static HT * symtblstk_pop(Compiler * c) {
-  DSValue value;
-
-  /* check that peek was success */
-  if(!stk_pop(c->symTableStk, &value)) {
-    return NULL;
-  }
-
-  return value.pointerVal;
-}
-
 /**
  * A wrapper function that frees a symbol table. This function should be used
  * after a symbol table is popped from the symbol table stack with
@@ -236,7 +181,7 @@ static int parse_arguments(Compiler * c, Lexer * l) {
    * the tokens and store each KEYVAR type token in the symbol table as a
    * function argument
    */
-  HT * symTbl = symtblstk_peek(c);
+  HT * symTbl = symtblstk_peek(c, 0);
   LexerType type;
   size_t len;
   bool prevExisted;
@@ -336,126 +281,6 @@ static bool function_store_definition(Compiler * c, char * name, size_t nameLen,
 
   return true;
 }
-
-/* returns true if current token is start of a variable declaration expression */
-
-/**
- * Subparser for define_variables(). Performs definition of variables.
- * Looks at the current token. If it is 'var', the parser takes over and starts
- * defining the current variable. It defines ONLY 1 and returns. To define
- * additional, you must make multiple calls to this subparser.
- * Variable declarations take the form:
- *   var [variable_name];
- * c: an instance of Compiler.
- * l: an instance of lexer. The current token must be 'var' or else the function
- * will do nothing.
- * c: an instance of Compiler.
- * l: an instance of Lexer that will be used to parse the variable declarations.
- * returns: Returns true if the current token in Lexer l is 'var' and false if
- * the current token is something else. c->err variable is set to an error code
- * upon a mistake in the script or other error.
- */
-static bool define_variable(Compiler * c, Lexer * l) {
-
-  /* variable declarations: 
-   *
-   * var [variable_name];
-   */
-  HT * symTbl = symtblstk_peek(c);
-  LexerType type;
-  char * token;
-  size_t len;
-  char * varName;
-  size_t varNameLen;
-  bool prevExisted;
-  DSValue newValue;
-
-  /* get current token cached in the lexer */
-  token = lexer_current_token(l, &type, &len);
-
-  /* make sure next token is a variable decl. keyword, otherwise, return */
-  if(!tokens_equal(LANG_VAR_DECL, LANG_VAR_DECL_LEN, token, len)) {
-    return false;
-  }
-
-  /* check that next token is a keyvar type, neccessary for variable names */
-  varName = lexer_next(l, &type, &varNameLen);
-  if(type != LEXERTYPE_KEYVAR) {
-    c->err = COMPILERERR_EXPECTED_VARNAME;
-    return true;
-  }
-
-  /* store variable along with index at which its data will be stored in the
-   * frame stack in the virtual machine
-   */
-  newValue.intVal = ht_size(symTbl);
-  if(!ht_put_raw_key(symTbl, varName, varNameLen,
-		     &newValue, NULL, &prevExisted)) {
-    c->err = COMPILERERR_ALLOC_FAILED;
-    return true;
-  }
-
-  /* check for duplicate var names */
-  if(prevExisted) {
-    c->err = COMPILERERR_PREV_DEFINED_VAR;
-    return true;
-  }
-
-  /* perform inline variable initialization if code provided */
-  /*token = lexer_current_token(l, &type, &len);
-  printf("Var init token: %s\n", token);
-  if(!parse_function_call(c, l, NULL)) {
-    return false;
-    }*/
-
-  token = lexer_next(l, &type, &len);
-  /* check for terminating semicolon */
-  if(type != LEXERTYPE_ENDSTATEMENT) {
-    c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
-    return false;
-  }
-  token = lexer_next(l, &type, &len);
-
-  return true;
-}
-
-/**
- * Subparser for parse_function_definitions(). Parses function definitions. Where
- * define_variable() function defines ONE variable from a declaration, this function
- * continues defining variable until the first non-variable declaration token
- * is found.
- * c: an instance of Compiler.
- * l: an instance of lexer that provides the tokens being parsed.
- * returns: true if the variables were declared successfully, or there were
- * no variable declarations, and false if an error occurred. Upon an error,
- * c->err is set to a relevant error code.
- */
-static int define_variables(Compiler * c, Lexer * l) {
-  LexerType type;
-  char * token;
-  size_t len;
-  int varCount = 0;
- 
-  token = lexer_current_token(l, &type, &len);
-  /* variable declarations look like so:
-   * var [variable_name_1];
-   * var [variable_name_2];
-   */
-  do {
-    if(define_variable(c, l)) {
-      varCount++;
-      if(c->err != COMPILERERR_SUCCESS) {
-	return -1;
-      }
-    } else {
-      /* no more variables, leave the loop */
-      break;
-    }
-  } while((token = lexer_current_token(l, &type, &len)) != NULL);
-
-  return varCount;
-}
-
 
 /**
  * A subparser function for compiler_build() that looks at the current token,

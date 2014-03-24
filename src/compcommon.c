@@ -25,6 +25,7 @@
 #include "compcommon.h"
 #include "lexer.h"
 #include "langkeywords.h"
+#include <assert.h>
 
 /**
  * Gets the OP code associated with an operation from its string representation.
@@ -93,11 +94,11 @@ bool tokens_equal(char * token1, size_t num1,
  * returns: a pointer to the top symbol table hashtable, or NULL if the stack
  * is empty.
  */
-HT * symtblstk_peek(Compiler * c) {
+HT * symtblstk_peek(Compiler * c, int offset) {
   DSValue value;
 
   /* check that peek was success */
-  if(!stk_peek(c->symTableStk, &value)) {
+  if(!stk_peek_offset(c->symTableStk, offset, &value)) {
     return NULL;
   }
 
@@ -190,4 +191,51 @@ int topstack_type(TypeStk * stk, Stk * lenStk) {
 
   /* return the precedence of the operator */
   return (int)type;
+}
+
+
+/**
+ * Pushes a new symbol table onto the stack of symbol tables. The symbol table
+ * is a structure that contains records of all variables and their respective
+ * locations in the stack in the VM. The symbol table's position in the stack
+ * represents the VM stack frame's position in the stack as well.
+ * c: an instance of Compiler that will receive the new frame.
+ * returns: true if success, false if an allocation failure occurs.
+ */
+bool symtblstk_push(Compiler * c) {
+
+  assert(c != NULL);
+
+  HT * symTbl = ht_new(COMPILER_INITIAL_HTSIZE, COMPILER_HTBLOCKSIZE, COMPILER_HTLOADFACTOR);
+
+  /* check that hashtable was successfully allocated */
+  if(symTbl == NULL) {
+    return false;
+  }
+
+  if(!stk_push_pointer(c->symTableStk, symTbl)) {
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Gets the top symbol table from the symbol table stack and returns a pointer,
+ * and removes the table from the stack. This function does NOT free the table.
+ * You must free the table manually when finished with symtbl_free(), or the memory
+ * will leak.
+ * c: an instance of Compiler.
+ * returns: a pointer to the symbol table formerly at the top of the stack, or
+ * NULL if the stack is empty.
+ */
+HT * symtblstk_pop(Compiler * c) {
+  DSValue value;
+
+  /* check that peek was success */
+  if(!stk_pop(c->symTableStk, &value)) {
+    return NULL;
+  }
+
+  return value.pointerVal;
 }

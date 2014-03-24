@@ -725,31 +725,10 @@ static bool parse_while_statement(Compiler * c, Lexer * l) {
   /* retrieve current token */
   token = lexer_current_token(l, &type, &len);
 
-  /* check for opening brace defining start of body "{" */
-  if(!tokens_equal(token, len, LANG_OBRACKET, LANG_OBRACKET_LEN)) {
+  if(!parse_block(c, l)) {
     c->err = COMPILERERR_EXPECTED_OBRACKET;
     return true;
   }
-
-  token = lexer_next(l, &type, &len);
-  
-  /****************** Do while body ********************************/
-  
-  if(!parse_body(c, l)) {
-    return true;
-  }
-  
-  /* retrieve current token (it was modified by parse_body) */
-  token = lexer_current_token(l, &type, &len);
-
-  /**************************************************************/
-
-  /* check for closing brace defining end of body "}" */
-  if(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
-    c->err = COMPILERERR_EXPECTED_CBRACKET;
-    return true;
-  }
-  token = lexer_next(l, &type, &len);
 
   /* write jump to beginning of loop instruction */
   buffer_append_char(c->outBuffer, OP_GOTO);
@@ -815,31 +794,13 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
   /* retrieve current token */
   token = lexer_current_token(l, &type, &len);
 
-  /* check for opening brace defining start of body "{" */
-  if(!tokens_equal(token, len, LANG_OBRACKET, LANG_OBRACKET_LEN)) {
+  if(!parse_block(c, l)) {
     c->err = COMPILERERR_EXPECTED_OBRACKET;
     return true;
   }
 
-  token = lexer_next(l, &type, &len);
-  
-  /****************** Do if body ********************************/
-  
-  if(!parse_body(c, l)) {
-    return true;
-  }
-  
-  /* retrieve current token (it was modified by parse_body) */
   token = lexer_current_token(l, &type, &len);
 
-  /**************************************************************/
-  /* check for closing brace defining end of body "}" */
-  if(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
-    c->err = COMPILERERR_EXPECTED_CBRACKET;
-    return true;
-  }
-  token = lexer_next(l, &type, &len);
- 
   /* check if this if block has an else as well */
   if(!tokens_equal(token, len, LANG_ELSE, LANG_ELSE_LEN)) {
     /* write jump address for if statement */
@@ -861,36 +822,14 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
 
   token = lexer_next(l, &type, &len);
 
-  /* check for opening brace defining start of else body "{" */
-  if(!tokens_equal(token, len, LANG_OBRACKET, LANG_OBRACKET_LEN)) {
+  if(!parse_block(c, l)) {
     c->err = COMPILERERR_EXPECTED_OBRACKET;
-    return true;
-  }
-
-  token = lexer_next(l, &type, &len);
-  
-  /****************** Do else body ********************************/
-
-  if(!parse_body(c, l)) {
-    return true;
-  }
-  
-  /* retrieve current token (it was modified by parse_body) */
-  token = lexer_current_token(l, &type, &len);
-
-  /**************************************************************/
-
-
-  /* check for closing brace defining end of body "}" */
-  if(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
-    c->err = COMPILERERR_EXPECTED_CBRACKET;
     return true;
   }
 
   /* write jump address for else statement */
   address = buffer_size(c->outBuffer);
   buffer_set_string(c->outBuffer, (char*)&address, sizeof(int), elseJumpInstAddr);
-  token = lexer_next(l, &type, &len);
 
   return true;
 }
@@ -957,19 +896,29 @@ static bool assignment(Compiler * c, Lexer * l, char * variable,
 		       size_t variableLen) {
 
   DSValue value;
+  char i = 0;
+  HT * ht = symtblstk_peek(c, i);
 
-  /* check that the variable was previously declared */
-  if(!ht_get_raw_key(symtblstk_peek(c), variable, variableLen, &value)) {
-    c->err = COMPILERERR_UNDEFINED_VARIABLE;
-    return false;
+  /* get variable depth */
+  for(i = 0; true; i++, ht = symtblstk_peek(c, i)) {
+
+    /* reached bottom of stack, variable not found */
+    if(ht == NULL) {
+      c->err = COMPILERERR_UNDEFINED_VARIABLE;
+      return false;
+    }
+
+    /* found variable in this stack, stop iterating */
+    if(ht_get_raw_key(ht, variable, variableLen, &value)) {
+      break;
+    }
   }
 
   /* write the variable data OPCodes
    * Moves the last value from the OP stack in the VM to the variable
    * storage slot in the frame stack. */
-  /* TODO: need to add ability to search LOWER frames for variables */
   buffer_append_char(c->outBuffer, OP_VAR_STOR);
-  buffer_append_char(c->outBuffer, 0 /* this val should chng with depth */);
+  buffer_append_char(c->outBuffer, i);
   buffer_append_char(c->outBuffer, value.intVal);
 
   return true;
@@ -1037,26 +986,35 @@ static bool reference(Compiler * c, Lexer * l,
 		      char * variable, size_t variableLen) {
 
   DSValue value;
+  char i = 0;
+  char varSlot;
+  HT * ht = symtblstk_peek(c, i);
 
-  /* check that the variable was previously declared */
-  if(ht_get_raw_key(symtblstk_peek(c), variable, variableLen, &value)) {
+  /* get variable depth */
+  for(i = 0; true; i++, ht = symtblstk_peek(c, i)) {
 
-    /* write the variable data read OPCodes
-     * Moves the last value from the specified depth and slot of the frame
-     * stack in the VM to the VM OP stack.
-     */
-    /* TODO: need to add ability to search LOWER frames for variables */
-    char varSlot = value.intVal;
+    /* reached bottom of stack, variable not found */
+    if(ht == NULL) {
+      c->err = COMPILERERR_UNDEFINED_VARIABLE;
+      return false;
+    }
 
-    buffer_append_char(c->outBuffer, OP_VAR_PUSH);
-    buffer_append_char(c->outBuffer, 0 
-		       /* TODO: this val should chng with depth */);
-    buffer_append_char(c->outBuffer, varSlot);
-  } else {
-    /* variable was not defined in the variable hashtable. Throw error. */
-    c->err = COMPILERERR_UNDEFINED_VARIABLE;
-    return false;
+    /* found variable in this stack, stop iterating */
+    if(ht_get_raw_key(ht, variable, variableLen, &value)) {
+      break;
+    }
   }
+
+  /* write the variable data read OPCodes
+   * Moves the last value from the specified depth and slot of the frame
+   * stack in the VM to the VM OP stack.
+   */
+  /* TODO: need to add ability to search LOWER frames for variables */
+  varSlot = value.intVal;
+
+  buffer_append_char(c->outBuffer, OP_VAR_PUSH);
+  buffer_append_char(c->outBuffer, i);
+  buffer_append_char(c->outBuffer, varSlot);
 
   return true;
 }
@@ -1154,6 +1112,7 @@ static bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
     if(c->err != COMPILERERR_SUCCESS) {
       return false;
     }
+    noPop = true;
   } else if(parse_static_constant(c, l)) {
     if(c->err != COMPILERERR_SUCCESS) {
       return false;
@@ -1179,6 +1138,123 @@ static bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
 }
 
 /**
+ * Subparser for define_variables(). Performs definition of variables.
+ * Looks at the current token. If it is 'var', the parser takes over and starts
+ * defining the current variable. It defines ONLY 1 and returns. To define
+ * additional, you must make multiple calls to this subparser.
+ * Variable declarations take the form:
+ *   var [variable_name];
+ * c: an instance of Compiler.
+ * l: an instance of lexer. The current token must be 'var' or else the function
+ * will do nothing.
+ * c: an instance of Compiler.
+ * l: an instance of Lexer that will be used to parse the variable declarations.
+ * returns: Returns true if the current token in Lexer l is 'var' and false if
+ * the current token is something else. c->err variable is set to an error code
+ * upon a mistake in the script or other error.
+ */
+static bool define_variable(Compiler * c, Lexer * l) {
+
+  /* variable declarations: 
+   *
+   * var [variable_name];
+   */
+  HT * symTbl = symtblstk_peek(c, 0);
+  LexerType type;
+  char * token;
+  size_t len;
+  char * varName;
+  size_t varNameLen;
+  bool prevExisted;
+  DSValue newValue;
+
+  /* get current token cached in the lexer */
+  token = lexer_current_token(l, &type, &len);
+
+  /* make sure next token is a variable decl. keyword, otherwise, return */
+  if(!tokens_equal(LANG_VAR_DECL, LANG_VAR_DECL_LEN, token, len)) {
+    return false;
+  }
+
+  /* check that next token is a keyvar type, neccessary for variable names */
+  varName = lexer_next(l, &type, &varNameLen);
+  if(type != LEXERTYPE_KEYVAR) {
+    c->err = COMPILERERR_EXPECTED_VARNAME;
+    return true;
+  }
+
+  /* store variable along with index at which its data will be stored in the
+   * frame stack in the virtual machine
+   */
+  newValue.intVal = ht_size(symTbl);
+  if(!ht_put_raw_key(symTbl, varName, varNameLen,
+		     &newValue, NULL, &prevExisted)) {
+    c->err = COMPILERERR_ALLOC_FAILED;
+    return true;
+  }
+
+  /* check for duplicate var names */
+  if(prevExisted) {
+    c->err = COMPILERERR_PREV_DEFINED_VAR;
+    return true;
+  }
+
+  /* perform inline variable initialization if code provided */
+  /*token = lexer_current_token(l, &type, &len);
+  printf("Var init token: %s\n", token);
+  if(!parse_function_call(c, l, NULL)) {
+    return false;
+    }*/
+
+  token = lexer_next(l, &type, &len);
+  /* check for terminating semicolon */
+  if(type != LEXERTYPE_ENDSTATEMENT) {
+    c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+    return false;
+  }
+  token = lexer_next(l, &type, &len);
+
+  return true;
+}
+
+/**
+ * Subparser for parse_function_definitions(). Parses function definitions. Where
+ * define_variable() function defines ONE variable from a declaration, this function
+ * continues defining variable until the first non-variable declaration token
+ * is found.
+ * c: an instance of Compiler.
+ * l: an instance of lexer that provides the tokens being parsed.
+ * returns: true if the variables were declared successfully, or there were
+ * no variable declarations, and false if an error occurred. Upon an error,
+ * c->err is set to a relevant error code.
+ */
+int define_variables(Compiler * c, Lexer * l) {
+  LexerType type;
+  char * token;
+  size_t len;
+  int varCount = 0;
+ 
+  token = lexer_current_token(l, &type, &len);
+  /* variable declarations look like so:
+   * var [variable_name_1];
+   * var [variable_name_2];
+   */
+  do {
+    if(define_variable(c, l)) {
+      varCount++;
+      if(c->err != COMPILERERR_SUCCESS) {
+	return -1;
+      }
+    } else {
+      /* no more variables, leave the loop */
+      break;
+    }
+  } while((token = lexer_current_token(l, &type, &len)) != NULL);
+
+  return varCount;
+}
+
+/**
  * Evaluates function body code. In other words, all code that may be found
  * within a function body, including loops, ifs, straight code, assignment
  * statements, but excluding variable declarations.
@@ -1199,6 +1275,10 @@ bool parse_body(Compiler * c, Lexer * l) {
 
     /* attempt each logical structure subparser, one by one */
     if(parse_if_statement(c, l)) {
+      if(c->err != COMPILERERR_SUCCESS) {
+	return false;
+      }
+    } else if(parse_block(c, l)) {
       if(c->err != COMPILERERR_SUCCESS) {
 	return false;
       }
@@ -1227,5 +1307,77 @@ bool parse_body(Compiler * c, Lexer * l) {
   /* TODO: throw error if method doesn't end with curly brace */
   token = lexer_current_token(l, &type, &len);
  
+  return true;
+}
+
+/**
+ * Parses a block of code (encapsulated by "{" and "}") and pushes a new frame
+ * to the stack so that this body of code has its own limited scope.
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * returns: true if this is a block, and false if the current token is not the
+ * start of a block. c->err is set on an error.
+ */
+bool parse_block(Compiler * c, Lexer * l) {
+  char * token;
+  size_t len;
+  LexerType type;
+  int varCount = 0;
+  int varCountAddr = 0;
+
+  /* get current token */
+  token = lexer_current_token(l, &type, &len);
+
+  /* check if this is a block */
+  if(!tokens_equal(token, len, LANG_OBRACKET, LANG_OBRACKET_LEN)) {
+    return false;
+  }
+
+  /* get next token */
+  token = lexer_next(l, &type, &len);
+
+  /* we're going down a level. push new symbol table to stack */
+  if(!symtblstk_push(c)) {
+    c->err = COMPILERERR_ALLOC_FAILED;
+    return true;
+  }
+
+  /* write push frame stack OP codes...we don't know the number of variables yet,
+   * so we save the address of the number of args for pushing and push 0 to fill the
+   * space.
+   */
+  buffer_append_char(c->outBuffer, OP_FRM_PUSH);
+  varCountAddr = buffer_size(c->outBuffer);
+  buffer_append_char(c->outBuffer, 0);
+
+  /* define variables, return on error */
+  if((varCount = define_variables(c, l)) == -1) {
+    return true;
+  }
+
+  /* save number of variables */
+  buffer_set_char(c->outBuffer, (char)varCount, varCountAddr);
+
+  /* parse code in block */
+  if(!parse_body(c, l)) {
+    return true;
+  }
+
+  /* retrieve next token (it was modified by define_variables and parse_body */
+  token = lexer_current_token(l, &type, &len);
+
+  /* check for closing brace defining end of block "}" */
+  if(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
+    c->err = COMPILERERR_EXPECTED_CBRACKET;
+    return true;
+  }
+
+  /* pop block frame */
+  buffer_append_char(c->outBuffer, OP_FRM_POP);
+
+  /* we're done here! pop the symbol table for this block off the stack. */
+  ht_free(symtblstk_pop(c));
+
+  lexer_next(l, &type, &len);
   return true;
 }
