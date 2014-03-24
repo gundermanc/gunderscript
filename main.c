@@ -42,12 +42,21 @@ static void print_help() {
 #elif _WIN32
   printf("- Win32 Build\n");
 #elif __linux__
-  printf("- Linux Build\n");
+#ifdef __LP64__
+  printf("- Linux64 Build\n");
 #else
-  printf("- Unknown Platform\n");
-#endif
+  printf("- Linux32 Build\n");
+#endif /* defined(__LP64__) */
+#else
+  printf("- Unknown Platform;\n");
+#endif /* defined(__linux__) */
   printf("(C) 2013-2014 Christian Gunderman\n");
-  printf("http://github.com/gundermanc/gunderscript\n\n");
+  printf("http://github.com/gundermanc/gunderscript\n");
+#if defined( __DATE__) && defined(__TIME__)
+  printf("Built on %s at %s\n\n", __DATE__, __TIME__);
+#else
+  printf("Build date unavaiable; Not compiled with GCC;\n\n");
+#endif /* defined(__linux__) */
   printf("Usage: gunderscript [entrypoint] [scripts]\n");
   /*printf("  -s [stackSize]         : sets the size of the stack in bytes\n");*/
 }
