@@ -43,87 +43,6 @@ static const int opStkBlockSize = 12;
 static bool parse_line(Compiler * c, Lexer * l, bool innerCall);
 
 /**
- * During parsing, all keyvars, including variables, are pushed to the stack.
- * This routine checks the top of stack to see if it is a variable. If it is,
- * the routine writes its its opcodes to the output buffer.
- * c: an instance of compiler.
- * token: the current token.
- * len: the length of the current token.
- * varType: the type of the current token.
- * opStk: the stack of operands.
- * opLenStk: the stack of lengths of the opStk members.
- * returns: true if the top of the stack is a variable read op, and false if not.
- * If returns true, errors will be denoted by setting c->err value.
- */
-static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
-					 LexerType varType, TypeStk * opStk,
-					 Stk * opLenStk) {
-  
-  /* check and see if top of stack is a KEYVAR. If so, it should be a variable */
-  if(topstack_type(opStk, opLenStk) == LEXERTYPE_KEYVAR) {
-    DSValue value;
-    char * varToken;
-    size_t varLen;
-    
-    /* Variable read op:
-     * check to see if current token is an assign '=' character. if not,
-     * this is a variable read operation.
-     */
-    if(!tokens_equal(token, len, LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN)
-       && typestk_peek(opStk, &varToken, sizeof(char*), NULL)) {
-
-      /* get variable length */
-      stk_peek(opLenStk, &value);
-      varLen = value.longVal;
-
-      assert(stk_size(c->symTableStk) > 0);
-
-      /* implements true and false constants */
-      if(tokens_equal(varToken, varLen, LANG_TRUE, LANG_TRUE_LEN)) {
-	buffer_append_char(c->outBuffer, OP_BOOL_PUSH);
-	buffer_append_char(c->outBuffer, true);
-	return true;
-      }
-      if(tokens_equal(varToken, varLen, LANG_FALSE, LANG_FALSE_LEN)) {
-	buffer_append_char(c->outBuffer, OP_BOOL_PUSH);
-	buffer_append_char(c->outBuffer, false);
-	return true;
-      }
-      if(tokens_equal(varToken, varLen, LANG_NULL, LANG_NULL_LEN)) {
-	buffer_append_char(c->outBuffer, OP_NULL_PUSH);
-	return true;
-      }
-
-      /* check that the variable was previously declared */
-      if(ht_get_raw_key(symtblstk_peek(c), varToken, varLen, &value)) {
-
-	/* write the variable data read OPCodes
-	 * Moves the last value from the specified depth and slot of the frame
-	 * stack in the VM to the VM OP stack.
-	 */
-	/* TODO: need to add ability to search LOWER frames for variables */
-	char varSlot = value.intVal;
-
-	/* get variable string */
-	typestk_pop(opStk, &varToken, sizeof(char*), NULL);
-
-	/* get variable length */
-	stk_pop(opLenStk, &value);
-	buffer_append_char(c->outBuffer, OP_VAR_PUSH);
-	buffer_append_char(c->outBuffer, 0 
-		       /* TODO: this val should chng with depth */);
-	buffer_append_char(c->outBuffer, varSlot);
-      } else {
-	/* variable was not defined in the variable hashtable. Throw error. */
-	c->err = COMPILERERR_UNDEFINED_VARIABLE;
-      }
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
  * Pops operators that are were pushed into the "sidetrack" stack used by 
  * Dijikstra's shunting yard algorithm when handling operator precedence. The 
  * respective OP codes are then written for each operator.
@@ -133,70 +52,28 @@ static bool parse_topstack_variable_read(Compiler * c, char * token, size_t len,
  * type: the type of the current token.
  * opStk: A stack containing the operands pushed by the shunting yard algorithm.
  * opLenStk: A stack containing the lengths of the operands on the opStk.
- * returns: false if an error occurs and true if not.
+ * returns: true
  */
-static bool parse_stacked_operator(Compiler * c,  char * token,
-				   size_t len, LexerType type, TypeStk * opStk, 
-				   Stk * opLenStk) {
-  DSValue value;
+static bool write_operator(Compiler * c,  char * token,
+				   size_t len, LexerType type) {
+  OpCode opCode = operator_to_opcode(token, len);
 
-  /* handle OPERATORS and FUNCTIONS differently */
-  if(type == LEXERTYPE_OPERATOR) {
-
-    /* if there is an '=' on the stack, this is an assignment, Variable Write
-     * the next token on the stack should be a KEYVAR type that
-     * contains a variable name.
-     */
-    if(tokens_equal(LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN, token, len)) {
-
-      /* get variable name string */
-      if(!typestk_pop(opStk, &token, sizeof(char*), (VarType*)&type)
-	 || type != LEXERTYPE_KEYVAR) {
-	c->err = COMPILERERR_MALFORMED_ASSIGNMENT;
-	return false;
-      }
-
-      /* get variable name length */
-      stk_pop(opLenStk, &value);
-      len = value.longVal;
-
-      assert(stk_size(c->symTableStk) > 0);
-
-      /* check that the variable was previously declared */
-      if(!ht_get_raw_key(symtblstk_peek(c), token, len, &value)) {
-	c->err = COMPILERERR_UNDEFINED_VARIABLE;
-	return false;
-      }
-
-      /* write the variable data OPCodes
-       * Moves the last value from the OP stack in the VM to the variable
-       * storage slot in the frame stack. */
-      /* TODO: need to add ability to search LOWER frames for variables */
-      buffer_append_char(c->outBuffer, OP_VAR_STOR);
-      buffer_append_char(c->outBuffer, 0 /* this val should chng with depth */);
-      buffer_append_char(c->outBuffer, value.intVal);
-    } else {
-      /* current operator is NOT an assignment, get its opcode and write */
-      OpCode opCode = operator_to_opcode(token, len);
-
-      /* check for invalid operators */
-      if(opCode == -1) {
-	c->err = COMPILERERR_UNKNOWN_OPERATOR;
-	return false;
-      }
-
-      /* write operator OP code to output buffer */
-      buffer_append_char(c->outBuffer, opCode);
-    }
+  /* check for invalid operators */
+  if(opCode == -1) {
+    c->err = COMPILERERR_UNKNOWN_OPERATOR;
+    return false;
   }
+
+  /* write operator OP code to output buffer */
+  buffer_append_char(c->outBuffer, opCode);
+   
   return true;
 }
 
 /**
- * Writes all tokens from the provided stack to the output buffer in the 
- * Compiler instance, making allowances for specific behaviors variable
- * references, and assignments. A.K.A., un-"sidetracks"sidetracked tokens,
- * in Dijikstra's postfix algorithm.
+ * Writes all operators from the provided stack to the output buffer in the 
+ * Compiler instance, making allowances for operator precedences A.K.A., un-
+ * "sidetracks"sidetracked tokens,in Dijikstra's postfix algorithm.
  * c: an instance of Compiler.
  * opStk: the stack of operator strings.
  * opLenStk: the stack of operator string lengths, in longs.
@@ -207,8 +84,8 @@ static bool parse_stacked_operator(Compiler * c,  char * token,
  * encountered.
  */
 static bool write_from_stack(Compiler * c, TypeStk * opStk, 
-				       Stk * opLenStk, bool parenthExpected,
-			     bool popParenth, bool doAssignment) {
+			     Stk * opLenStk, bool parenthExpected, 
+			     bool popParenth) {
   DSValue value;
   char * token = NULL;
   size_t len = 0;
@@ -216,21 +93,6 @@ static bool write_from_stack(Compiler * c, TypeStk * opStk,
 
   /* while items remain */
   while(typestk_size(opStk) > 0) {
-
-    /* peek token string and length*/
-    typestk_peek(opStk, &token, sizeof(char*), &type);
-    stk_peek(opLenStk, &value);
-    len = value.longVal;
-
-    /* check if this is a stacked a assignment statement, and if we are at the
-     * end of the line. We don't want to perform an assignment mid line and
-     * lose all the trailing calculations of a lower precedence.
-     */
-    if(tokens_equal(LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN, token, len)
-       && !doAssignment) {
-      /* don't do the assignment this cycle. */
-      return true;
-    }
 
     /* get token string and length */
     typestk_pop(opStk, &token, sizeof(char*), &type);
@@ -253,12 +115,10 @@ static bool write_from_stack(Compiler * c, TypeStk * opStk,
     }
 
     /* checks top of stack for an operator. if one exists, it is written
-     * to the output. also handles variable assignment statements.
+     * to the output.
      */
-    if(!parse_stacked_operator(c, token, len, type, opStk, 
-			       opLenStk)) {
-      return false;
-    }
+    write_operator(c, token, len, type);
+ 
   }
 
   /* Is open parenthensis is expected SOMEWHERE in this sequence? If true,
@@ -371,11 +231,7 @@ static bool parse_string(Compiler * c, LexerType prevTokenType,
 static bool parse_keyvar(Compiler * c, Lexer * l, TypeStk * opStk,
 			 Stk * opLenStk, LexerType * prevTokenType, LexerType type,
 			 char * token, size_t len) {
-  char * parenthToken;
-  size_t parenthLen;
-  LexerType parenthType;
 
-  /* TODO: make sure that prevTokenType checks aren't neccessary here */
   /* check for invalid types: */
   if(*prevTokenType != COMPILER_NO_PREV
      && *prevTokenType != LEXERTYPE_PARENTHESIS
@@ -385,32 +241,14 @@ static bool parse_keyvar(Compiler * c, Lexer * l, TypeStk * opStk,
     return false;
   }
 
-  /* look ahead one token without advancing and see what's there */
-  parenthToken = lexer_peek(l, &parenthType, &parenthLen);
-
-  /* check if next token is a parenthesis, if so, this is a function call */
-  if(tokens_equal(parenthToken, parenthLen, LANG_OPARENTH, LANG_OPARENTH_LEN)) {
-
-    /* delegate function call to function call parser */
-    if(!parse_line(c, l, true)) {
-      return false;
-    }
-    token = lexer_current_token(l, &type, &len);
-    (*prevTokenType) = LEXERTYPE_PARENTHESIS;
-  } else {
-
-    /* Not a function call. A variable operation. Store tokens on stack for
-     * later parsing.
-     */
-    typestk_push(opStk, &token, sizeof(char*), type);
-    stk_push_long(opLenStk, len);
-
-    /* store type of current token for next iteration */
-    (*prevTokenType) = LEXERTYPE_KEYVAR;
-
-    /* advance to next token */
-    token = lexer_next(l, &type, &len);
+  /* delegate function call to function call parser */
+  if(!parse_line(c, l, true)) {
+    return false;
   }
+
+  /* get the current token, it was updated by parse_line */
+  token = lexer_current_token(l, &type, &len);
+  (*prevTokenType) = LEXERTYPE_PARENTHESIS;
 
   return true;
 }
@@ -448,27 +286,17 @@ static bool parse_parenthesis(Compiler * c, TypeStk * opStk, Stk * opLenStk,
        prevTokenType != LEXERTYPE_ARGDELIM &&
        prevTokenType != LEXERTYPE_PARENTHESIS &&
        prevTokenType != LEXERTYPE_KEYVAR) {
-      c->err = COMPILERERR_UNEXPECTED_TOKEN; 
+      c->err = COMPILERERR_UNEXPECTED_TOKEN;
       return false;
     }
     (*parenthDepth)++;
 
   } else {
 
-    /* handle close parenthesis:
-     * we're about to start popping items off of the stack. First check for
-     * variables at the top.
-     */
-    if(parse_topstack_variable_read(c, token, len, type, opStk, opLenStk)) {
-      if(c->err != COMPILERERR_SUCCESS) {
-	return false;
-      }
-    }
-
     /* pop operators from stack and write to output buffer
      * FAIL if there is no open parenthesis in the stack.
      */
-    if(!write_from_stack(c, opStk, opLenStk, true, true, true)) {
+    if(!write_from_stack(c, opStk, opLenStk, true, true)) {
       return false;
     }
 
@@ -513,13 +341,6 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
    */
   assert(token != NULL);
 
-  /* check for pushed variables at the top of the stack */
-  if(parse_topstack_variable_read(c, token, len, type, opStk, opLenStk)) {
-    if(c->err != COMPILERERR_SUCCESS) {
-      return false;
-    }
-  }
-
   /* if current token has a higher precedence than top of stack, push it */
   if(operator_precedence(token, len)
      >= topstack_precedence(opStk, opLenStk)) {
@@ -530,7 +351,7 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
   } else {
 
     /* pop operators from stack and write to output buffer */
-    if(!write_from_stack(c, opStk, opLenStk, true, false, false)) {
+    if(!write_from_stack(c, opStk, opLenStk, true, false)) {
       return false;
     }
 
@@ -556,6 +377,21 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
   return true;
 }
 
+/**
+ * The loop for parse_straight_code(). Evaluates math statements and dispatches
+ * subparsers for assignment statements, function calls, constants, etc. as
+ * needed.
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * opStk: the stack of operators.
+ * opLenStk: the stack of operator string lengths.
+ * innerCall: must be true if this is a call inside of a set of parenthesis. If
+ * this value is true, the function will automatically return upon reaching a 
+ * LEXERTYPE_ARGDELIM. If false, the function will not return until it 
+ * encounters a LEXERTYPE_ENDSTATEMENT that was not preceded by an expected 
+ * open parenthesis.
+ * returns: true upon success, and false upon an error.
+ */
 bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk, 
 			 Stk * opLenStk, bool innerCall, 
 			 bool * parenthEncountered) {
@@ -574,18 +410,9 @@ bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk,
     switch(type) {
     case LEXERTYPE_ARGDELIM:
       if(innerCall) {
-	/* function exit point:
-	 * we're about to start popping items off of the stack. First check for
-	 * variables at the top.
-	 */
-	if(parse_topstack_variable_read(c, token, len, type, opStk, opLenStk)) {
-	  if(c->err != COMPILERERR_SUCCESS) {
-	    return false;
-	  }
-	}
 
 	/* finishing parsing the current argument, return */
-	if(!write_from_stack(c, opStk, opLenStk, true, true, true)) {
+	if(!write_from_stack(c, opStk, opLenStk, true, true)) {
 	  return false;
 	}
 	return true;
@@ -660,16 +487,9 @@ bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk,
 	  c->err = COMPILERERR_UNEXPECTED_TOKEN;
  	  return false;
  	}
- 
-	/* check for pushed variables at the top of the stack */
-	if(parse_topstack_variable_read(c, token, len, type, opStk, opLenStk)) {
-	  if(c->err != COMPILERERR_SUCCESS) {
-	    return false;
-	  }
-	}
 
 	/* pop values from stack */
- 	if(!write_from_stack(c, opStk, opLenStk, false, true, true)) {
+ 	if(!write_from_stack(c, opStk, opLenStk, false, true)) {
  	  return false;
  	}
  	return true;
@@ -849,6 +669,14 @@ static int parse_arguments(Compiler * c, Lexer * l, char * token,
   return argCount;
 }
 
+/**
+ * Parses while statements in script code, starting at the initial "while" token
+ * and dispatches subparsers as needed until done.
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * returns: true if this is a while statement, regardless of error. If error,
+ * c->err is set.
+ */
 static bool parse_while_statement(Compiler * c, Lexer * l) {
   char * token;
   size_t len;
@@ -934,6 +762,14 @@ static bool parse_while_statement(Compiler * c, Lexer * l) {
   return true;
 }
 
+/**
+ * Parses if statements in script code, starting at the initial "if" token
+ * and dispatches subparsers as needed until done.
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * returns: true if this is an if statement, regardless of error. If error,
+ * c->err is set.
+ */
 static bool parse_if_statement(Compiler * c, Lexer * l) {
   char * token;
   size_t len;
@@ -1059,6 +895,17 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
   return true;
 }
 
+/**
+ * Parses a function call in script code, starting at the function name token
+ * and dispatches subparsers as needed until done.
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * noPop: pointer to a boolean that receives true if a "return" statement was
+ * encountered and there should be no OP_POP to pop the return value of the
+ * function.
+ * returns: true if this is a function call, regardless of error. If error,
+ * c->err is set.
+ */
 static bool parse_function_call(Compiler * c, Lexer * l, bool * noPop) {
   int argCount = 0;
   char * functionToken = NULL;
@@ -1098,22 +945,226 @@ static bool parse_function_call(Compiler * c, Lexer * l, bool * noPop) {
 }
 
 /**
+ * Writes OP codes to assign the top value on the stack to the specified
+ * variable.
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * variable: variable to recv the value.
+ * variableLen: the length of variable string in chars.
+ * returns: true if success, false if error.
+ */
+static bool assignment(Compiler * c, Lexer * l, char * variable, 
+		       size_t variableLen) {
+
+  DSValue value;
+
+  /* check that the variable was previously declared */
+  if(!ht_get_raw_key(symtblstk_peek(c), variable, variableLen, &value)) {
+    c->err = COMPILERERR_UNDEFINED_VARIABLE;
+    return false;
+  }
+
+  /* write the variable data OPCodes
+   * Moves the last value from the OP stack in the VM to the variable
+   * storage slot in the frame stack. */
+  /* TODO: need to add ability to search LOWER frames for variables */
+  buffer_append_char(c->outBuffer, OP_VAR_STOR);
+  buffer_append_char(c->outBuffer, 0 /* this val should chng with depth */);
+  buffer_append_char(c->outBuffer, value.intVal);
+
+  return true;
+}
+
+/**
+ * Parses assignment statements in script code, starting at the variable token
+ * and dispatches subparsers as needed until done.
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * returns: true if this is an assignment, regardless of error. If error,
+ * c->err is set.
+ */
+static bool parse_assignment_statement(Compiler * c, Lexer * l) {
+  char * token;
+  size_t len;
+  LexerType type;
+
+  char * varToken;
+  size_t varTokenLen;
+
+  /* get the current token */
+  token = lexer_current_token(l, &type, &len);
+
+  /* check if first token is a keyvar */
+  if(type != LEXERTYPE_KEYVAR) {
+    return false;
+  }
+
+   /* peek ahead one token */
+  token = lexer_peek(l, NULL, &len);
+
+  /* check if peeked token is an assignment statement */
+  if(!tokens_equal(token, len, LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN)) {
+    return false;
+  }
+
+  /* save variable name */
+  varToken = lexer_current_token(l, NULL, &varTokenLen);
+
+  /* skip to the value tokens */
+  token = lexer_next(l, &type, &len);
+  token = lexer_next(l, &type, &len);
+
+  /* do line of code following '=" */
+  if(!parse_straight_code(c, l, false, NULL)) {
+    return true;
+  }
+
+  /* do assignment...return if fails..but we're already done, return anyways */
+  assignment(c, l, varToken, varTokenLen);
+  return true;
+}
+
+/**
+ * Writes OP codes to push the specified variable onto the VM operand stack.
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * variable: the variable to reference.
+ * variableLen: the length of the variable in chars.
+ * returns: true if this is an assignment, regardless of error. If error,
+ * c->err is set.
+ */
+static bool reference(Compiler * c, Lexer * l, 
+		      char * variable, size_t variableLen) {
+
+  DSValue value;
+
+  /* check that the variable was previously declared */
+  if(ht_get_raw_key(symtblstk_peek(c), variable, variableLen, &value)) {
+
+    /* write the variable data read OPCodes
+     * Moves the last value from the specified depth and slot of the frame
+     * stack in the VM to the VM OP stack.
+     */
+    /* TODO: need to add ability to search LOWER frames for variables */
+    char varSlot = value.intVal;
+
+    buffer_append_char(c->outBuffer, OP_VAR_PUSH);
+    buffer_append_char(c->outBuffer, 0 
+		       /* TODO: this val should chng with depth */);
+    buffer_append_char(c->outBuffer, varSlot);
+  } else {
+    /* variable was not defined in the variable hashtable. Throw error. */
+    c->err = COMPILERERR_UNDEFINED_VARIABLE;
+    return false;
+  }
+
+  return true;
+}
+
+/**
+ * Parses constants such as "true" and "false".
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * returns: true if current token is a constant, and false if not.
+ */
+static bool parse_static_constant(Compiler * c, Lexer * l) {
+
+  char * token;
+  size_t len;
+  LexerType type;
+
+  /* get current token */
+  token = lexer_current_token(l, &type, &len);
+
+  /* check if current token is one of the possible static constants */
+  if(tokens_equal(token, len, LANG_TRUE, LANG_TRUE_LEN)) {
+    buffer_append_char(c->outBuffer, OP_BOOL_PUSH);
+    buffer_append_char(c->outBuffer, true);
+  } else if(tokens_equal(token, len, LANG_FALSE, LANG_FALSE_LEN)) {
+    buffer_append_char(c->outBuffer, OP_BOOL_PUSH);
+    buffer_append_char(c->outBuffer, false);
+  } else if(tokens_equal(token, len, LANG_NULL, LANG_NULL_LEN)) {
+    buffer_append_char(c->outBuffer, OP_NULL_PUSH);
+  } else {
+    return false;
+  }
+
+  /* advance token */
+  token = lexer_next(l, &type, &len);
+
+  return true;
+}
+
+/**
+ * Parses constants variable references and writes OP codes for pushing the
+ * variable to the VM stack.
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * returns: true if current token is a variable reference, and false if not.
+ */
+static bool parse_variable_reference(Compiler * c, Lexer * l) {
+  char * token;
+  size_t len;
+  LexerType type;
+
+  /* get the current token */
+  token = lexer_current_token(l, &type, &len);
+
+  /* peek ahead one token */
+  token = lexer_peek(l, NULL, &len);
+
+  /* make sure this is not an assignment statement or function call */
+  if(tokens_equal(token, len, LANG_OP_ASSIGN, LANG_OP_ASSIGN_LEN)
+     || tokens_equal(token, len, LANG_OPARENTH, LANG_OPARENTH_LEN)) {
+    return false;
+  }
+
+  /* get the current token */
+  token = lexer_current_token(l, &type, &len);
+
+  /* write the variable push code, return if fail */
+  if(!reference(c, l, token, len)) {
+    return true;
+  }
+  
+  /* advance token */
+  token = lexer_next(l, &type, &len);
+  
+  return true;
+}
+
+/**
  * Attempts to parse current location as a line of code. First, checks if this
  * is a function call. If so, dispatches subparsers to handle the arguments. If
- * not, the straight code parser is dispatched to handle operations between
- * variables and constants.
+ * not, other subparsers are dispatched until one is found that can correctly 
+ * interpret the code.
  * c: an instance of compiler.
  * l: an instance of lexer.
  * returns: false if an error occurs and sets c->err to the error code.
  */
 static bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
   bool noPop = false;
+
+  /* feed line through various sub-parsers until one knows what to do */
   if(parse_function_call(c, l, &noPop)) {
     if(c->err != COMPILERERR_SUCCESS) {
       return false;
     }
+  } else if(parse_assignment_statement(c, l)) {
+    if(c->err != COMPILERERR_SUCCESS) {
+      return false;
+    }
+  } else if(parse_static_constant(c, l)) {
+    if(c->err != COMPILERERR_SUCCESS) {
+      return false;
+    }
+  } else if(parse_variable_reference(c, l)) {
+    if(c->err != COMPILERERR_SUCCESS) {
+      return false;
+    }
   } else {
-    /* not a function call, delegate to the straight code parser */
+
+    /* nothing else worked, delegate to the straight code parser */
     if(!parse_straight_code(c, l, false, NULL)) {
       return false;
     }
