@@ -142,8 +142,8 @@ static bool vmn_getchar(VM * vm, VMArg * arg, int argc) {
 
 /**
  * VMNative: _type( )
- * Accepts no arguments. Reads in a line from the console and returns it as a
- * string.
+ * Accepts no arguments. Accepts a single parameter of any time. Returns the type
+ * of the value as a string.
  */
 static bool vmn_type(VM * vm, VMArg * arg, int argc) {
   VMLibData * result;
