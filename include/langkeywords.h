@@ -44,6 +44,10 @@
 #define LANG_OBRACKET   "{"
 #define LANG_OBRACKET_LEN 1
 #define LANG_CBRACKET   "}"
+#define LANG_OSQBRKT    "["
+#define LANG_OSQBRKT_LEN 1
+#define LANG_CSQBRKT    "]"
+#define LANG_CSQBRKT_LEN 1
 #define LANG_CBRACKET_LEN 1
 #define LANG_VAR_DECL   "var"
 #define LANG_VAR_DECL_LEN 3
@@ -63,6 +67,8 @@
 #define LANG_DO_LEN       2
 #define LANG_WHILE       "while"
 #define LANG_WHILE_LEN    5
+#define LANG_FOR       "for"
+#define LANG_FOR_LEN    3
 
 /* these operands also have an associated precedence. If you change them here,
  * you must also change them in src/compcommon.c in the operator_precedence

@@ -364,6 +364,11 @@ bool vm_exec(VM * vm, char * byteCode,
       return false;
     }
   }
+
+  /* make sure that the stack is being cleared after each line. There should
+   * be only 1 item...the entry point return value
+   */
+  assert(typestk_size(vm->opStk) == 1);
   return true;
 }
 

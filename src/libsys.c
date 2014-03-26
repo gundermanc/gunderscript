@@ -31,7 +31,7 @@
 #define LIBSYS_GETLINE_MAXLEN          255
 
 /**
- * VMNative: _sys_print( value1, value2, ... )
+ * VMNative: sys_print( value1, value2, ... )
  * Accepts unlimited number of arguments. Prints them on the screen in their
  * string form.
  */
@@ -65,7 +65,7 @@ static bool vmn_print(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
- * VMNative: _sys_getline( )
+ * VMNative: sys_getline( )
  * Accepts no arguments. Reads in a line from the console and returns it as a
  * string.
  */
@@ -106,7 +106,7 @@ static bool vmn_getline(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
- * VMNative: _sys_getchar( )
+ * VMNative: sys_getchar( )
  * Accepts no arguments. Reads in a char from the console and returns it as a
  * number.
  */
@@ -141,7 +141,7 @@ static bool vmn_getchar(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
- * VMNative: _type( )
+ * VMNative: type( )
  * Accepts no arguments. Accepts a single parameter of any time. Returns the type
  * of the value as a string.
  */
@@ -194,7 +194,7 @@ static bool vmn_type(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
- * VMNative: _file_delete( fileName )
+ * VMNative: file_delete( fileName )
  * Deletes file with path/name fileName. Returns true if success, false if fail
  */
 static bool vmn_file_delete(VM * vm, VMArg * arg, int argc) {
@@ -223,7 +223,7 @@ static bool vmn_file_delete(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
- * VMNative: _file_exists( fileName )
+ * VMNative: file_exists( fileName )
  * Checks if file exists. Returns true if so
  */
 static bool vmn_file_exists(VM * vm, VMArg * arg, int argc) {
@@ -289,13 +289,13 @@ static bool vmn_shell(VM * vm, VMArg * arg, int argc) {
  * gunderscript_new().
  */
 bool libsys_install(Gunderscript * gunderscript) {
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), "_sys_print", 10, vmn_print)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_shell", 10, vmn_shell)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getline", 12, vmn_getline)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "_sys_getchar", 12, vmn_getchar)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "_type", 5, vmn_type)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "_file_delete", 12, vmn_file_delete)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "_file_exists", 12, vmn_file_exists)) {
+  if(!vm_reg_callback(gunderscript_vm(gunderscript), "sys_print", 9, vmn_print)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "sys_shell", 9, vmn_shell)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "sys_getline", 11, vmn_getline)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "sys_getchar", 11, vmn_getchar)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "type", 4, vmn_type)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "file_delete", 11, vmn_file_delete)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "file_exists", 11, vmn_file_exists)) {
     return false;
   }
 

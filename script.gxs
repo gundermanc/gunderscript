@@ -17,11 +17,10 @@ function fact(n) {
 
 function prompt_for_name() {
   var name;
-  _sys_print("What is your name?");
-  name = _sys_getline();
-  //name = "sfsf";
-  _sys_shell("clear");
-  _sys_print("Hello " + name);
+  sys_print("Hello, my name is Gunderscript. What is your name?\n");
+  name = sys_getline();
+  sys_print("\n");
+  sys_print("Hello " + name + "\n");
 }
 
 /**
@@ -37,6 +36,7 @@ function exported main() {
    */
   var x;
   var i;
+
   prompt_for_name();
 
   // demonstrates precedence of operators and assignment statements:
@@ -47,20 +47,20 @@ function exported main() {
    */
    if(true) {
      if(true) {
-       _sys_print("Look! A nested if statement. ");
+       sys_print("Look! A nested if statement. \n");
      }
 
      // string concat operation, basic math, precedence, and nested function call
-     _sys_print("Here we did some " + "math operations: ", 1 + 2 * fact(x) + 1);
-     _sys_print(" Boolean Comparison: ", (3 + 3) > (2 + 2) || 5 <= 7);
+     sys_print("Here we did some " + "math operations: ", 1 + 2 * fact(x) + 1);
+     sys_print(" Boolean Comparison: ", (3 + 3) > (2 + 2) || 5 <= 7, "\n");
    } else {
-     _sys_print(false);
+     sys_print(false);
    }
    
    /* count down from ten, a loop example */
    i = 10;
    while(i != 0) {
-     _sys_print(i, ", ");
+     sys_print(i, ", ");
      i = i - 1;
    } 
 }
