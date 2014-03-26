@@ -177,6 +177,50 @@ static bool parse_number(Compiler * c, LexerType prevTokenType,
 }
 
 /**
+ * A simple string escaper. Basically just allows for only the most common
+ * escape sequences.
+ * dst: receives the escaped string.
+ * dstLen: the length of the destination string.
+ * src: the source string.
+ * srcLen: the length of the source string.
+ */
+static int escape_string(char * dst, int dstLen,
+			  char * src, int srcLen) {
+  int i = 0, j = 0;
+  int copyLen = dstLen < srcLen ? dstLen:srcLen;
+
+  for(i = 0; i < copyLen; i++, j++) {
+
+    if(i < (copyLen - 1) && src[i] == '\\') {
+      switch(src[i+1]) {
+      case 'n':
+	dst[j] = '\n';
+	break;
+      case 'r':
+	dst[j] = '\r';
+	break;
+      case 't':
+	dst[j] = '\t';
+	break;
+      case '"':
+	dst[j] = '"';
+	break;
+      case '\\':
+	dst[j] = '\\';
+	break;
+      default:
+	dst[j] = src[i];
+	i--;
+      }
+      i++;
+    } else {
+      dst[j] = src[i];
+    }
+  }
+  return i;
+}
+
+/**
  * Subparser for parse_straight_code():
  * Parses a string token and produces respective OP_STR_PUSH op code and writes
  * to the outBuffer.
@@ -193,6 +237,8 @@ static bool parse_string(Compiler * c, LexerType prevTokenType,
    * OP_STR_PUSH [strlen as 1 byte value] [string]
    */
   char outLen = len;
+  char escapedStr[255] = "";
+  int escapedStrLen = 0;
 
   /* string length byte has max value of CHAR_MAX. */
   if(len >= CHAR_MAX) {
@@ -200,10 +246,13 @@ static bool parse_string(Compiler * c, LexerType prevTokenType,
     return false;
   }
 
+  /* escape special characters in the string */
+  escapedStrLen = escape_string(escapedStr, 254, token, len);
+
   /* write output */
   buffer_append_char(c->outBuffer, OP_STR_PUSH);
   buffer_append_char(c->outBuffer, outLen);
-  buffer_append_string(c->outBuffer, token, len);
+  buffer_append_string(c->outBuffer, escapedStr, escapedStrLen);
 
   /* check for invalid types: */
   if(prevTokenType != COMPILER_NO_PREV
