@@ -142,7 +142,7 @@ static bool vmn_getchar(VM * vm, VMArg * arg, int argc) {
 
 /**
  * VMNative: type( )
- * Accepts no arguments. Accepts a single parameter of any time. Returns the type
+ * Accepts a single parameter of any type. Returns the type
  * of the value as a string.
  */
 static bool vmn_type(VM * vm, VMArg * arg, int argc) {
@@ -254,7 +254,7 @@ static bool vmn_file_exists(VM * vm, VMArg * arg, int argc) {
 
 
 /**
- * VMNative: _sys_shell( command )
+ * VMNative: sys_shell( command )
  * Accepts one argument. Feeds the command into the shell.
  */
 static bool vmn_shell(VM * vm, VMArg * arg, int argc) {
@@ -282,6 +282,80 @@ static bool vmn_shell(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
+ * VMNative: is_boolean( value )
+ * Accepts one arguments. Accepts a single parameter of any type
+ */
+static bool vmn_is_boolean(VM * vm, VMArg * arg, int argc) {
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* push result of check*/
+  vmarg_push_boolean(vm, arg[0].type == TYPE_BOOLEAN);
+  return true;
+}
+
+/**
+ * VMNative: is_number( value )
+ * Accepts one arguments. Accepts a single parameter of any type.
+ */
+static bool vmn_is_number(VM * vm, VMArg * arg, int argc) {
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* push result of check*/
+  vmarg_push_boolean(vm, arg[0].type == TYPE_NUMBER);
+  return true;
+}
+
+/**
+ * VMNative: is_null( value )
+ * Accepts one arguments. Accepts a single parameter of any type.
+ */
+static bool vmn_is_null(VM * vm, VMArg * arg, int argc) {
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* push result of check*/
+  vmarg_push_boolean(vm, arg[0].type == TYPE_NULL);
+  return true;
+}
+
+/**
+ * VMNative: is_string( value )
+ * Accepts one arguments. Accepts a single parameter of any type.
+ */
+static bool vmn_is_string(VM * vm, VMArg * arg, int argc) {
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* push result of check*/
+  vmarg_push_boolean(vm, arg[0].type == TYPE_LIBDATA
+		     && vmlibdata_is_type(vmarg_libdata(arg[0]), 
+					  GXS_STRING_TYPE, GXS_STRING_TYPE_LEN));
+  return true;
+}
+
+/**
  * Installs the Libsys library in the given instance of Gunderscript.
  * gunderscript: the instance to receive the library.
  * returns: true upon success, and false upon failure. If failure occurs,
@@ -295,7 +369,11 @@ bool libsys_install(Gunderscript * gunderscript) {
      || !vm_reg_callback(gunderscript_vm(gunderscript), "sys_getchar", 11, vmn_getchar)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "type", 4, vmn_type)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_delete", 11, vmn_file_delete)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "file_exists", 11, vmn_file_exists)) {
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "file_exists", 11, vmn_file_exists)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "is_boolean", 10, vmn_is_boolean)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "is_number", 9, vmn_is_number)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "is_null", 7, vmn_is_null)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "is_string", 9, vmn_is_string)) {
     return false;
   }
 

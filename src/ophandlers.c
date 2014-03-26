@@ -536,7 +536,8 @@ bool op_dual_comparison(VM * vm,  char * byteCode,
   opstk_pop(vm, &value1, sizeof(double), &type2);
     
   /* check data types */
-  if(type1 != TYPE_NUMBER || type2 != TYPE_NUMBER) {
+  if(type1 != type2 || (type1 == TYPE_LIBDATA || type2 == TYPE_LIBDATA)
+     || (code != OP_EQUALS && code != OP_NOT_EQUALS && type1 != TYPE_NUMBER)) {
     vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
     return false;
   }

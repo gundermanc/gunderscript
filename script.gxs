@@ -43,24 +43,14 @@ function exported main() {
   x = 1;
   x = 4 * 2 + x + 2;
 
-  /* demonstrates if statements and boolean logic
-   */
-   if(true) {
-     if(true) {
-       sys_print("Look! A nested if statement. \n");
-     }
+  sys_print("Lets calculate the factorial of ", x, 
+                     "...it looks like it is ...", fact(x), "\n");
 
-     // string concat operation, basic math, precedence, and nested function call
-     sys_print("Here we did some " + "math operations: ", 1 + 2 * fact(x) + 1);
-     sys_print(" Boolean Comparison: ", (3 + 3) > (2 + 2) || 5 <= 7, "\n");
-   } else {
-     sys_print(false);
-   }
-   
-   /* count down from ten, a loop example */
-   i = 10;
-   while(i != 0) {
-     sys_print(i, ", ");
-     i = i - 1;
-   } 
+  /* count down from ten, a loop example */
+  sys_print("And a simple loop example:\n");
+  i = 10;
+  while(i != 0) {
+    sys_print(i, ", ");
+    i = i - 1;
+  } 
 }

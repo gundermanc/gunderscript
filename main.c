@@ -144,7 +144,7 @@ static void print_exec_error(Gunderscript * ginst) {
 int main(int argc, char * argv[]) {
   Gunderscript ginst;
   size_t stackSize = 100000;
-  int callbacksSize = 10;
+  int callbacksSize = 55;
   int i = 0;
 
   /* process_arguments(argc, argv, &stackSize); */
