@@ -725,7 +725,7 @@ static bool parse_while_statement(Compiler * c, Lexer * l) {
   /* retrieve current token */
   token = lexer_current_token(l, &type, &len);
 
-  if(!parse_block(c, l)) {
+  if(!parse_body_statement(c, l)) {
     c->err = COMPILERERR_EXPECTED_OBRACKET;
     return true;
   }
@@ -794,8 +794,8 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
   /* retrieve current token */
   token = lexer_current_token(l, &type, &len);
 
-  if(!parse_block(c, l)) {
-    c->err = COMPILERERR_EXPECTED_OBRACKET;
+  /* do if body or statement */
+  if(!parse_body_statement(c, l)) {
     return true;
   }
 
@@ -822,7 +822,8 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
 
   token = lexer_next(l, &type, &len);
 
-  if(!parse_block(c, l)) {
+  /* do else body or statement */
+  if(!parse_body_statement(c, l)) {
     c->err = COMPILERERR_EXPECTED_OBRACKET;
     return true;
   }
@@ -1255,6 +1256,52 @@ int define_variables(Compiler * c, Lexer * l) {
 }
 
 /**
+ * Evaluates a single line of function body code. In other words, all code
+ * that may be found within a function body, including loops, ifs, straight 
+ * code, assignment statements, but only one line, or one structure (if, while),
+ * etc.
+ * c: an instance of compiler.
+ * l: an instance of lexer that will provide all tokens that will be parsed.
+ * returns: true if successful, and false if an error occurs. In the case of
+ * an error, c->err is set to a relevant error code.
+ */
+bool parse_body_statement(Compiler * c, Lexer * l) {
+  LexerType type;
+  char * token;
+  size_t len;
+
+  /* attempt each logical structure subparser, one by one */
+  if(parse_if_statement(c, l)) {
+    if(c->err != COMPILERERR_SUCCESS) {
+      return false;
+    }
+  } else if(parse_block(c, l)) {
+    if(c->err != COMPILERERR_SUCCESS) {
+      return false;
+    }
+  } else if(parse_while_statement(c, l)) {
+    if(c->err != COMPILERERR_SUCCESS) {
+      return false;
+    }
+  } else {
+
+    /* not a logical structure, evaluate as normal line of code */
+    if(!parse_line(c, l, false)) {
+      return false;
+    }
+
+    /* check for terminating semicolon */
+    token = lexer_current_token(l, &type, &len);
+    if(type != LEXERTYPE_ENDSTATEMENT) {
+      c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+      return false;
+    }
+    token = lexer_next(l, &type, &len);
+  }
+  return true;
+}
+
+/**
  * Evaluates function body code. In other words, all code that may be found
  * within a function body, including loops, ifs, straight code, assignment
  * statements, but excluding variable declarations.
@@ -1272,34 +1319,8 @@ bool parse_body(Compiler * c, Lexer * l) {
 
   /* keep executing lines of code until we hit a '}' */
   while(!tokens_equal(token, len, LANG_CBRACKET, LANG_CBRACKET_LEN)) {
-
-    /* attempt each logical structure subparser, one by one */
-    if(parse_if_statement(c, l)) {
-      if(c->err != COMPILERERR_SUCCESS) {
-	return false;
-      }
-    } else if(parse_block(c, l)) {
-      if(c->err != COMPILERERR_SUCCESS) {
-	return false;
-      }
-    } else if(parse_while_statement(c, l)) {
-      if(c->err != COMPILERERR_SUCCESS) {
-	return false;
-      }
-    } else {
-
-      /* not a logical structure, evaluate as normal line of code */
-      if(!parse_line(c, l, false)) {
-	return false;
-      }
-
-      /* check for terminating semicolon */
-      token = lexer_current_token(l, &type, &len);
-      if(type != LEXERTYPE_ENDSTATEMENT) {
-	c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
-	return false;
-      }
-      token = lexer_next(l, &type, &len);
+    if(!parse_body_statement(c, l)) {
+      return false;
     }
     token = lexer_current_token(l, &type, &len);
   }
