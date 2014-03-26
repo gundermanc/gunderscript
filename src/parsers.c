@@ -241,7 +241,7 @@ static bool parse_keyvar(Compiler * c, Lexer * l, TypeStk * opStk,
     return false;
   }
 
-  /* delegate function call to function call parser */
+  /* delegate to line parser */
   if(!parse_line(c, l, true)) {
     return false;
   }
