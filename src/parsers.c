@@ -41,6 +41,8 @@ static const int opStkBlockSize = 12;
 
 /* private function declarations */
 static bool parse_line(Compiler * c, Lexer * l, bool innerCall);
+bool parse_block(Compiler * c, Lexer * l);
+bool parse_body_statement(Compiler * c, Lexer * l);
 
 /**
  * Pops operators that are were pushed into the "sidetrack" stack used by 
@@ -742,6 +744,85 @@ static bool parse_while_statement(Compiler * c, Lexer * l) {
 }
 
 /**
+ * Parses while statements in script code, starting at the initial "while" token
+ * and dispatches subparsers as needed until done.
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * returns: true if this is a while statement, regardless of error. If error,
+ * c->err is set.
+ */
+static bool parse_do_while_statement(Compiler * c, Lexer * l) {
+  char * token;
+  size_t len;
+  LexerType type;
+  int beforeDoAddr;
+  int argCount = 0;
+
+  token = lexer_current_token(l, &type, &len);
+
+  /* check if this is a do while statement */
+  if(!tokens_equal(token, len, LANG_DO, LANG_DO_LEN)) {
+    return false;
+  }
+
+  token = lexer_next(l, &type, &len);
+
+  /* store address before do block */
+  beforeDoAddr = buffer_size(c->outBuffer);
+
+  /* compile whatever is in our do statement/block */
+  if(!parse_body_statement(c, l)) {
+    c->err = COMPILERERR_EXPECTED_OBRACKET;
+    return true;
+  }
+
+  /* update token, it was advanced by parse_body_statement */
+  token = lexer_current_token(l, &type, &len);
+
+  /* check for the while statement */
+  if(!tokens_equal(token, len, LANG_WHILE, LANG_WHILE_LEN)) {
+    c->err =  COMPILERERR_MALFORMED_IFORLOOP;
+    return true;
+  }
+
+  token = lexer_next(l, &type, &len);
+
+  /* check for an open parenthesis token */
+  if(!tokens_equal(token, len, LANG_OPARENTH, LANG_OPARENTH_LEN)) {
+    c->err = COMPILERERR_MALFORMED_IFORLOOP;
+    return false;
+  }
+
+  token = lexer_next(l, &type, &len);
+
+  /* compile the arguments */
+  argCount = parse_arguments(c, l, token, type, len);
+
+  /* get current token, it was updated by parse_arguments */
+  token = lexer_current_token(l, &type, &len);
+
+  /* check for proper number of arguments */
+  if(argCount != 1) {
+    c->err = COMPILERERR_MALFORMED_IFORLOOP;
+    return true;
+  }
+
+  /* write the jump address */
+  buffer_append_char(c->outBuffer, OP_TCOND_GOTO);
+  buffer_append_string(c->outBuffer, (char*)(&beforeDoAddr), sizeof(int));
+
+  /* check for a ';' token */
+  if(!tokens_equal(token, len, LANG_ENDSTATEMENT, LANG_ENDSTATEMENT_LEN)) {
+    c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+    return false;
+  }
+
+  token = lexer_next(l, &type, &len);
+
+  return true;
+}
+
+/**
  * Parses if statements in script code, starting at the initial "if" token
  * and dispatches subparsers as needed until done.
  * c: an instance of compiler.
@@ -1267,7 +1348,6 @@ int define_variables(Compiler * c, Lexer * l) {
  */
 bool parse_body_statement(Compiler * c, Lexer * l) {
   LexerType type;
-  char * token;
   size_t len;
 
   /* attempt each logical structure subparser, one by one */
@@ -1283,6 +1363,10 @@ bool parse_body_statement(Compiler * c, Lexer * l) {
     if(c->err != COMPILERERR_SUCCESS) {
       return false;
     }
+  } else if(parse_do_while_statement(c, l)) {
+    if(c->err != COMPILERERR_SUCCESS) {
+      return false;
+    }
   } else {
 
     /* not a logical structure, evaluate as normal line of code */
@@ -1291,12 +1375,12 @@ bool parse_body_statement(Compiler * c, Lexer * l) {
     }
 
     /* check for terminating semicolon */
-    token = lexer_current_token(l, &type, &len);
+    lexer_current_token(l, &type, &len);
     if(type != LEXERTYPE_ENDSTATEMENT) {
       c->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
       return false;
     }
-    token = lexer_next(l, &type, &len);
+    lexer_next(l, &type, &len);
   }
   return true;
 }

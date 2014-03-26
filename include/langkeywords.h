@@ -33,6 +33,8 @@
 #define LANG_FUNCTION_LEN 8
 #define LANG_EXPORTED   "exported"
 #define LANG_EXPORTED_LEN 8
+#define LANG_ENDSTATEMENT ";"
+#define LANG_ENDSTATEMENT_LEN 1
 #define LANG_OPARENTH   "("
 #define LANG_OPARENTH_LEN 1
 #define LANG_CPARENTH   ")"
@@ -57,6 +59,8 @@
 #define LANG_IF_LEN       2
 #define LANG_ELSE        "else"
 #define LANG_ELSE_LEN     4
+#define LANG_DO          "do"
+#define LANG_DO_LEN       2
 #define LANG_WHILE       "while"
 #define LANG_WHILE_LEN    5
 
