@@ -1052,6 +1052,7 @@ static bool parse_assignment_statement(Compiler * c, Lexer * l) {
 
   /* do assignment...return if fails..but we're already done, return anyways */
   assignment(c, l, varToken, varTokenLen);
+  buffer_append_char(c->outBuffer, OP_POP);
   return true;
 }
 
