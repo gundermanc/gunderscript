@@ -29,6 +29,7 @@
 #include <unistd.h>
 
 #define LIBSYS_GETLINE_MAXLEN          255
+#define LIBSYS_TOSTRING_MAXLEN         25
 
 /**
  * VMNative: sys_print( value1, value2, ... )
@@ -56,7 +57,7 @@ static bool vmn_print(VM * vm, VMArg * arg, int argc) {
       printf("null");
       break;
     default:
-      printf("_sys_print: Unrecognised type.");
+      printf("sys_print: Unrecognised type.");
     }
   }
 
@@ -356,6 +357,139 @@ static bool vmn_is_string(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
+ * VMNative: to_string( value )
+ * Accepts one arguments. Accepts a single parameter of any type
+ * and converts it to a string.
+ */
+static bool vmn_to_string(VM * vm, VMArg * arg, int argc) {
+  char newString[LIBSYS_TOSTRING_MAXLEN];
+  VMLibData * result;
+
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  switch(arg[0].type) {
+  case TYPE_NULL:
+    strcpy(newString, "null");
+    break;
+  case TYPE_NUMBER:
+    snprintf(newString, LIBSYS_TOSTRING_MAXLEN, 
+	     "%f", vmarg_number(arg[0], NULL));
+    break;
+  case TYPE_BOOLEAN:
+    strcpy(newString, vmarg_boolean(arg[0], NULL) ? "true":"false");
+    break;
+  case TYPE_LIBDATA :
+    if(vmarg_is_string(arg[0])) {
+      vmarg_push_libdata(vm, vmarg_libdata(arg[0]));
+      return true;
+    } else {
+      strcpy(newString, "LIBDATA{");
+      strcat(newString, vmarg_libdata(arg[0])->type);
+      strcat(newString, "}");
+    }
+    break;
+  default:
+    printf("to_string: unknown type.");
+    return false;
+  }
+
+  /* allocate response string */
+  result = vmarg_new_string(newString, strlen(newString));
+  if(result == NULL) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
+
+  /* push response */
+  vmarg_push_libdata(vm, result);
+  return true;
+}
+
+/**
+ * VMNative: to_number( value )
+ * Accepts one arguments. Accepts a single parameter of any type
+ * and converts it to a number if possible.
+ */
+static bool vmn_to_number(VM * vm, VMArg * arg, int argc) {
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  switch(arg[0].type) {
+  case TYPE_NULL:
+    vmarg_push_number(vm, 0.0d);
+    break;
+  case TYPE_NUMBER:
+    vmarg_push_number(vm, vmarg_number(arg[0], NULL));
+    break;
+  case TYPE_BOOLEAN:
+    vmarg_push_number(vm, vmarg_boolean(arg[0], NULL) ? 1.0d : 0.0d);
+    break;
+  case TYPE_LIBDATA:
+  default:
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * VMNative: to_boolean( value )
+ * Accepts one arguments. Accepts a single parameter of any type
+ * and converts it to a boolean if possible.
+ */
+static bool vmn_to_boolean(VM * vm, VMArg * arg, int argc) {
+
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  switch(arg[0].type) {
+  case TYPE_NULL:
+    vmarg_push_boolean(vm, false);
+    break;
+  case TYPE_NUMBER:
+    vmarg_push_boolean(vm, vmarg_number(arg[0], NULL) == 0 ? false : true);
+    break;
+  case TYPE_BOOLEAN:
+    vmarg_push_boolean(vm, vmarg_boolean(arg[0], NULL));
+    break;
+  case TYPE_LIBDATA:
+    if(vmarg_is_string(arg[0])) {
+      if(strcmp(vmarg_string(arg[0]), "true") == 0) {
+	vmarg_push_boolean(vm, true);
+      } else {
+	/* push false if anything but true..this is by design */
+	vmarg_push_boolean(vm, false);
+      }
+    } else {
+      /* this is an object (not a string) that is not null, push true */
+      vmarg_push_boolean(vm, true);
+    }
+    break;
+  default:
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+  return true;
+}
+
+
+/**
  * Installs the Libsys library in the given instance of Gunderscript.
  * gunderscript: the instance to receive the library.
  * returns: true upon success, and false upon failure. If failure occurs,
@@ -373,7 +507,10 @@ bool libsys_install(Gunderscript * gunderscript) {
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_boolean", 10, vmn_is_boolean)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_number", 9, vmn_is_number)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_null", 7, vmn_is_null)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), "is_string", 9, vmn_is_string)) {
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "is_string", 9, vmn_is_string)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "to_string", 9, vmn_to_string)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "to_number", 9, vmn_to_number)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "to_boolean", 10, vmn_to_boolean)) {
     return false;
   }
 
