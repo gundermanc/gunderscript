@@ -36,7 +36,10 @@ it works cross platform and has been tested on 64 bit Windows, and linux_32 and
 linux64 for x86. I intend to support ARM as well, but have yet to test it.
 
 BUILDING:
-Clone the repository and make the commandline application for linux with:
+Clone the repository.
+**IMPORTANT: Before building, run the following command to pull c-datastructs library
+  ./submodules.sh
+Make the commandline application for linux with:
   make releaseapp
 Or make the static library only with:
   make linuxlibrary
