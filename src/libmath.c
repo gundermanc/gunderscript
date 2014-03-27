@@ -63,4 +63,5 @@ bool libmath_install(Gunderscript * gunderscript) {
 		      "math_abs", 8, vmn_math_abs)) {
     return false;
   }
+  return true;
 }
