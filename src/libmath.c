@@ -43,6 +43,12 @@ static bool vmn_math_abs(VM * vm, VMArg * arg, int argc) {
     return false;
   }
 
+  /* check argument type */
+  if(vmarg_type(arg[0]) != TYPE_NUMBER) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+
   /* push result */
   vmarg_push_number(vm, abs(vmarg_number(arg[0], NULL)));
 
