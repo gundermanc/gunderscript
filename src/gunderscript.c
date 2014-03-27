@@ -38,6 +38,13 @@ bool gunderscript_new(Gunderscript * instance, size_t stackSize,
     return false;
   }
 
+  /* initialize system libraries */
+  if(!libsys_install(instance)
+     || !libmath_install(instance)) {
+    vm_free(instance->vm);
+    return false;
+  }
+
   /* allocate compiler instance */
   instance->compiler = compiler_new(instance->vm);
   if(instance->compiler == NULL) {

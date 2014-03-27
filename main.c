@@ -155,9 +155,6 @@ int main(int argc, char * argv[]) {
     return 1;
   }
 
-  /* initialize system library */
-  libsys_install(&ginst);
-
   /* check for proper number of arguments */
   if(argc < 2) {
     print_help();
