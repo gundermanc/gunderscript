@@ -28,5 +28,29 @@ function prompt_for_name() {
  * the location in byte code of this function for use as an entry point.
  */
 function exported main() {
-  sys_print(math_abs(10));
-}
+
+  /* variable declaration. declaration and assignment in the same line does not
+   * work yet (var x = 1;). At the moment, you are confined to declaring and 
+   * initializing separately. Variables must be declared at top of method body,
+   * just like in C89.
+   */
+  var x;
+  var i;
+
+  prompt_for_name();
+
+  // demonstrates precedence of operators and assignment statements:
+  x = 1;
+  x = 4 * 2 + x + 2;
+
+  sys_print("Lets calculate the factorial of ", x, 
+                     "...it looks like it is ...", fact(x), "\n");
+
+  /* count down from ten, a loop example */
+  sys_print("And a simple loop example:\n");
+  i = 10;
+  while(i != 0) {
+    sys_print(i, ", ");
+    i = i - 1;
+  } 
+} 
