@@ -40,7 +40,8 @@ bool gunderscript_new(Gunderscript * instance, size_t stackSize,
 
   /* initialize system libraries */
   if(!libsys_install(instance)
-     || !libmath_install(instance)) {
+     || !libmath_install(instance)
+     || !libstr_install(instance)) {
     vm_free(instance->vm);
     return false;
   }
