@@ -1,3 +1,0 @@
-function exported main(){
-    sys_print(math_sqrt(4));
-}
