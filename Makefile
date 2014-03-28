@@ -32,7 +32,7 @@ DOCSDIR = docs
 all: c-datastructs-build buildfs
 
 # builds everything!!
-all: linuxapp
+all: releaseapp
 
 # builds the testing application
 debugapp: CFLAGS += -g
@@ -43,7 +43,7 @@ releaseapp: app
 
 # builds the testing application
 app: linuxlibrary
-	$(CC) $(CFLAGS) -o gunderscript main.c gunderscript.a $(DATASTRUCTSDIR)/lib.a
+	$(CC) $(CFLAGS) -o gunderscript main.c gunderscript.a $(DATASTRUCTSDIR)/lib.a -lm
 
 # build just the static library
 linuxlibrary: gunderscript.o lexer.o frmstk.o vm.o compiler.o
