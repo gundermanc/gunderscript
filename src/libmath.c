@@ -91,10 +91,8 @@ static bool vmn_math_sqrt(VM * vm, VMArg * arg, int argc) {
 bool libmath_install(Gunderscript * gunderscript) {
 
   if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_abs", 8, vmn_math_abs)) {
-    return false;
-  }
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
+		      "math_abs", 8, vmn_math_abs)
+    || !vm_reg_callback(gunderscript_vm(gunderscript), 
 		      "math_sqrt", 9, vmn_math_sqrt)) {
     return false;
   }
