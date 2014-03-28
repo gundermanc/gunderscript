@@ -29,7 +29,6 @@
 #include <string.h>
 #include <math.h>
 
-
 /**
  * VMNative: math_abs( value )
  * Accepts one number argument. Returns its absolute value.

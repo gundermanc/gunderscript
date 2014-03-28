@@ -1,0 +1,55 @@
+Gunderscript Programming Language
+Coding Style Overview
+(C) 2013-2014 Christian Gunderman
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Contact Email: gundermanc@gmail.com
+
+   For this project, all programmers are expected to maintain a strict coding style
+
+   - All native code will be written in the C89 standard.
+
+   - Code files may only contain code relevant to the function of the particular
+     object of that file. e.g.: the ll.c file may only have functions pertaining 
+     to the linked list.
+
+   - All function names must be lowercase words separated by underscores. Function
+     names must begin with the name of the specific C file or the feature provided
+     by the C file, unless the function is a static function, not declared in the
+     header file. e.g.: int ll_new()
+
+   - All variable declarations must be done in camel case. e.g. int newVariable;
+
+   - All functions require comments before the function declaration, as well as
+     inside the function before every loop or significant section of code. 
+     Comments should based upon pseudo code. Code will be constructed by copying 
+     the pseudo code into the code file and creating comments with it, and then
+     constructing relevant code and functions according to the comments.
+
+   - All comments end with a period.
+
+   - All function, while, if, etc. must have the open bracket '{' on the same line
+     as the declaration. 
+     : if(is_true()) { ...
+
+   - All C files should begin with a comment formatted similar to the one in 
+     the Copyright Comment Header Section in this file.
+
+   - If, while, function declarations, etc. must not have a space between the 
+     function/feature name and the open parenthesis. e.g.: if(true
+
+   - There should be a space between every close parenthesis and open bracket.
+
+   - All C files must contain the copyright comment header and be fully commented.

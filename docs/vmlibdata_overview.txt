@@ -1,0 +1,56 @@
+Gunderscript Programming Language
+VMLibData Overview
+(C) 2013-2014 Christian Gunderman
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Contact Email: gundermanc@gmail.com
+
+
+
+This document will explain, in short, what TYPE_VMLIBDATA is and how to use
+VMLibData* type, but will probably not go into *super* detail. That will be
+left up to the code.
+
+VMLibData* is a C structure type that contains a pointer that can be used by
+Gunderscript function libraries (like libstr.c, libsys.c, and libmath.c) to
+handle custom types such as FILE* pointers, data structures, and handling
+dynamically allocated memory buffers. An example of its use is for the built
+in string type (actually TYPE_LIBDATA{GXS.STRING}).
+
+All features are defined in vm.c and vm.h. See comments for more reference.
+
+
+FEATURES:
+  - An empty pointer, usable by the library implementer to reference dynamic
+    memory or define custom types.
+  - A string of VM_LIBDATA_TYPE length used to identify the type of the object.
+    Strings type string is: GXS.STRING.
+  - A pointer to a VMLibDataCleanupCallback method that is expected to free
+    any memory associated with this object. Particularly memory referred to
+	by the library implementer pointer. This method is called when the 
+	reference count reaches zero.
+  - A reference counter. This is an integer value that stores the number of
+    active references to this VMLibData* object. Any time another reference
+	is created, the count increases. Any time the reference is destroyed,
+	the count is decremented. When reference count reaches zero, the object
+	is automatically freed by calling its data cleanup callback method.
+	
+NOTES:
+  - Uses vmlibdata_* functions in vm.c and vm.h.
+  - Any 3rd party libraries that implement data structures capable of storing
+    VMLibData references MUST increment the reference count of the VMLibData
+	before storing it, and decrement it when it is overwritten or released,
+	or else it may be freed if it goes out of scope in the script.
+  - Check if a VMLibData is a certain type with vmlibdata_is_type() function.

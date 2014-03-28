@@ -1,0 +1,167 @@
+Gunderscript Programming Language
+Binding Native Functions Guide
+(C) 2013-2014 Christian Gunderman
+
+This program is free software: you can redistribute it and/or modify
+it under the terms of the GNU Lesser General Public License as published
+by the Free Software Foundation, either version 3 of the License, or
+(at your option) any later version.
+
+This program is distributed in the hope that it will be useful,
+but WITHOUT ANY WARRANTY; without even the implied warranty of
+MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+GNU Lesser General Public License for more details.
+
+You should have received a copy of the GNU Lesser General Public License
+along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+Contact Email: gundermanc@gmail.com
+
+
+NOTE: this information may become out of date. Be sure to check the code
+when in doubt.
+
+Gunderscript is designed to be an embeddable scripting engine that can be
+easily dropped into an existing C application. The user can then write
+scripts that interact with the application through application defined
+script functions.
+
+* To define a script function in C or C++, you must create a function with
+  the following arguments and return type in your C code:
+
+  static bool vmn_your_function_name(VM * vm, VMArg * arg, int argc)
+  
+* Once you have this function defined, lets give it a basic body:
+
+  static bool vmn_your_function_name(VM * vm, VMArg * arg, int argc) {
+    return false;  /* we did not return a value */
+  }
+  
+  NOTE: returning false makes it so that this function does not have a 
+        return value, but instead just returns null or false, depending
+		on the implementation.
+  
+* Now, lets make Gunderscript aware of this function by "registering" it
+  with the virtual machine. This can be done through the use of the
+  vm_reg_callback() function like so:
+ 
+  vm_reg_callback(gunderscript_vm(ginst), "function_name", 13, vmn_your_function_name);
+  
+  NOTE: * This assumes that ginst is a Gunderscript* instance.
+        * vm_reg_callback() returns false on failure. Failure occurs if 
+		  gunderscript_new()'s callbacksSize parameter is too small.
+		* "function_name" is the name the function will have in the script.
+		* 13 is the length of the function name in letters.
+		* vmn_you_function_name is the function to bind.
+		
+* Ok, now, if you open your gunderscript script, you should be able to run the
+  following line inside of the main method and get a default return value.
+  
+  function_name();
+  
+  
+* Now that we have our function in place, we can have it do something. Go back
+  to the vmn_your_function_name C/C++ function we wrote. Notice the arguments.
+  vm is an instance of virtual machine, arg is an array of command line arguments,
+  and argc is the number of command line arguments to this function.
+  
+  Before your function does anything else, it should check and make sure that
+  there are enough command line arguments like so:
+  
+  /* check for 3 arguments */
+  if(argc != 3) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS); /* set a VM error..execution will terminate */
+	return false;  /* we did not return a value */
+  }
+  
+* If execution of the code passes that guard case, you know that you have
+  exactly 3 command line arguments in "arg". Now you can check the types of those
+  arguments like so:
+  
+  
+  /* Possible Types:
+   * TYPE_NULL: Just like it sounds, this is a null.
+   * TYPE_BOOLEAN: a true or false.
+   * TYPE_NUMBER: a double value.
+   * TYPE_LIBDATA: a string, file context handle, etc.
+   */
+   
+   
+  /* check first argument for proper type */
+  if(vmarg_type(arg[0]) != TYPE_BOOLEAN) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT); /* set a VM error..execution will terminate */
+	return false;  /* we did not return a value */
+  }
+  
+  /* check second argument for proper type */
+  if(vmarg_type(arg[1]) != TYPE_NUMBER) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT); /* set a VM error..execution will terminate */
+	return false;  /* we did not return a value */
+  }
+  
+    /* check third argument for proper type */
+  if(vmarg_is_string(arg[2]) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT); /* set a VM error..execution will terminate */
+	return false;  /* we did not return a value */
+  }
+  
+  NOTE: * String is a subtype of LIBDATA, so it has its own type checking
+          function.
+		
+* Once we have checked the type, we can now move on and do something with it.
+  For this example function, we are just going to use one argument at a time,
+  but I will provide 3 possible scenarios that will evaluate each argument as
+  each type.
+  
+  TYPE_BOOLEAN:
+  /* get the boolean value and do something with it */
+  if(vmarg_boolean(arg[0], NULL)) {
+    // do if first argument is true
+  } else {
+    // do if first argument is false
+  }
+  
+  TYPE_NUMBER:
+  /* get the number and do something with it */
+  double argument2 = vmarg_number(arg[1], NULL);
+  // do something with argument 2
+  
+  TYPE_LIBDATA{STRING}:
+  /* get the 3rd argument as a string and compare it to something */
+  if(strcmp(vmarg_string(arg[2], "hello")) == 0) {
+    /* do something if 3rd argument is "hello" */
+  }
+  
+* Finally, most useful functions return a value of some sort. Gunderscript
+  Virtual Machine is based around a stack of operands, so when we are finished
+  with a function, we "push" a return value to the stack, using the following
+  functions:
+  
+  vmarg_push_null(vm): pushes a null to the stack.
+ 
+  vmarg_push_boolean(vm, trueOrFalse): pushes a boolean, trueOrFalse, to the
+    stack.
+	
+  vmarg_push_number(vm, doubleValue): pushes a double value to the stack.
+  
+  vmarg_push_libdata(vm, VMLibDataInstance): pushes a pointer to a VMLibData
+    to the stack. The most common use for VMLibData is for strings. Allocate
+	and push a new string to the stack with:
+	
+	vmarg_push_libdata(vm, vmarg_new_string(string, stringLen));
+	
+	For more information about VMLibData type, see the code/comments and any
+	accompanying documentation.
+
+* Finally, once a return value has been pushed (**ONLY PUSH ONE OR ELSE DEATH
+  AND DISEASE WILL COME UPON YOU AND YOUR STACK WILL BE MESSED UP...think two
+  return values), your function MUST return true to tell the virtual machine
+  that it is returning a value.
+  
+  If it does not return a value, it should return false.
+  
+  
+  
+  
+  
+  
