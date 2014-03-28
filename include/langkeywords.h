@@ -82,6 +82,8 @@
 #define LANG_OP_MUL_LEN   1
 #define LANG_OP_DIV     "/"
 #define LANG_OP_DIV_LEN   1
+#define LANG_OP_MOD       "%"
+#define LANG_OP_MOD_LEN   1
 #define LANG_OP_ASSIGN  "="
 #define LANG_OP_ASSIGN_LEN 1
 #define LANG_OP_EQUALS  "=="

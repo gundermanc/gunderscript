@@ -494,10 +494,7 @@ bool op_dual_operand_math(VM * vm,  char * byteCode,
     value1 /= value2;
     break;
   case OP_MOD:
-    /* TODO: fix linker issue. */
-    /*value1 = fmod(value1, value2);*/
-    printf("\n\nDEBUG: OP_MOD Not yet implemented.\n\n");
-    exit(0);
+    value1 = fmod(value1, value2);
     break;
   default:
     /* TODO: remove in release version */
