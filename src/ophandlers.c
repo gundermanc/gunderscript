@@ -478,12 +478,6 @@ bool op_dual_operand_math(VM * vm,  char * byteCode,
     return false;
   }
 
-  /* check for divide by zero errors */
-  if(value2 == 0) {
-    vm_set_err(vm, VMERR_DIVIDE_BY_ZERO);
-    return false;
-  }
-
   switch(code) {
   case OP_SUB:
     value1 -= value2;
@@ -492,6 +486,11 @@ bool op_dual_operand_math(VM * vm,  char * byteCode,
     value1 *= value2;
     break;
   case OP_DIV:
+    /* check for divide by zero errors */
+    if(value2 == 0) {
+      vm_set_err(vm, VMERR_DIVIDE_BY_ZERO);
+      return false;
+    }
     value1 /= value2;
     break;
   case OP_MOD:
