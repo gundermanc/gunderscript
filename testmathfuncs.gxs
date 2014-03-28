@@ -1,3 +1,36 @@
 function exported main(){
-    sys_print(math_sqrt(4));
+    var pi;
+    pi = 3.14159265;
+    if(math_round(6.33456, 2) != 6.33){
+        sys_print("math_round is not working!\n");
+    }
+    if(math_round(6.33456) != 6){
+        sys_print("math_round is not working!\n");
+    }
+    if(math_abs(0-4) != 4){
+        sys_print("math_abs is not working!\n");
+    }
+    if(math_sqrt(4) != 2){
+        sys_print("math_sqrt is not working!\n");
+    }
+    if(math_round(math_sin(pi/4), 5) != math_round(math_sqrt(2)/2, 5)){
+        sys_print("math_sin is not working!\n");
+    }
+    if(math_round(math_cos(pi/4), 5) != math_round(math_sqrt(2)/2, 5)){
+        sys_print("math_cos is not working!\n");
+    }
+    if(math_round(math_tan(pi/4), 5) != 1){
+        sys_print("math_tan is not working!\n");
+    }
+    if(math_round(math_asin(math_sin(pi/2)), 5) != math_round(pi/2, 5)){
+        sys_print("math_asin is not working!\n");
+    }
+    if(math_round(math_acos(math_cos(pi/2)), 5) != math_round(pi/2, 5)){
+        sys_print("math_acos is not working!\n");
+    }
+    if(math_round(math_atan(math_tan(pi/2)), 5) != math_round(pi/2, 5)){
+        sys_print("math_atan is not working!\n");
+    }
+    sys_print("Test complete! If you saw no other text, everything is working fine!");
+
 }
