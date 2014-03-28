@@ -48,6 +48,7 @@ typedef enum {
   VMERR_CALLBACK_NOT_EXIST,           /* invalid callback string, or index */
   VMERR_INCORRECT_NUMARGS,            /* incorrect number of arguments */
   VMERR_INVALID_TYPE_ARGUMENT,        /* argument is wrong type */
+  VMERR_ARGUMENT_OUT_OF_RANGE,        /* index argument is out of range */
 } VMErr;
 
 /* english translations of vm errors */
@@ -69,6 +70,7 @@ static const char * const vmErrorMessages [] = {
   "The callback does not exist",
   "Incorrect number of arguments to native function",
   "Argument to native function is invalid type",
+  "Argument to native function is out of allowable range",
 };
 
 typedef struct VMArg {

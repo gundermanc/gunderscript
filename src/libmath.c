@@ -34,7 +34,6 @@
  * Accepts one number argument. Returns its absolute value.
  */
 static bool vmn_math_abs(VM * vm, VMArg * arg, int argc) {
-  int i = 0;
 
   /* check for proper number of arguments */
   if(argc != 1) {
@@ -60,7 +59,6 @@ static bool vmn_math_abs(VM * vm, VMArg * arg, int argc) {
  * Accepts one number argument. Returns its square root.
  */
 static bool vmn_math_sqrt(VM * vm, VMArg * arg, int argc) {
-  int i = 0;
 
   /* check for proper number of arguments */
   if(argc != 1) {

@@ -25,6 +25,9 @@
  */
 
 #include "gunderscript.h"
+#include "libsys.h"
+#include "libmath.h"
+#include "libstr.h"
 
 /**
  * Creates a new instance of Gunderscript object with a compiler and 
