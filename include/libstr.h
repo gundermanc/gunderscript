@@ -26,6 +26,16 @@
 
 #include "gunderscript.h"
 
+#define LIBSTR_WORKSHOP_TYPE     "LIBSTR.WS"
+#define LIBSTR_WORKSHOP_TYPE_LEN    9
+
+typedef struct {
+  char * stringBuffer;
+  int bufferLen;
+  int stringLen;
+} LibstrWorkshop;
+
+
 bool libstr_install(Gunderscript * gunderscript);
 
 #endif /*LIBSTR__H__*/
