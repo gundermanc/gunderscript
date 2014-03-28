@@ -56,6 +56,32 @@ static bool vmn_math_abs(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
+ * VMNative: math_sqrt( value )
+ * Accepts one number argument. Returns its square root.
+ */
+static bool vmn_math_sqrt(VM * vm, VMArg * arg, int argc) {
+  int i = 0;
+
+  /* check for proper number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+    return false;
+  }
+
+  /* check argument type */
+  if(vmarg_type(arg[0]) != TYPE_NUMBER) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+
+  /* push result */
+  vmarg_push_number(vm, sqrt(vmarg_number(arg[0], NULL)));
+
+  /* this function does return a value */
+  return true;
+}
+
+/**
  * Installs the Libmath library in the given instance of Gunderscript.
  * gunderscript: the instance to receive the library.
  * returns: true upon success, and false upon failure. If failure occurs,
@@ -66,6 +92,10 @@ bool libmath_install(Gunderscript * gunderscript) {
 
   if(!vm_reg_callback(gunderscript_vm(gunderscript), 
 		      "math_abs", 8, vmn_math_abs)) {
+    return false;
+  }
+  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
+		      "math_sqrt", 9, vmn_math_sqrt)) {
     return false;
   }
   return true;
