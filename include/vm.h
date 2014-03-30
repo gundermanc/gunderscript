@@ -124,7 +124,7 @@ void vm_set_err(VM * vm, VMErr err);
 
 VMErr vm_get_err(VM * vm);
 
-char * vm_err_to_string(VMErr err);
+const char * vm_err_to_string(VMErr err);
 
 void vm_free(VM * vm);
 

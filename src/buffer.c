@@ -125,7 +125,7 @@ bool buffer_set_char(Buffer * buffer, char c, int index) {
   
   /* if insertion is out of range of the current buffer, realloc */
   if(index >= buffer->currentSize) {
-    if(!resize_buffer(buffer, buffer->currentSize + buffer->blockSize)) {
+    if(!buffer_resize(buffer, buffer->currentSize + buffer->blockSize)) {
       return false;
     }
   }

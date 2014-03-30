@@ -126,7 +126,7 @@ CompilerErr gunderscript_build_err(Gunderscript * instance) {
  * instance: an instance of Gunderscript.
  * returns: an error message, or NULL if there are no errors.
  */
-char * gunderscript_err_message(Gunderscript * instance) {
+const char * gunderscript_err_message(Gunderscript * instance) {
   assert(instance != NULL);
 
   if(compiler_get_err(instance->compiler) != COMPILERERR_SUCCESS) {

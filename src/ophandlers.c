@@ -30,6 +30,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#include <math.h>
 
 /* define boolean values used in the op_bool_push function */
 #define OP_TRUE             1

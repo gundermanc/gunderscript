@@ -28,13 +28,7 @@
 
 #define LIBSTR_WORKSHOP_TYPE     "LIBSTR.WS"
 #define LIBSTR_WORKSHOP_TYPE_LEN    9
-
-typedef struct {
-  char * stringBuffer;
-  int bufferLen;
-  int stringLen;
-} LibstrWorkshop;
-
+#define LIBSTR_WORKSHOP_BLOCKSIZE   10
 
 bool libstr_install(Gunderscript * gunderscript);
 

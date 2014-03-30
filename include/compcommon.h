@@ -132,6 +132,4 @@ int topstack_precedence(TypeStk * stk, Stk * lenStk);
 
 int topstack_type(TypeStk * stk, Stk * lenStk);
 
-char * compiler_err_to_string(Compiler * compiler, CompilerErr err);
-
 #endif /* COMPCOMMON__H__ */

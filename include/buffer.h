@@ -35,18 +35,18 @@ typedef struct {
   int currentSize;
 } Buffer;
   
-Buffer * buffer_new(size_t initialSize, size_t blockSize);
+Buffer * buffer_new(int initialSize, int blockSize);
 
 bool buffer_append_char(Buffer * buffer, char c);
 
-bool buffer_append_string(Buffer * buffer, char * input, size_t inputLen);
+bool buffer_append_string(Buffer * buffer, char * input, int inputLen);
 
 bool buffer_set_char(Buffer * buffer, char c, int index);
 
 char * buffer_get_buffer(Buffer * buffer);
 
 bool buffer_set_string(Buffer * buffer, char * input,
-		       size_t inputLen, int index);
+		       int inputLen, int index);
 
 int buffer_size(Buffer * buffer);
 

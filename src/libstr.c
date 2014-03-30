@@ -26,64 +26,30 @@
 #include <string.h>
 
 static void workshop_cleanup(VM * vm, VMLibData * data) {
-  LibstrWorkshop * ws = vmlibdata_data(data);
+  Buffer * buffer = vmlibdata_data(data);
 
-  free(ws->stringBuffer);
-  free(ws);
-}
-
-static bool workshop_resize(LibstrWorkshop * ws, int newSize) {
-  assert(newSize > 0);
-
-  /* alloc new buffer */
-  char * newBuffer = calloc(newSize + 1, sizeof(char));
-  int i = 0;
-  if(newBuffer == NULL) {
-    return false;
-  }
-
-  /* copy bytes 1 by 1...do this manually in case this isn't a string */
-  for(i = 0; i < ws->stringLen; i++) {
-    newBuffer[i] = ws->stringBuffer[i];
-  }
-
-  /* free old buffer and switch to new one */
-  free(ws->stringBuffer);
-  ws->stringBuffer = newBuffer;
-  ws->bufferLen = newSize;
-  
-  return true;
+  buffer_free(buffer);
 }
 
 static VMLibData * workshop_new(int bufferLen) {
 
   /* allocate workshop object */
-  LibstrWorkshop * ws = calloc(1, sizeof(LibstrWorkshop));
+  Buffer * buffer = buffer_new(bufferLen, LIBSTR_WORKSHOP_BLOCKSIZE);
   VMLibData * data;
 
-  if(ws == NULL) {
+  if(buffer == NULL) {
     return NULL;
   }
 
-  /* allocate string buffer and store values */
-  ws->stringBuffer = calloc(bufferLen + 1, sizeof(char));
-  ws->bufferLen = bufferLen;
-  ws->stringLen = 0;
-
   /* allocate VMLibData */
   data = vmlibdata_new(LIBSTR_WORKSHOP_TYPE, LIBSTR_WORKSHOP_TYPE_LEN,
-		       workshop_cleanup, ws);
+		       workshop_cleanup, buffer);
   if(data == NULL) {
-    free(ws->stringBuffer);
-    free(ws);
+    buffer_free(buffer);
     return NULL;
   }
 
   return data;
-}
-
-static int workshop_string_length(LibstrWorkshop * ws) {
-  return ws->stringLen;
 }
 
 /**
@@ -162,7 +128,7 @@ static bool vmn_str_workshop(VM * vm, VMArg * arg, int argc) {
  */
 static bool vmn_str_workshop_length(VM * vm, VMArg * arg, int argc) {
   VMLibData * data;
-  LibstrWorkshop * ws;
+  Buffer * buffer;
 
   /* check for proper number of arguments */
   if(argc != 1) {
@@ -185,11 +151,11 @@ static bool vmn_str_workshop_length(VM * vm, VMArg * arg, int argc) {
     return false;
   }
 
-  /* extract the workshop */
-  ws = vmlibdata_data(data);
+  /* extract the buffer */
+  buffer = vmlibdata_data(data);
 
   /* push string length */
-  vmarg_push_number(vm, workshop_string_length(ws));
+  vmarg_push_number(vm, buffer_size(buffer));
 
   /* this function does return a value */
   return true;
@@ -202,7 +168,7 @@ static bool vmn_str_workshop_length(VM * vm, VMArg * arg, int argc) {
  */
 static bool vmn_str_workshop_prealloc(VM * vm, VMArg * arg, int argc) {
   VMLibData * data;
-  LibstrWorkshop * ws;
+  Buffer * buffer;
   int newSize;
 
   /* check for proper number of arguments */
@@ -241,11 +207,11 @@ static bool vmn_str_workshop_prealloc(VM * vm, VMArg * arg, int argc) {
   }
 
   /* extract the workshop */
-  ws = vmlibdata_data(data);
+  buffer = vmlibdata_data(data);
 
   /* can't make it smaller, only bigger */
-  workshop_resize(ws, newSize >= workshop_string_length(ws) 
-		  ? newSize : workshop_string_length(ws));
+  buffer_resize(buffer, newSize >= buffer_size(buffer)
+		? newSize : buffer_size(buffer));
 
   /* push null result */
   vmarg_push_null(vm);
@@ -262,7 +228,8 @@ static bool vmn_str_workshop_prealloc(VM * vm, VMArg * arg, int argc) {
  */
 static bool vmn_str_workshop_append(VM * vm, VMArg * arg, int argc) {
   VMLibData * data;
-  LibstrWorkshop * ws;
+  Buffer * buffer;
+  char * appendStr;
 
   /* check for proper number of arguments */
   if(argc != 2) {
@@ -291,12 +258,127 @@ static bool vmn_str_workshop_append(VM * vm, VMArg * arg, int argc) {
     return false;
   }
 
-  /* extract the workshop */
-  ws = vmlibdata_data(data);
+  /* extract the buffer */
+  buffer = vmlibdata_data(data);
+  appendStr = vmarg_string(arg[1]);
 
+  /* append the string to the buffer 
+   * TODO: perhaps make it so this doesn't have to use strlen
+   */
+  if(!buffer_append_string(buffer, appendStr, strlen(appendStr))) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
 
   /* push null result */
   vmarg_push_null(vm);
+
+  /* this function does return a value */
+  return true;
+}
+
+/**
+ * VMNative: string_workshop_to_string( workshop )
+ * Accepts one number argument: the string workshop instance
+ */
+static bool vmn_str_workshop_to_string(VM * vm, VMArg * arg, int argc) {
+  VMLibData * data;
+  VMLibData * newStringData;
+  Buffer * buffer;
+
+  /* check for proper number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+    return false;
+  }
+
+  /* check argument major type */
+  if(vmarg_type(arg[0]) != TYPE_LIBDATA) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+
+  /* extract the libdata from the argument */
+  data = vmarg_libdata(arg[0]);
+
+  /* check libdata type */
+  if(!vmlibdata_is_type(data, LIBSTR_WORKSHOP_TYPE, LIBSTR_WORKSHOP_TYPE_LEN)) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+
+  /* extract the buffer */
+  buffer = vmlibdata_data(data);
+
+  /* create container object for new string */
+  newStringData = vmarg_new_string(buffer_get_buffer(buffer), 
+				   buffer_size(buffer));
+  if(newStringData == NULL) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
+
+  /* push new string */
+  vmarg_push_libdata(vm, newStringData);
+
+  /* this function does return a value */
+  return true;
+}
+
+/**
+ * VMNative: string_workshop_char_at( workshop, index )
+ * Accepts one number argument: the string workshop instance
+ */
+static bool vmn_str_workshop_char_at(VM * vm, VMArg * arg, int argc) {
+  VMLibData * data;
+  VMLibData * newStringData;
+  Buffer * buffer;
+  int index;
+
+  /* check for proper number of arguments */
+  if(argc != 2) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+    return false;
+  }
+
+  /* check argument major type */
+  if(vmarg_type(arg[0]) != TYPE_LIBDATA ||
+     vmarg_type(arg[1]) != TYPE_NUMBER) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+
+  /* extract the libdata from the argument */
+  data = vmarg_libdata(arg[0]);
+
+  /* check libdata type */
+  if(!vmlibdata_is_type(data, LIBSTR_WORKSHOP_TYPE, LIBSTR_WORKSHOP_TYPE_LEN)) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+
+  /* extract the buffer */
+  buffer = vmlibdata_data(data);
+
+  /* extract the index */
+  index = vmarg_number(arg[1], NULL);
+
+  /* check buffer size range */
+  if(index < 0 || index >= buffer_size(buffer)) {
+    vm_set_err(vm, VMERR_ARGUMENT_OUT_OF_RANGE);
+    return false;
+  }
+
+  /* create container object for new string */
+  newStringData = vmarg_new_string(buffer_get_buffer(buffer) + index, 
+				   1);
+  if(newStringData == NULL) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
+
+  /* push new string */
+  vmarg_push_libdata(vm, newStringData);
 
   /* this function does return a value */
   return true;
@@ -317,7 +399,14 @@ bool libstr_install(Gunderscript * gunderscript) {
      || !vm_reg_callback(gunderscript_vm(gunderscript), 
 		      "string_workshop_length", 22, vmn_str_workshop_length)
      || !vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "string_workshop_prealloc", 24, vmn_str_workshop_prealloc)) {
+		      "string_workshop_prealloc", 24, vmn_str_workshop_prealloc)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "string_workshop_append", 22, vmn_str_workshop_append)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "string_workshop_to_string", 25, vmn_str_workshop_to_string)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "string_workshop_char_at", 23, vmn_str_workshop_char_at)
+) {
     return false;
   }
   return true;
