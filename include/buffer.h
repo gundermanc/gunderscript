@@ -54,5 +54,6 @@ int buffer_buffer_size(Buffer * buffer);
 
 void buffer_free(Buffer * buffer);
 
+bool buffer_resize(Buffer * buffer, int newSize);
 
 #endif /* BUFFER__H__ */
