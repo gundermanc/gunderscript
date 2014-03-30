@@ -31,8 +31,8 @@
 typedef struct {
   char * buffer;
   int index;
-  size_t blockSize;
-  size_t currentSize;
+  int blockSize;
+  int currentSize;
 } Buffer;
   
 Buffer * buffer_new(size_t initialSize, size_t blockSize);
@@ -49,6 +49,8 @@ bool buffer_set_string(Buffer * buffer, char * input,
 		       size_t inputLen, int index);
 
 int buffer_size(Buffer * buffer);
+
+int buffer_buffer_size(Buffer * buffer);
 
 void buffer_free(Buffer * buffer);
 

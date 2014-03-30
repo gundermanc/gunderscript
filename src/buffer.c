@@ -171,6 +171,16 @@ int buffer_size(Buffer * buffer) {
 }
 
 /**
+ * Gets the number of bytes allocated to this buffer.
+ * buffer: an instance of buffer.
+ * returns: the number of bytes allocated.
+ */
+int buffer_buffer_size(Buffer * buffer) {
+  assert(buffer != NULL);
+  return buffer->currentSize;
+}
+
+/**
  * Frees an instance of buffer.
  */
 void buffer_free(Buffer * buffer) {
