@@ -34,7 +34,7 @@ typedef enum {
   LEXERERR_SUCCESS,
   LEXERERR_UNTERMINATED_STRING,
   LEXERERR_UNTERMINATED_COMMENT,
-  LEXERERR_NEWLINE_IN_STRING,
+  LEXERERR_NEWLINE_IN_STRING_UNTERMINATED_ESCAPE,
   LEXERERR_DUPLICATE_DECIMAL_PT,
   LEXERERR_TRAILING_DECIMAL_PT
 } LexerErr;
@@ -44,7 +44,7 @@ static const char * const lexerErrorMessages [] = {
   "Success",
   "Unterminated string constant",
   "Unterminated multiline comment",
-  "New line character in string",
+  "New line character in string, or unterminated escape sequence",
   "Muliple decimal points in numeric constant",
   "Trailing decimal point in number; all decimal points must"
     "be followed by digits",

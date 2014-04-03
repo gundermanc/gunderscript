@@ -1,9 +1,9 @@
 /**
  * lexer.c
  * (C) 2013 Christian Gunderman
- * Modified by:
+ * Modified by: Kai Smith
  * Author Email: gundermanc@gmail.com
- * Modifier Email:
+ * Modifier Email: kjs108@case.edu
  *
  * Description:
  * The Lexer object simply caches the initialization String and a current index
@@ -272,11 +272,12 @@ static bool next_parse_strings(Lexer * l) {
     /* add characters to the string */
     l->index++;
     for(; remaining_chars(l) > 0; advance_char(l)) {
+
+      /* handle escaping of quotes */
       if(next_char(l) == '\\'){
         advance_char(l);
-      }
-      /* encountered end of string, return it along with the quotes*/
-      else if(next_char(l) == '"') {
+      } else if(next_char(l) == '"') {
+	/* encountered end of string, return it along with the quotes */
 	l->nextTokenLen = (l->index - beginStrIndex);
 	l->nextToken = l->input + beginStrIndex;
 	l->err = LEXERERR_SUCCESS;
@@ -292,7 +293,7 @@ static bool next_parse_strings(Lexer * l) {
 
       /* prevent newlines from being put in strings */
       if(next_char(l) == '\n') {
-	l->err = LEXERERR_NEWLINE_IN_STRING;
+	l->err = LEXERERR_NEWLINE_IN_STRING_UNTERMINATED_ESCAPE;
 	finalize_lexer(l);
 	return true;
       }
