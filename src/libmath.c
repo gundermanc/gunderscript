@@ -48,7 +48,7 @@ static bool vmn_math_abs(VM * vm, VMArg * arg, int argc) {
   }
 
   /* push result */
-  vmarg_push_number(vm, abs(vmarg_number(arg[0], NULL)));
+  vmarg_push_number(vm, fabs(vmarg_number(arg[0], NULL)));
 
   /* this function does return a value */
   return true;
