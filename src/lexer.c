@@ -765,6 +765,6 @@ char * lexer_next(Lexer * lexer, LexerType * type, size_t * len) {
  * err: the error to translate to text.
  * returns: the text form of this error.
  */
-char * lexer_err_to_string(LexerErr err) {
+const char * lexer_err_to_string(LexerErr err) {
   return lexerErrorMessages[err];
 }

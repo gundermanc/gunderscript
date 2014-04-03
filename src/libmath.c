@@ -1,9 +1,9 @@
 /**
  * libmath.c
- * (C) 2014 Christian Gunderman
- * Modified by:
+ * (C) 2014 Christian Gunderman + Kai Smith
+ * Modified by: Kai Smith
  * Author Email: gundermanc@gmail.com
- * Modifier Email:
+ * Modifier Email: kjs108@case.edu
  *
  * Description:
  * Defines the Gunderscript functions and types for interfacing with
@@ -92,11 +92,8 @@ static bool vmn_math_pow(VM * vm, VMArg * arg, int argc) {
   }
 
   /* check argument type */
-  if(vmarg_type(arg[0]) != TYPE_NUMBER) {
-    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
-    return false;
-  }
-  if(vmarg_type(arg[1]) != TYPE_NUMBER) {
+  if(vmarg_type(arg[0]) != TYPE_NUMBER
+     || vmarg_type(arg[1]) != TYPE_NUMBER) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
     return false;
   }
@@ -114,39 +111,37 @@ static bool vmn_math_pow(VM * vm, VMArg * arg, int argc) {
  */
 static bool vmn_math_round(VM * vm, VMArg * arg, int argc) {
 
-  /* If user specified precision */
-  if(argc == 2){
+  switch(argc) {
+  case 1: /* if user specified precision */
 
-      /* check argument type */
-      if(vmarg_type(arg[0]) != TYPE_NUMBER) {
-        vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
-        return false;
-      }
-      if(vmarg_type(arg[1]) != TYPE_NUMBER) {
-        vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
-        return false;
-      }
+    /* check argument type */
+    if(vmarg_type(arg[0]) != TYPE_NUMBER
+       || vmarg_type(arg[1]) != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+      return false;
+    }
 
-      /* push result */
-      vmarg_push_number(vm, round(vmarg_number(arg[0], NULL) * pow(10, vmarg_number(arg[1], NULL)))/pow(10, vmarg_number(arg[1], NULL)));
+    /* push result */
+    vmarg_push_number(vm, round(vmarg_number(arg[0], NULL) 
+				* pow(10, vmarg_number(arg[1], NULL)))
+		      / pow(10, vmarg_number(arg[1], NULL)));
 
-      /* this function does return a value */
-      return true;
-  }
-  /* If user did not specify precision, assume round to int */
-  else if(argc == 1){
-  
-      /* check argument type */
-      if(vmarg_type(arg[0]) != TYPE_NUMBER) {
-        vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
-        return false;
-      }
+    /* this function does return a value */
+    return true;
 
-      /* push result */
-      vmarg_push_number(vm, round(vmarg_number(arg[0], NULL)));
+  case 2: /* If user did not specify precision, assume round to int */
+   
+    /* check argument type */
+    if(vmarg_type(arg[0]) != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+      return false;
+    }
 
-      /* this function does return a value */
-      return true;
+    /* push result */
+    vmarg_push_number(vm, round(vmarg_number(arg[0], NULL)));
+
+    /* this function does return a value */
+    return true;
   }
 
   vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
@@ -316,11 +311,8 @@ static bool vmn_math_atan2(VM * vm, VMArg * arg, int argc) {
   }
 
   /* check argument type */
-  if(vmarg_type(arg[0]) != TYPE_NUMBER) {
-    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
-    return false;
-  }
-  if(vmarg_type(arg[1]) != TYPE_NUMBER) {
+  if(vmarg_type(arg[0]) != TYPE_NUMBER
+     || vmarg_type(arg[1]) != TYPE_NUMBER) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
     return false;
   }
@@ -342,47 +334,27 @@ static bool vmn_math_atan2(VM * vm, VMArg * arg, int argc) {
 bool libmath_install(Gunderscript * gunderscript) {
 
   if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_abs", 8, vmn_math_abs)) {
-    return false;
-  }
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_sqrt", 9, vmn_math_sqrt)) {
-    return false;
-  }
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_pow", 8, vmn_math_pow)) {
-    return false;
-  }
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_round", 10, vmn_math_round)) {
-    return false;
-  }
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_sin", 8, vmn_math_sin)) {
-    return false;
-  }
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_cos", 8, vmn_math_cos)) {
-    return false;
-  }
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_tan", 8, vmn_math_tan)) {
-    return false;
-  }
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_asin", 9, vmn_math_asin)) {
-    return false;
-  }
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_acos", 9, vmn_math_acos)) {
-    return false;
-  }
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_atan", 9, vmn_math_atan)) {
-    return false;
-  }
-  if(!vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "math_atan2", 10, vmn_math_atan2)) {
+		      "math_abs", 8, vmn_math_abs)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "math_sqrt", 9, vmn_math_sqrt)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "math_pow", 8, vmn_math_pow)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "math_round", 10, vmn_math_round)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "math_sin", 8, vmn_math_sin)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "math_cos", 8, vmn_math_cos)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "math_tan", 8, vmn_math_tan)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "math_asin", 9, vmn_math_asin)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "math_acos", 9, vmn_math_acos)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "math_atan", 9, vmn_math_atan)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "math_atan2", 10, vmn_math_atan2)) {
     return false;
   }
   return true;

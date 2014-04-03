@@ -26,6 +26,6 @@
 
 #include "gunderscript.h"
 
-void libsys_install(Gunderscript * gunderscript);
+bool libsys_install(Gunderscript * gunderscript);
 
 #endif /* LIBSYS__H__ */

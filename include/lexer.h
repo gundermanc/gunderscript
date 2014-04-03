@@ -95,6 +95,6 @@ LexerType lexer_token_type(char * token, size_t len, bool definitive);
 
 char * lexer_peek(Lexer * lexer, LexerType * type, size_t * len);
 
-char * lexer_err_to_string(LexerErr err);
+const char * lexer_err_to_string(LexerErr err);
 
 #endif /* LEXER__H__*/

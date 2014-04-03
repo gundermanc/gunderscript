@@ -26,6 +26,10 @@
 
 #include "gunderscript.h"
 
+#define LIBSTR_WORKSHOP_TYPE     "LIBSTR.WS"
+#define LIBSTR_WORKSHOP_TYPE_LEN    9
+#define LIBSTR_WORKSHOP_BLOCKSIZE   10
+
 bool libstr_install(Gunderscript * gunderscript);
 
 #endif /*LIBSTR__H__*/

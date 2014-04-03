@@ -609,7 +609,7 @@ LexerErr compiler_lex_err(Compiler * compiler) {
  * err: the error to translate to text.
  * returns: the text form of this error.
  */
-char * compiler_err_to_string(Compiler * compiler, CompilerErr err) {
+const char * compiler_err_to_string(Compiler * compiler, CompilerErr err) {
   assert(compiler != NULL);
   return compilerErrorMessages[err];
 }

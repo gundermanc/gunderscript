@@ -32,7 +32,7 @@
  * needs to be expanded.
  * returns: a new buffer, or NULL if the malloc fails.
  */
-Buffer * buffer_new(size_t initialSize, size_t blockSize) {
+Buffer * buffer_new(int initialSize, int blockSize) {
 
   assert(initialSize > 0);
   assert(blockSize > 0);
@@ -62,7 +62,7 @@ Buffer * buffer_new(size_t initialSize, size_t blockSize) {
  * newSize: the new size for the buffer in chars.
  * returns: true if the resize succeeds and false if it fails.
  */
-static bool resize_buffer(Buffer * buffer, size_t newSize) {
+bool buffer_resize(Buffer * buffer, int newSize) {
 
   /* alloc memory and check for failure...buffer is one bigger so last char
    * can act as null terminator for string
@@ -110,7 +110,7 @@ char * buffer_get_buffer(Buffer * buffer) {
  * inputLen: the length of the input string.
  * returns: true upon success, and false on malloc error.
  */
-bool buffer_append_string(Buffer * buffer, char * input, size_t inputLen) {
+bool buffer_append_string(Buffer * buffer, char * input, int inputLen) {
   buffer_set_string(buffer, input, inputLen, buffer->index);
   return true;
 }
@@ -125,7 +125,7 @@ bool buffer_set_char(Buffer * buffer, char c, int index) {
   
   /* if insertion is out of range of the current buffer, realloc */
   if(index >= buffer->currentSize) {
-    if(!resize_buffer(buffer, buffer->currentSize + buffer->blockSize)) {
+    if(!buffer_resize(buffer, buffer->currentSize + buffer->blockSize)) {
       return false;
     }
   }
@@ -147,7 +147,7 @@ bool buffer_set_char(Buffer * buffer, char c, int index) {
  * returns: true if success, false if malloc failure.
  */
 bool buffer_set_string(Buffer * buffer, char * input,
-		       size_t inputLen, int index) {
+		       int inputLen, int index) {
   int i = index;
   
   for(i = 0; i < inputLen; i++) {
@@ -168,6 +168,16 @@ bool buffer_set_string(Buffer * buffer, char * input,
 int buffer_size(Buffer * buffer) {
   assert(buffer != NULL);
   return buffer->index;
+}
+
+/**
+ * Gets the number of bytes allocated to this buffer.
+ * buffer: an instance of buffer.
+ * returns: the number of bytes allocated.
+ */
+int buffer_buffer_size(Buffer * buffer) {
+  assert(buffer != NULL);
+  return buffer->currentSize;
 }
 
 /**

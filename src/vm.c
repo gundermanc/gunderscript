@@ -404,7 +404,7 @@ VMErr vm_get_err(VM * vm) {
  * err: the error to translate to text.
  * returns: the text form of this error.
  */
-char * vm_err_to_string(VMErr err) {
+const char * vm_err_to_string(VMErr err) {
   return vmErrorMessages[err];
 }
 

@@ -50,6 +50,6 @@ int compiler_err_line(Compiler * compiler);
 
 LexerErr compiler_lex_err(Compiler * compiler);
 
-char * compiler_err_to_string(Compiler * compiler, CompilerErr err);
+const char * compiler_err_to_string(Compiler * compiler, CompilerErr err);
 
 #endif /* COMPILER__H__ */

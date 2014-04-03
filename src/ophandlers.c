@@ -30,6 +30,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#include <math.h>
 
 /* define boolean values used in the op_bool_push function */
 #define OP_TRUE             1
@@ -478,12 +479,6 @@ bool op_dual_operand_math(VM * vm,  char * byteCode,
     return false;
   }
 
-  /* check for divide by zero errors */
-  if(value2 == 0) {
-    vm_set_err(vm, VMERR_DIVIDE_BY_ZERO);
-    return false;
-  }
-
   switch(code) {
   case OP_SUB:
     value1 -= value2;
@@ -492,13 +487,15 @@ bool op_dual_operand_math(VM * vm,  char * byteCode,
     value1 *= value2;
     break;
   case OP_DIV:
+    /* check for divide by zero errors */
+    if(value2 == 0) {
+      vm_set_err(vm, VMERR_DIVIDE_BY_ZERO);
+      return false;
+    }
     value1 /= value2;
     break;
   case OP_MOD:
-    /* TODO: fix linker issue. */
-    /*value1 = fmod(value1, value2);*/
-    printf("\n\nDEBUG: OP_MOD Not yet implemented.\n\n");
-    exit(0);
+    value1 = fmod(value1, value2);
     break;
   default:
     /* TODO: remove in release version */
