@@ -1,3 +1,9 @@
+/**
+ * Gunderscript Example Script
+ * (C) 2014 Kai Smith
+ */
+
+
 function abs(val){
     if (val < 0)
         return(0-val);
@@ -14,15 +20,7 @@ function plot(xmin, xmax, width, ymin, ymax, height){
     y = ymax;
     dx = (xmax-xmin)/width;
     dy = (ymax-ymin)/height;
-    sys_print("Plotting x from ");
-    sys_print(xmin);
-    sys_print(" to ");
-    sys_print(xmax);
-    sys_print(" and y from ");
-    sys_print(ymin);
-    sys_print(" to ");
-    sys_print(ymax);
-    sys_print("\n");
+    sys_print("Plotting x from ", xmin, " to ", xmax, " and y from ", ymin, " to ", ymax, "\n");
     while(y > ymin){
         xaxis = (abs(y) <= dy/2);
         x = xmin;
@@ -30,7 +28,7 @@ function plot(xmin, xmax, width, ymin, ymax, height){
             yaxis = (abs(x) <= dx/2);
             //FUNCTION TO BE PLOTTED IS HARD CODED IN THE LINE BELOW
             //REPLACE math_sin() WITH ANOTHER FUNCTION TO CHANGE PLOT
-            if(abs(math_sin(x)-y) <= dy/2){
+            if(abs(math_cos(x)-y) <= dy/2){
                 sys_print("#");
             }
             else if(yaxis && xaxis){
@@ -54,6 +52,53 @@ function plot(xmin, xmax, width, ymin, ymax, height){
     }
 }
 
+function advplot(xmin, xmax, width, ymin, ymax, height){
+    var x;
+    var y;
+    var dx;
+    var dy;
+    var xaxis;
+    var yaxis;
+    y = ymax;
+    dx = (xmax-xmin)/width;
+    dy = (ymax-ymin)/height;
+    sys_print("Plotting x from ", xmin, " to ", xmax, " and y from ", ymin, " to ", ymax, "\n");
+    while(y > ymin){
+        xaxis = (abs(y) <= dy/2);
+        x = xmin;
+        while(x < xmax){
+            yaxis = (abs(x) <= dx/2);
+            //FUNCTION TO BE PLOTTED IS HARD CODED IN THE LINE BELOW
+            //REPLACE math_sin() WITH ANOTHER FUNCTION TO CHANGE PLOT
+            if(abs(math_sin(x)-y) <= dy/2){
+                if(math_cos(x) <= 0-0.5){
+                    sys_print("\\");}
+                else if(math_cos(x) >= 0.5){
+                    sys_print("/");}
+                else{
+                    sys_print("=");}
+            }
+            else if(yaxis && xaxis){
+                sys_print("+");
+            }
+            else if(yaxis){
+                sys_print("|");
+            }
+            else if(xaxis){
+                sys_print("-");
+            }
+            else{
+                sys_print(" ");
+            }
+            //sys_print(x);
+            //sys_print(", ");
+            x = x + dx;
+        }
+        sys_print("\n");
+        y = y - dy;
+    }
+}
+
 function exported main(){
-    plot(0-7, 7, 80, 0-1.2, 1.2, 11);
+    advplot(0-7, 07, 80, 0-1.2, 1.2, 11);
 }

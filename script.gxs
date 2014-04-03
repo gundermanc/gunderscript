@@ -41,7 +41,7 @@ function exported main() {
 
   // demonstrates precedence of operators and assignment statements:
   x = 1;
-  x = 4 * 2 + x + 2; 
+  x = 4 * 2 + x + 2;
 
   sys_print("Lets calculate the factorial of ", x, 
                      "...it looks like it is ...", fact(x), "\n");
@@ -53,4 +53,4 @@ function exported main() {
     sys_print(i, ", ");
     i = i - 1;
   } 
-}  
+}
