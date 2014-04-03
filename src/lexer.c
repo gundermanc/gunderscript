@@ -274,10 +274,9 @@ static bool next_parse_strings(Lexer * l) {
     for(; remaining_chars(l) > 0; advance_char(l)) {
       if(next_char(l) == '\\'){
         advance_char(l);
-        advance_char(l);
       }
       /* encountered end of string, return it along with the quotes*/
-      if(next_char(l) == '"') {
+      else if(next_char(l) == '"') {
 	l->nextTokenLen = (l->index - beginStrIndex);
 	l->nextToken = l->input + beginStrIndex;
 	l->err = LEXERERR_SUCCESS;
