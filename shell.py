@@ -38,6 +38,7 @@ if __name__ == "__main__":
             print("\n".join(block))
         elif i.lower() == "reset block":
             block = []
+            inblock = False
         elif i[:5].lower() == "save ":
             try:
                 save_file = open(i[5:], "w")
