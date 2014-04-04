@@ -55,6 +55,14 @@ if __name__ == "__main__":
             run(assemble(depends, functions, program), program_name, outlines)
         elif i.lower() == "view block":
             print("\n".join(block))
+        elif i.lower() == "undo":
+            block = block[:-1]
+            print("Deleted last line.\n")
+            for n, l in enumerate(block):
+                if n == 0:
+                    print(">>> "+l)
+                else:
+                    print("... "+l)
         elif i.lower() == "reset block":
             block = []
             inblock = False
