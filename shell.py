@@ -4,6 +4,7 @@ email: kjs108@case.edu
 '''
 
 from subprocess import Popen, PIPE
+import readline
 
 def run(program, program_name, printout):
     program_file = open(program_name, "w")
