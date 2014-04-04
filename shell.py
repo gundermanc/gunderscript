@@ -11,6 +11,7 @@ def run(program, program_name, printout):
     program_file.close()
     output = Popen(["./gunderscript", "main", program_name], stdout = PIPE).stdout.read()
     if "Compiler Error" in output:
+        print("\n".join(output.split("\n")[5:]))
         return False
     if printout:
         print("\n".join(output.split("\n")[3:-2]))
@@ -39,6 +40,9 @@ if __name__ == "__main__":
         elif i.lower() == "reset block":
             block = []
             inblock = False
+            openparens = 0
+            openbrackets = 0
+            openbraces = 0
         elif i[:5].lower() == "save ":
             try:
                 save_file = open(i[5:], "w")
@@ -53,16 +57,23 @@ if __name__ == "__main__":
             if openparens > 0 or openbrackets > 0 or openbraces > 0:
                 inblock = True
                 block.append(tabwidth*(openparens+openbrackets+openbraces)*" "+i)
-            elif openparens < 0 or openbrackets < 0 or openbraces < 0:
-                print("Mismatched parens. Last line not written, enter \"reset block\" to start whole block over.")
+            elif openparens < 0:
+                print("Mismatched parentheses. Last line not written, enter \"reset block\" to start whole block over.")
+            elif openbrackets < 0:
+                print("Mismatched brackets. Last line not written, enter \"reset block\" to start whole block over.")
+            elif openbraces < 0:
+                print("Mismatched braces. Last line not written, enter \"reset block\" to start whole block over.")
             else:
                 inblock = False
                 block.append(i)
                 program.append(block)
                 success = run("\n".join(sum(program, []))+"\n}", program_name, "sys_print(" in "".join(block))
                 if not success:
-                    print("Not valid gunderscript code. Last line of block deleted. Enter \"reset block\" to start whole block over.")
-                    block = block[:-1]
+                    block = []
+                    inblock = False
+                    openparens = 0
+                    openbrackets = 0
+                    openbraces = 0
                     program = program[:-1]
                 else:
                     block = []
