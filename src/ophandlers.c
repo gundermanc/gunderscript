@@ -26,6 +26,7 @@
 #include "gsbool.h"
 #include "vm.h"
 #include "ophandlers.h"
+#include "libstr.h"
 #include <stdlib.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -361,10 +362,9 @@ bool op_frame_pop(VM * vm,  char * byteCode,
  */
 bool op_add(VM * vm,  char * byteCode, 
 	    size_t byteCodeLen, int * index) {
-
+  
   VarType type1;
   VarType type2;
-  char * newString;
 
   /* handle not enough items in stack case */
   if(typestk_size(vm->opStk) < 2) {
@@ -384,43 +384,35 @@ bool op_add(VM * vm,  char * byteCode,
     VMLibData * data1;
     VMLibData * data2;
     VMLibData * result;
-    char * string1;
-    char * string2;
 
     /* pop topmost libdata structs */
     opstk_pop(vm, &data1, sizeof(VMLibData*), &type1);
     opstk_pop(vm, &data2, sizeof(VMLibData*), &type2);
 
     /* check to make sure these libdata structs contain strings */
-    if(!vmlibdata_is_type(data1, GXS_STRING_TYPE, GXS_STRING_TYPE_LEN)
-       || !vmlibdata_is_type(data2, GXS_STRING_TYPE, GXS_STRING_TYPE_LEN)) {
+    if(!vmlibdata_is_type(data1, LIBSTR_STRING_TYPE, LIBSTR_STRING_TYPE_LEN)
+       || !vmlibdata_is_type(data2, LIBSTR_STRING_TYPE, LIBSTR_STRING_TYPE_LEN)) {
       vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
       return false;
-    }
+    }    
 
-    /* get strings */
-    string1 = vmlibdata_data(data1);
-    string2 = vmlibdata_data(data2);
-
-    /* allocate and push new string, and free old ones */
-    newString = calloc(strlen(string1) + strlen(string2) + 1, sizeof(char));
-    if(newString == NULL) {
+    /* create result string LibData struct */
+    result = libstr_string_new(libstr_string_length(data1)
+			       + libstr_string_length(data2));
+    if(result == NULL) {
       vm_set_err(vm, VMERR_ALLOC_FAILED);
       return false;
     }
-
-    /* copy contents of both strings to new string */
-    strcpy(newString, string2);
-    strcat(newString, string1);
-
-    /* create result LibData struct */
-    result = vmlibdata_new(GXS_STRING_TYPE, GXS_STRING_TYPE_LEN, 
-			   string_cleanup, newString);
     vmlibdata_inc_refcount(result);
 
-    /* handle LibData alloc and typestk realloc error */
-    if(result == NULL
-       || !opstk_push(vm, &result, sizeof(VMLibData*), TYPE_LIBDATA)) {
+    /* write strings to new string */
+    libstr_string_append(result, libstr_string(data1), 
+			 libstr_string_length(data1));
+    libstr_string_append(result, libstr_string(data2), 
+			 libstr_string_length(data2));
+
+    /* push result to operand stack */
+    if(!opstk_push(vm, &result, sizeof(VMLibData*), TYPE_LIBDATA)) {
       vm_set_err(vm, VMERR_ALLOC_FAILED);
       return false;
     }
@@ -739,8 +731,7 @@ bool op_str_push(VM * vm, char * byteCode,
 		   size_t byteCodeLen, int * index) {
 
   char strLen;
-  char * string;
-  VMLibData * obj;
+  VMLibData * string;
 
   /* check there is at least one byte left for the string length */
   if((byteCodeLen - *index) <= 0) {
@@ -758,17 +749,17 @@ bool op_str_push(VM * vm, char * byteCode,
     return false;
   }
 
-  string = calloc(strLen + 1, sizeof(char));
+  /* create new string buffer */
+  string = libstr_string_new((int)strLen);
   if(string == NULL) {
     vm_set_err(vm, VMERR_ALLOC_FAILED);
     return false;
   }
 
   /* push new string */
-  strncpy(string, byteCode + *index, strLen);
-  obj = vmlibdata_new(GXS_STRING_TYPE, GXS_STRING_TYPE_LEN, string_cleanup, string);
-  vmlibdata_inc_refcount(obj);
-  if(!opstk_push(vm, &obj, sizeof(VMLibData*), TYPE_LIBDATA)) {
+  libstr_string_append(string, byteCode + *index, strLen);
+  vmlibdata_inc_refcount(string);
+  if(!opstk_push(vm, &string, sizeof(VMLibData*), TYPE_LIBDATA)) {
     vm_set_err(vm, VMERR_ALLOC_FAILED);
     return false;
   }
@@ -965,16 +956,3 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
   }
   return true;
 }
-
-/**
- * Clean up callback function for strings. This function is called by the VM
- * to free the memory used by a string whenever the string goes out of scope.
- * vm: an instance of vm.
- * data: a pointer to the VMLibData structure that contains the string and 
- * its ref counters, etc.
- * returns: always returns true because this function cannot fail.
- */
-void string_cleanup(VM * vm, VMLibData * data) {
-  free(data->libData);
-}
-

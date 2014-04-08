@@ -6,7 +6,11 @@
  * Modifier Email:
  *
  * Description:
- * Defines the Gunderscript functions and types for modifying strings.
+ * Defines the Gunderscript functions and types for modifying string buffers.
+ * These methods are not safe for public interfaces and should be used within
+ * the VM only, due to the lack of type/error checking for some methods. Use
+ * vmarg_new_string(), vmarg_push_libdata(),  vmarg_is_string(), and
+ * vmarg_string() within your own libraries instead.
  *
  * This program is free software: you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -25,16 +29,29 @@
 #include "libstr.h"
 #include <string.h>
 
-static void workshop_cleanup(VM * vm, VMLibData * data) {
+/**
+ * Frees a string buffer after it goes out of scope.
+ * vm: an instance of VM.
+ * data: the VMLIBDATA containing the string to be freed.
+ * This method is called automatically by the VM when object goes out
+ * of scope.
+ */
+static void string_cleanup(VM * vm, VMLibData * data) {
   Buffer * buffer = vmlibdata_data(data);
 
   buffer_free(buffer);
 }
 
-static VMLibData * workshop_new(int bufferLen) {
+/**
+ * Creates a new string buffer encased in a VMLibData. Use vmarg_push_libdata()
+ * with TYPE_LIBDATA to push this string to the VM's stack.
+ * bufferLen: the length of the string buffer.
+ * returns: the new VMLibData object. See vmlibdata_*() functions for more info.
+ */
+VMLibData * libstr_string_new(int bufferLen) {
 
   /* allocate workshop object */
-  Buffer * buffer = buffer_new(bufferLen, LIBSTR_WORKSHOP_BLOCKSIZE);
+  Buffer * buffer = buffer_new(bufferLen, LIBSTR_STRING_BLOCKSIZE);
   VMLibData * data;
 
   if(buffer == NULL) {
@@ -42,14 +59,54 @@ static VMLibData * workshop_new(int bufferLen) {
   }
 
   /* allocate VMLibData */
-  data = vmlibdata_new(LIBSTR_WORKSHOP_TYPE, LIBSTR_WORKSHOP_TYPE_LEN,
-		       workshop_cleanup, buffer);
+  data = vmlibdata_new(LIBSTR_STRING_TYPE, LIBSTR_STRING_TYPE_LEN,
+		       string_cleanup, buffer);
   if(data == NULL) {
     buffer_free(buffer);
     return NULL;
   }
 
   return data;
+}
+
+/**
+ * Gets the string contained inside of a VMLibData object.
+ * data: the VMLibData containing the string buffer.
+ * returns: pointer to the string. This pointer should NOT be written to. Use
+ * libstr_*() functions instead. 
+ * NOTE: this function does not check to make sure this VMLibData is a string
+ * once asserts are disabled. You should error check accordingly.
+ */
+char * libstr_string(VMLibData * data) {
+  assert(vmlibdata_is_type(data, LIBSTR_STRING_TYPE, LIBSTR_STRING_TYPE_LEN));
+
+  return buffer_get_buffer( ((Buffer*)vmlibdata_data(data)) );
+}
+
+/**
+ * Gets the length of this string.
+ * NOTE: length refers to the number of characters in the buffer, not the
+ * length of the buffer itself.
+ * data: the VMLibData containing the string buffer.
+ * returns: the length of the string as an integer.
+ * NOTE: no type checking or error checking in this method. Not safe for
+ * public interface.
+ */
+int libstr_string_length(VMLibData * data) {
+  return buffer_size( ((Buffer*)vmlibdata_data(data)) );
+}
+
+/**
+ * Appends the specified string to the end of the string in this VMLibData.
+ * data: the VMLibData containing the string buffer.
+ * string: the string to append.
+ * stringLen: the length of the string to append.
+ * returns: true if success, false if malloc fails.
+ * NOTE: no type checking or error checking in this method. Not safe for
+ * public interface.
+ */
+bool libstr_string_append(VMLibData * data, char * string, int stringLen) {
+  return buffer_append_string(vmlibdata_data(data), string, stringLen);
 }
 
 /**
@@ -80,10 +137,10 @@ static bool vmn_str_equals(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
- * VMNative: string_workshop( buffersize )
+ * VMNative: string ( buffersize )
  * Accepts one number argument: the size of the string buffer.
  */
-static bool vmn_str_workshop(VM * vm, VMArg * arg, int argc) {
+static bool vmn_str(VM * vm, VMArg * arg, int argc) {
 
   VMLibData * data;
   int bufferSize;
@@ -109,7 +166,7 @@ static bool vmn_str_workshop(VM * vm, VMArg * arg, int argc) {
   }
 
   /* allocate string workshop */
-  data = workshop_new(bufferSize);
+  data = libstr_string_new(bufferSize);
   if(data == NULL) {
     vm_set_err(vm, VMERR_ALLOC_FAILED);
     return false;
@@ -123,12 +180,11 @@ static bool vmn_str_workshop(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
- * VMNative: string_workshop_length( workshop )
+ * VMNative: string_length( workshop )
  * Accepts one number argument: the string workshop instance
  */
-static bool vmn_str_workshop_length(VM * vm, VMArg * arg, int argc) {
+static bool vmn_str_length(VM * vm, VMArg * arg, int argc) {
   VMLibData * data;
-  Buffer * buffer;
 
   /* check for proper number of arguments */
   if(argc != 1) {
@@ -146,27 +202,24 @@ static bool vmn_str_workshop_length(VM * vm, VMArg * arg, int argc) {
   data = vmarg_libdata(arg[0]);
 
   /* check libdata type */
-  if(!vmlibdata_is_type(data, LIBSTR_WORKSHOP_TYPE, LIBSTR_WORKSHOP_TYPE_LEN)) {
+  if(!vmlibdata_is_type(data, LIBSTR_STRING_TYPE, LIBSTR_STRING_TYPE_LEN)) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
     return false;
   }
 
-  /* extract the buffer */
-  buffer = vmlibdata_data(data);
-
   /* push string length */
-  vmarg_push_number(vm, buffer_size(buffer));
+  vmarg_push_number(vm, libstr_string_length(data));
 
   /* this function does return a value */
   return true;
 }
 
 /**
- * VMNative: string_workshop_resize( workshop , newsize )
+ * VMNative: string_prealloc( workshop , newsize )
  * Accepts a workshop argument and a number. The newsize is the size to
  * reallocate the workshop buffer to. Preallocate buffer for best performance.
  */
-static bool vmn_str_workshop_prealloc(VM * vm, VMArg * arg, int argc) {
+static bool vmn_str_prealloc(VM * vm, VMArg * arg, int argc) {
   VMLibData * data;
   Buffer * buffer;
   int newSize;
@@ -187,7 +240,7 @@ static bool vmn_str_workshop_prealloc(VM * vm, VMArg * arg, int argc) {
   data = vmarg_libdata(arg[0]);
 
   /* check libdata type */
-  if(!vmlibdata_is_type(data, LIBSTR_WORKSHOP_TYPE, LIBSTR_WORKSHOP_TYPE_LEN)) {
+  if(!vmlibdata_is_type(data, LIBSTR_STRING_TYPE, LIBSTR_STRING_TYPE_LEN)) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
     return false;
   }
@@ -222,11 +275,11 @@ static bool vmn_str_workshop_prealloc(VM * vm, VMArg * arg, int argc) {
 
 /* TODO: finish implementing */
 /**
- * VMNative: string_workshop_append( workshop , string )
+ * VMNative: string_append( workshop , string )
  * Accepts a workshop argument and a string. The string will be allocated
  * onto the buffer.
  */
-static bool vmn_str_workshop_append(VM * vm, VMArg * arg, int argc) {
+static bool vmn_str_append(VM * vm, VMArg * arg, int argc) {
   VMLibData * data;
   Buffer * buffer;
   char * appendStr;
@@ -247,7 +300,7 @@ static bool vmn_str_workshop_append(VM * vm, VMArg * arg, int argc) {
   data = vmarg_libdata(arg[0]);
 
   /* check libdata type */
-  if(!vmlibdata_is_type(data, LIBSTR_WORKSHOP_TYPE, LIBSTR_WORKSHOP_TYPE_LEN)) {
+  if(!vmlibdata_is_type(data, LIBSTR_STRING_TYPE, LIBSTR_STRING_TYPE_LEN)) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
     return false;
   }
@@ -278,58 +331,10 @@ static bool vmn_str_workshop_append(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
- * VMNative: string_workshop_to_string( workshop )
+ * VMNative: string_char_at( workshop, index )
  * Accepts one number argument: the string workshop instance
  */
-static bool vmn_str_workshop_to_string(VM * vm, VMArg * arg, int argc) {
-  VMLibData * data;
-  VMLibData * newStringData;
-  Buffer * buffer;
-
-  /* check for proper number of arguments */
-  if(argc != 1) {
-    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
-    return false;
-  }
-
-  /* check argument major type */
-  if(vmarg_type(arg[0]) != TYPE_LIBDATA) {
-    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
-    return false;
-  }
-
-  /* extract the libdata from the argument */
-  data = vmarg_libdata(arg[0]);
-
-  /* check libdata type */
-  if(!vmlibdata_is_type(data, LIBSTR_WORKSHOP_TYPE, LIBSTR_WORKSHOP_TYPE_LEN)) {
-    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
-    return false;
-  }
-
-  /* extract the buffer */
-  buffer = vmlibdata_data(data);
-
-  /* create container object for new string */
-  newStringData = vmarg_new_string(buffer_get_buffer(buffer), 
-				   buffer_size(buffer));
-  if(newStringData == NULL) {
-    vm_set_err(vm, VMERR_ALLOC_FAILED);
-    return false;
-  }
-
-  /* push new string */
-  vmarg_push_libdata(vm, newStringData);
-
-  /* this function does return a value */
-  return true;
-}
-
-/**
- * VMNative: string_workshop_char_at( workshop, index )
- * Accepts one number argument: the string workshop instance
- */
-static bool vmn_str_workshop_char_at(VM * vm, VMArg * arg, int argc) {
+static bool vmn_str_char_at(VM * vm, VMArg * arg, int argc) {
   VMLibData * data;
   VMLibData * newStringData;
   Buffer * buffer;
@@ -352,7 +357,7 @@ static bool vmn_str_workshop_char_at(VM * vm, VMArg * arg, int argc) {
   data = vmarg_libdata(arg[0]);
 
   /* check libdata type */
-  if(!vmlibdata_is_type(data, LIBSTR_WORKSHOP_TYPE, LIBSTR_WORKSHOP_TYPE_LEN)) {
+  if(!vmlibdata_is_type(data, LIBSTR_STRING_TYPE, LIBSTR_STRING_TYPE_LEN)) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
     return false;
   }
@@ -395,17 +400,15 @@ bool libstr_install(Gunderscript * gunderscript) {
   if(!vm_reg_callback(gunderscript_vm(gunderscript), 
 		      "string_equals", 13, vmn_str_equals)
      || !vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "string_workshop", 15, vmn_str_workshop)
+		      "string", 6, vmn_str)
      || !vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "string_workshop_length", 22, vmn_str_workshop_length)
+		      "string_length", 13, vmn_str_length)
      || !vm_reg_callback(gunderscript_vm(gunderscript), 
-		      "string_workshop_prealloc", 24, vmn_str_workshop_prealloc)
+		      "string_prealloc", 15, vmn_str_prealloc)
      || !vm_reg_callback(gunderscript_vm(gunderscript), 
-			 "string_workshop_append", 22, vmn_str_workshop_append)
+			 "string_append", 13, vmn_str_append)
      || !vm_reg_callback(gunderscript_vm(gunderscript), 
-			 "string_workshop_to_string", 25, vmn_str_workshop_to_string)
-     || !vm_reg_callback(gunderscript_vm(gunderscript), 
-			 "string_workshop_char_at", 23, vmn_str_workshop_char_at)
+			 "string_char_at", 14, vmn_str_char_at)
 ) {
     return false;
   }

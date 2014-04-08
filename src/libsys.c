@@ -270,8 +270,7 @@ static bool vmn_shell(VM * vm, VMArg * arg, int argc) {
   }
 
   /* check 1st arg is string */
-  if(arg[0].type != TYPE_LIBDATA
-     || !vmlibdata_is_type(data, GXS_STRING_TYPE, GXS_STRING_TYPE_LEN)) {
+  if(!vmarg_is_string(arg[0])) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
 
     /* this function does not return a value */
@@ -350,9 +349,7 @@ static bool vmn_is_string(VM * vm, VMArg * arg, int argc) {
   }
 
   /* push result of check*/
-  vmarg_push_boolean(vm, arg[0].type == TYPE_LIBDATA
-		     && vmlibdata_is_type(vmarg_libdata(arg[0]), 
-					  GXS_STRING_TYPE, GXS_STRING_TYPE_LEN));
+  vmarg_push_boolean(vm, vmarg_is_string(arg[0]));
   return true;
 }
 
