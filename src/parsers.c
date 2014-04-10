@@ -223,7 +223,6 @@ static int escape_string(char * dst, int dstLen,
       dst[j] = src[i];
     }
   }
-  printf("LEN: %i\n", j);
   return j;
 }
 
