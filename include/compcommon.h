@@ -61,6 +61,7 @@ typedef enum {
   COMPILERERR_INCORRECT_NUMARGS,
   COMPILERERR_MALFORMED_IFORLOOP,
   COMPILERERR_LEXER_ERR,
+  COMPILERERR_MALFORMED_CHAR_CONSTANT,
 } CompilerErr;
 
 /* english translations of compiler errors */
@@ -85,6 +86,7 @@ static const const char * const compilerErrorMessages [] = {
   "Incorrect number of arguments for this function",
   "Malformed loop or if statement",
   "Lex error: call compiler_lex_err() for the LexerErr",
+  "Malformed char constant, must be a single or escaped char"
 };
 
 /* a compiler instance type */
