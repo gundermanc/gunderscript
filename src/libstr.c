@@ -28,6 +28,7 @@
 
 #include "libstr.h"
 #include <string.h>
+#include <limits.h>
 
 /**
  * Frees a string buffer after it goes out of scope.
@@ -333,10 +334,10 @@ static bool vmn_str_append(VM * vm, VMArg * arg, int argc) {
 /**
  * VMNative: string_char_at( workshop, index )
  * Accepts one number argument: the string workshop instance
+ * Returns the desired char as a TYPE_NUMBER.
  */
 static bool vmn_str_char_at(VM * vm, VMArg * arg, int argc) {
   VMLibData * data;
-  VMLibData * newStringData;
   Buffer * buffer;
   int index;
 
@@ -374,19 +375,118 @@ static bool vmn_str_char_at(VM * vm, VMArg * arg, int argc) {
     return false;
   }
 
-  /* create container object for new string */
-  newStringData = vmarg_new_string(buffer_get_buffer(buffer) + index, 
-				   1);
-  if(newStringData == NULL) {
+  /* push char as a number */
+  if(!vmarg_push_number(vm, buffer_get_buffer(buffer)[index] )) {
     vm_set_err(vm, VMERR_ALLOC_FAILED);
     return false;
   }
 
-  /* push new string */
-  vmarg_push_libdata(vm, newStringData);
+  /* this function does return a value */
+  return true;
+}
+
+/**
+ * VMNative: char_to_string( char )
+ * Accepts one number argument: the char to convert
+ * Returns the desired char as a VM String.
+ */
+static bool vmn_char_to_str(VM * vm, VMArg * arg, int argc) {
+  VMLibData * newStrData;
+  char character[2] = "";
+
+  /* check for proper number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+    return false;
+  }
+
+  /* check argument major type */
+  if(vmarg_type(arg[0]) != TYPE_NUMBER) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+
+  character[0] = (char) vmarg_number(arg[0], NULL);
+
+  /* check if value is out of range for char */
+  if(character[0] > CHAR_MAX || character[0] < CHAR_MIN) {
+    vm_set_err(vm, VMERR_ARGUMENT_OUT_OF_RANGE);
+    return false;
+  }
+
+  newStrData = vmarg_new_string(character, 1);
+
+  /* push char as a number */
+  if(newStrData == NULL || !vmarg_push_libdata(vm, newStrData)) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
 
   /* this function does return a value */
   return true;
+}
+
+/**
+ * VMNative: string_set_char_at( string, index, value )
+ * Accepts one number argument: the string workshop instance
+ * Returns NULL.
+ */
+static bool vmn_str_set_char_at(VM * vm, VMArg * arg, int argc) {
+  VMLibData * data;
+  Buffer * buffer;
+  int index;
+  char value;
+
+  /* check for proper number of arguments */
+  if(argc != 3) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+    return false;
+  }
+
+  /* check argument major type */
+  if(vmarg_type(arg[0]) != TYPE_LIBDATA ||
+     vmarg_type(arg[1]) != TYPE_NUMBER ||
+     vmarg_type(arg[1]) != TYPE_NUMBER) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+
+  /* extract the libdata from the argument */
+  data = vmarg_libdata(arg[0]);
+
+  /* check libdata type */
+  if(!vmlibdata_is_type(data, LIBSTR_STRING_TYPE, LIBSTR_STRING_TYPE_LEN)) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+
+  /* extract the buffer */
+  buffer = vmlibdata_data(data);
+
+  /* extract the index */
+  index = vmarg_number(arg[1], NULL);
+  value = (char) vmarg_number(arg[2], NULL);
+
+  /* check buffer size range */
+  if(index < 0) {
+    vm_set_err(vm, VMERR_ARGUMENT_OUT_OF_RANGE);
+    return false;
+  }
+
+  /* check char value */
+  if(value > CHAR_MAX || value < CHAR_MIN) {
+    vm_set_err(vm, VMERR_ARGUMENT_OUT_OF_RANGE);
+    return false;
+  }
+
+  /* push char as a number */
+  if(!buffer_set_char(buffer, value, index)) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
+
+  /* this function does not return a value */
+  return false;
 }
 
 /**
@@ -409,6 +509,10 @@ bool libstr_install(Gunderscript * gunderscript) {
 			 "string_append", 13, vmn_str_append)
      || !vm_reg_callback(gunderscript_vm(gunderscript), 
 			 "string_char_at", 14, vmn_str_char_at)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "char_to_string", 14, vmn_char_to_str)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "string_set_char_at", 18, vmn_str_set_char_at)
 ) {
     return false;
   }
