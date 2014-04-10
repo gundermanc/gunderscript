@@ -77,21 +77,27 @@ if __name__ == "__main__":
             except:
                 print("Error saving. Likely an invalid file name.")
         else:
-            openparens = openparens + i.count("(") - i.count(")")
-            openbrackets = openbrackets + i.count("[") - i.count("]")
-            openbraces = openbraces + i.count("{") - i.count("}")
-            if openparens > 0 or openbrackets > 0 or openbraces > 0:
+            newopenparens = openparens + i.count("(") - i.count(")")
+            newopenbrackets = openbrackets + i.count("[") - i.count("]")
+            newopenbraces = openbraces + i.count("{") - i.count("}")
+            if newopenparens > 0 or newopenbrackets > 0 or newopenbraces > 0:
                 inblock = True
                 block.append(tabwidth*(openparens+openbrackets+openbraces)*" "+i)
-            elif openparens < 0:
+                openparens = newopenparens
+                openbrackets = newopenbrackets
+                openbraces = newopenbraces
+            elif newopenparens < 0:
                 print("Mismatched parentheses. Last line not written, enter \"reset block\" to start whole block over.")
-            elif openbrackets < 0:
+            elif newopenbrackets < 0:
                 print("Mismatched brackets. Last line not written, enter \"reset block\" to start whole block over.")
-            elif openbraces < 0:
+            elif newopenbraces < 0:
                 print("Mismatched braces. Last line not written, enter \"reset block\" to start whole block over.")
             else:
                 inblock = False
                 block.append(i)
+                openparens = newopenparens
+                openbrackets = newopenbrackets
+                openbraces = newopenbraces
                 if funcdef:
                     functions.append(block)
                 else:
