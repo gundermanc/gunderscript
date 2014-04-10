@@ -42,9 +42,9 @@ typedef enum {
 /* english translations of lexer errors */
 static const char * const lexerErrorMessages [] = {
   "Success",
-  "Unterminated string constant",
+  "Unterminated string or char constant",
   "Unterminated multiline comment",
-  "New line character in string, or unterminated escape sequence",
+  "New line character in string, char, or unterminated escape sequence",
   "Muliple decimal points in numeric constant",
   "Trailing decimal point in number; all decimal points must"
     "be followed by digits",
@@ -54,6 +54,7 @@ static const char * const lexerErrorMessages [] = {
 typedef enum {
   LEXERTYPE_UNKNOWN,
   LEXERTYPE_STRING,
+  LEXERTYPE_CHAR,
   LEXERTYPE_NUMBER,
   LEXERTYPE_KEYVAR,
   LEXERTYPE_BRACKETS,

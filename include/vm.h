@@ -152,8 +152,6 @@ bool vmarg_push_null(VM * vm);
 
 /* define built in LIBDATA object types */
 #define VM_LIBDATA_TYPELEN    10
-#define GXS_STRING_TYPE           "GXS.STRING"
-#define GXS_STRING_TYPE_LEN       10
 
 
 /**

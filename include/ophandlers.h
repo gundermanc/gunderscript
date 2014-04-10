@@ -75,6 +75,4 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
 
 bool op_null_push(VM * vm,  char * byteCode, 
 		  size_t byteCodeLen, int * index);
-
-void string_cleanup(VM * vm, VMLibData * data);
 #endif /* OPHANDLERS__H__ */

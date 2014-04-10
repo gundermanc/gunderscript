@@ -277,12 +277,71 @@ static bool next_parse_strings(Lexer * l) {
       if(next_char(l) == '\\'){
         advance_char(l);
       } else if(next_char(l) == '"') {
-	/* encountered end of string, return it along with the quotes */
+	/* encountered end of string, return it */
 	l->nextTokenLen = (l->index - beginStrIndex);
 	l->nextToken = l->input + beginStrIndex;
 	l->err = LEXERERR_SUCCESS;
 
 	l->nextTokenType = LEXERTYPE_STRING;
+
+	/* increment index again to prevent the end quote from being evaluated
+	 * next iteration.
+	 */
+	advance_char(l);
+	return true;
+      }
+
+      /* prevent newlines from being put in strings */
+      if(next_char(l) == '\n') {
+	l->err = LEXERERR_NEWLINE_IN_STRING_UNTERMINATED_ESCAPE;
+	finalize_lexer(l);
+	return true;
+      }
+    
+    }
+
+    /* error occurred, set token to null and quit */
+    l->nextToken = NULL;
+    l->err = LEXERERR_UNTERMINATED_STRING;
+    finalize_lexer(l);
+    return true;
+  }
+  return false;
+}
+
+/**
+ * lexer_next() char subparser.
+ * If current character is a single quote, ', this function begins parsing to
+ * find the matching end quote. Upon finding it, the l->nextToken
+ * pointer is set to point to the beginning of the contained string, and 
+ * l->nextTokenLen is set to the length of the string. If no end quote 
+ * is encountered, l->err is set to LEXERERR_UNTERMINATED_STRING and 
+ * l->nextToken is set to NULL, but function returns true;
+ * l: an instance of lexer.
+ * returns: true if the first character the lexer encountered was a single quote
+ * and false if not.
+ */
+static bool next_parse_chars(Lexer * l) {
+
+  /* this is the beginning of a char */
+  if(next_char(l) == '\'') {
+    int beginStrIndex = l->index + 1;
+
+    /* add characters to the char string */
+    l->index++;
+    for(; remaining_chars(l) > 0; advance_char(l)) {
+
+      /* handle escaping of quotes */
+      if(next_char(l) == '\\'){
+        advance_char(l);
+      } else if(next_char(l) == '\'') {
+	/* encountered end of string, return it */
+	l->nextTokenLen = (l->index - beginStrIndex);
+	l->nextToken = l->input + beginStrIndex;
+
+	l->err = LEXERERR_SUCCESS;
+
+	l->nextTokenType = LEXERTYPE_CHAR;
 
 	/* increment index again to prevent the end quote from being evaluated
 	 * next iteration.
@@ -614,6 +673,8 @@ static void update_next_token(Lexer * l) {
 	break;
       }
     } else if(next_parse_strings(l)) {
+      return;
+    } else if(next_parse_chars(l)) {
       return;
     } else if(next_parse_keyvars(l)){
       return;

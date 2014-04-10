@@ -208,6 +208,12 @@ static int escape_string(char * dst, int dstLen,
       case '\\':
 	dst[j] = '\\';
 	break;
+      case '\'':
+	dst[j] = '\'';
+	break;
+      case '0':
+	dst[j] = '\0';
+	break;
       default:
 	dst[j] = src[i];
 	i--;
@@ -217,7 +223,7 @@ static int escape_string(char * dst, int dstLen,
       dst[j] = src[i];
     }
   }
-  return i;
+  return j;
 }
 
 /**
@@ -236,7 +242,7 @@ static bool parse_string(Compiler * c, LexerType prevTokenType,
   /* Reads a string token and writes it raw to the output as so:
    * OP_STR_PUSH [strlen as 1 byte value] [string]
    */
-  char outLen = len;
+  char outLen = 0;
   char escapedStr[255] = "";
   int escapedStrLen = 0;
 
@@ -248,11 +254,58 @@ static bool parse_string(Compiler * c, LexerType prevTokenType,
 
   /* escape special characters in the string */
   escapedStrLen = escape_string(escapedStr, 254, token, len);
+  outLen = (char) escapedStrLen;
 
   /* write output */
   buffer_append_char(c->outBuffer, OP_STR_PUSH);
   buffer_append_char(c->outBuffer, outLen);
   buffer_append_string(c->outBuffer, escapedStr, escapedStrLen);
+
+  /* check for invalid types: */
+  if(prevTokenType != COMPILER_NO_PREV
+     && prevTokenType != LEXERTYPE_PARENTHESIS
+     && prevTokenType != LEXERTYPE_OPERATOR) {
+    c->err = COMPILERERR_UNEXPECTED_TOKEN;
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Subparser for parse_straight_code():
+ * Parses a char token and produces respective OP_NUM_PUSH op code and writes
+ * to the outBuffer.
+ * c: an instance of compiler.
+ * prevTokenType: the type of the token before this one.
+ * token: the current token.
+ * len: the length of the current token.
+ * returns: true if the operation succeeds and false if an error occured. Upon an
+ * error, the error code is written to c->err.
+ */
+static bool parse_char(Compiler * c, LexerType prevTokenType, 
+			 char * token, size_t len) {
+  /* Reads a char string token and writes it raw to the output as so:
+   * OP_NUM_PUSH [char value, as 8 byte double]
+   */
+  char escapedStr[5] = "";
+  int escapedStrLen = 0;
+  double value = 0;
+
+  /* escape special characters in the string */
+  escapedStrLen = escape_string(escapedStr, 4, token, len);
+
+  /* check that we only have a single character */
+  if(escapedStrLen != 1) {
+    c->err = COMPILERERR_MALFORMED_CHAR_CONSTANT;
+    return false;
+  }
+
+  /* convert char value to double for storage as a number */
+  value = (double) escapedStr[0];
+
+  /* write output */
+  buffer_append_char(c->outBuffer, OP_NUM_PUSH);
+  buffer_append_string(c->outBuffer, (char*)(&value), sizeof(double));
 
   /* check for invalid types: */
   if(prevTokenType != COMPILER_NO_PREV
@@ -356,6 +409,7 @@ static bool parse_parenthesis(Compiler * c, TypeStk * opStk, Stk * opLenStk,
        && prevTokenType != LEXERTYPE_OPERATOR
        && prevTokenType != LEXERTYPE_NUMBER
        && prevTokenType != LEXERTYPE_STRING
+       && prevTokenType != LEXERTYPE_CHAR
        && prevTokenType != LEXERTYPE_KEYVAR) {
       c->err = COMPILERERR_UNEXPECTED_TOKEN; 
       return false;
@@ -413,6 +467,7 @@ static bool parse_operator(Compiler * c, TypeStk * opStk, Stk * opLenStk,
 
   /* check for invalid types: */
   if(prevTokenType != LEXERTYPE_STRING
+     && prevTokenType != LEXERTYPE_CHAR
      && prevTokenType != LEXERTYPE_NUMBER
      && prevTokenType != LEXERTYPE_KEYVAR
      && prevTokenType != LEXERTYPE_PARENTHESIS) {
@@ -483,6 +538,14 @@ bool parse_straight_code_loop(Compiler * c, Lexer * l, TypeStk * opStk,
 
     case LEXERTYPE_STRING:
       if(!parse_string(c, prevValType, token, len)) {
+	return false;
+      }
+      prevValType = type;
+      token = lexer_next(l, &type, &len);
+      break;
+
+    case LEXERTYPE_CHAR:
+      if(!parse_char(c, prevValType, token, len)) {
 	return false;
       }
       prevValType = type;

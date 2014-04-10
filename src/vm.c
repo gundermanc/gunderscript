@@ -39,6 +39,7 @@
 #include "vm.h"
 #include "vmdefs.h"
 #include "gsbool.h"
+#include "libstr.h"
 #include "ophandlers.h"
 #include <stdint.h>
 #include <stdio.h>
@@ -553,7 +554,7 @@ char * vmarg_string(VMArg arg) {
     return NULL;
   }
 
-  return vmlibdata_data((VMLibData*)vmarg_libdata(arg));
+  return libstr_string((VMLibData*)vmarg_libdata(arg));
 }
 
 /**
@@ -565,14 +566,14 @@ char * vmarg_string(VMArg arg) {
  */
 VMLibData * vmarg_new_string(char * string, size_t stringLen) {
   VMLibData * result;
-  char * newString = calloc(stringLen + 1, sizeof(char));
-  if(newString == NULL) {
+
+  /* allocate new string buffer */
+  result = libstr_string_new(stringLen);
+  if(result == NULL) {
     return NULL;
   }
-  strncpy(newString, string, stringLen);
 
-  result = vmlibdata_new(GXS_STRING_TYPE, GXS_STRING_TYPE_LEN, 
-			 string_cleanup, newString);
+  libstr_string_append(result, string, stringLen);
 
   return result;
 }
@@ -584,7 +585,8 @@ VMLibData * vmarg_new_string(char * string, size_t stringLen) {
  */
 bool vmarg_is_string(VMArg arg) {
   if(arg.type == TYPE_LIBDATA
-     && vmlibdata_is_type(vmarg_libdata(arg), GXS_STRING_TYPE, GXS_STRING_TYPE_LEN)) {
+     && vmlibdata_is_type(vmarg_libdata(arg), LIBSTR_STRING_TYPE, 
+			  LIBSTR_STRING_TYPE_LEN)) {
     return true;
   }
 

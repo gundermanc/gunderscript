@@ -26,10 +26,18 @@
 
 #include "gunderscript.h"
 
-#define LIBSTR_WORKSHOP_TYPE     "LIBSTR.WS"
-#define LIBSTR_WORKSHOP_TYPE_LEN    9
-#define LIBSTR_WORKSHOP_BLOCKSIZE   10
+#define LIBSTR_STRING_TYPE     "LIBSTR.STR"
+#define LIBSTR_STRING_TYPE_LEN    10
+#define LIBSTR_STRING_BLOCKSIZE   10
+
+VMLibData * libstr_string_new(int bufferLen);
+
+char * libstr_string(VMLibData * data);
+
+int libstr_string_length(VMLibData * data);
 
 bool libstr_install(Gunderscript * gunderscript);
+
+bool libstr_string_append(VMLibData * data, char * string, int stringLen);
 
 #endif /*LIBSTR__H__*/
