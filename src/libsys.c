@@ -252,6 +252,71 @@ static bool vmn_file_exists(VM * vm, VMArg * arg, int argc) {
   return true;
 }
 
+void filepointer_free(VM * VM, VMLibData * data) {
+  fclose(vmlibdata_data(data));
+}
+
+/**
+ * VMNative: file_open( fileName )
+ * Open the file in the desired accessMode. Returns true successful.
+ */
+static bool vmn_file_open(VM * vm, VMArg * arg, int argc) {
+  char * fileName;
+  char * accessMode;
+  FILE * file;
+  VMLibData * filePointer;
+  /* check for correct number of arguments */
+  if(argc != 2) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* check argument 1 type */
+  if((fileName = vmarg_string(arg[0])) == NULL || (accessMode = vmarg_string(arg[1])) == NULL) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+  
+  file = fopen(fileName, accessMode);
+
+  if (file == NULL){
+    vmarg_push_null(vm);
+  }
+
+  filePointer = vmlibdata_new("sys.file", 8, filepointer_free, file);
+   
+  /* push return value */
+  vmarg_push_libdata(vm, filePointer);
+
+  return true;
+}
+
+/**
+ * VMNative: file_close( fileName )
+ * Closes the desired file. Returns true successful.
+ */
+static bool vmn_file_close(VM * vm, VMArg * arg, int argc) {
+  VMLibData * filePointer;
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* check argument 1 type */
+  if((filePointer = vmarg_libdata(arg[0])) == NULL || !vmlibdata_is_type(vmarg_libdata(arg[0]), "sys.file", 8 )) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+  
+  fclose(vmlibdata_data(filePointer));
+
+  return false;
+}
 
 
 /**
@@ -501,6 +566,8 @@ bool libsys_install(Gunderscript * gunderscript) {
      || !vm_reg_callback(gunderscript_vm(gunderscript), "type", 4, vmn_type)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_delete", 11, vmn_file_delete)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_exists", 11, vmn_file_exists)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "file_open", 9, vmn_file_open)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "file_close", 10, vmn_file_close)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_boolean", 10, vmn_is_boolean)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_number", 9, vmn_is_number)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_null", 7, vmn_is_null)
