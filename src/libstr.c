@@ -52,7 +52,7 @@ static void string_cleanup(VM * vm, VMLibData * data) {
 VMLibData * libstr_string_new(int bufferLen) {
 
   /* allocate workshop object */
-  Buffer * buffer = buffer_new(bufferLen, LIBSTR_STRING_BLOCKSIZE);
+  Buffer * buffer = buffer_new(bufferLen + 1, LIBSTR_STRING_BLOCKSIZE);
   VMLibData * data;
 
   if(buffer == NULL) {
@@ -575,9 +575,7 @@ bool libstr_install(Gunderscript * gunderscript) {
      || !vm_reg_callback(gunderscript_vm(gunderscript), 
 			 "string_set_char_at", 18, vmn_str_set_char_at)
      || !vm_reg_callback(gunderscript_vm(gunderscript), 
-			 "string_substring", 16, vmn_str_substring)
-
-) {
+			 "string_substring", 16, vmn_str_substring)) {
     return false;
   }
   return true;
