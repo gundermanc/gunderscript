@@ -490,6 +490,67 @@ static bool vmn_str_set_char_at(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
+ * VMNative: string_substring( string, startIndex, endIndex )
+ * Accepts one number argument: the string workshop instance
+ * Returns NULL.
+ */
+static bool vmn_str_substring(VM * vm, VMArg * arg, int argc) {
+  VMLibData * data;
+  VMLibData * substringData;
+  Buffer * buffer;
+  int startIndex;
+  int endIndex;
+
+  /* check for proper number of arguments */
+  if(argc != 3) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+    return false;
+  }
+
+  /* check argument major type */
+  if(vmarg_type(arg[0]) != TYPE_LIBDATA ||
+     vmarg_type(arg[1]) != TYPE_NUMBER ||
+     vmarg_type(arg[1]) != TYPE_NUMBER) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+
+  /* extract the libdata from the argument */
+  data = vmarg_libdata(arg[0]);
+
+  /* check libdata type */
+  if(!vmlibdata_is_type(data, LIBSTR_STRING_TYPE, LIBSTR_STRING_TYPE_LEN)) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+
+  /* extract the buffer */
+  buffer = vmlibdata_data(data);
+
+  /* extract the index */
+  startIndex = vmarg_number(arg[1], NULL);
+  endIndex = vmarg_number(arg[2], NULL);
+
+  /* check buffer size range */
+  if(startIndex < 0 || startIndex >= buffer_size(buffer)
+     || endIndex <= startIndex || endIndex > buffer_size(buffer)) {
+    vm_set_err(vm, VMERR_ARGUMENT_OUT_OF_RANGE);
+    return false;
+  }
+
+  substringData = vmarg_new_string(buffer_get_buffer(buffer) 
+				   + startIndex, (endIndex - startIndex));
+  /* push new resulting substring */
+  if(substringData == NULL || !vmarg_push_libdata(vm, substringData)) {
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
+  }
+
+  /* this function does not return a value */
+  return true;
+}
+
+/**
  * Installs the Libstr library in the given instance of Gunderscript.
  * gunderscript: the instance to receive the library.
  * returns: true upon success, and false upon failure. If failure occurs,
@@ -513,6 +574,9 @@ bool libstr_install(Gunderscript * gunderscript) {
 			 "char_to_string", 14, vmn_char_to_str)
      || !vm_reg_callback(gunderscript_vm(gunderscript), 
 			 "string_set_char_at", 18, vmn_str_set_char_at)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), 
+			 "string_substring", 16, vmn_str_substring)
+
 ) {
     return false;
   }
