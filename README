@@ -114,7 +114,7 @@ For Loops -- parsers.c -- 0%
 Gunderscript Object -- gunderscript.c -- 50%
 Command Line Application -- main.c -- 25%
 File Manipulation Library -- libsys.c -- 25%
-String Manipulation Library -- libstring.c -- 0%
+String Manipulation Library -- libstr.c -- 100%
 Datastructures Library -- libdatastructs.c -- 0%  (should be quick since they
    are already implemented..just need interfaces)
 Gtk+ Library -- libgtk.c -- 0% ..a pipe dream. I'm going to attempt this summer 2014
