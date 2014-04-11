@@ -460,6 +460,13 @@ int vm_exit_index(VM * vm) {
 }
 
 /**
+ * Gets the raw data from within a VMArg.
+ */
+void * vmarg_data(VMArg * arg) {
+  return arg->data;
+}
+
+/**
  * Gets the type of a VMArg.
  */
 VarType vmarg_type(VMArg arg) {
@@ -606,6 +613,18 @@ bool vmarg_push_libdata(VM * vm, VMLibData * data) {
 }
 
 /**
+ * Pushes a generic data to the stack. Useful for moving variables in an out
+ * of data structures.
+ */
+bool vmarg_push_data(VM * vm, void * data, VarType type) {
+  if(type == TYPE_LIBDATA) {
+    vmlibdata_inc_refcount((*(VMLibData**)data));
+    vmlibdata_inc_refcount((*(VMLibData**)data));
+  }
+  return typestk_push(vm->opStk, data, VM_VAR_SIZE, type);
+}
+
+/**
  * Pushes a return value onto the stack.
  * vm: an instance of VM.
  * value: value to push.
@@ -700,8 +719,10 @@ void vmlibdata_inc_refcount(VMLibData * data) {
  */
 void vmlibdata_dec_refcount(VMLibData * data) {
   assert(data != NULL);
+  if(data->refCount > 0) {
   /*assert(data-> refCount > 0);*/
-  data->refCount--;
+    data->refCount--;
+  }
 }
 
 /**
@@ -713,6 +734,7 @@ void vmlibdata_dec_refcount(VMLibData * data) {
 void vmlibdata_check_cleanup(VM * vm, VMLibData * data) {
   assert(vm != NULL);
   assert(data != NULL);
+  assert(data->refCount >= 0);
   if(data->refCount <= 0) {
     vmlibdata_free(vm, data);
   }
@@ -744,7 +766,7 @@ bool vmlibdata_is_type(VMLibData * data, char * type, size_t typeLen) {
 void vmlibdata_free(VM * vm, VMLibData * data) {
   assert(vm != NULL);
   assert(data != NULL);
-
+  
   if(data->cleanupCallback != NULL) {
     ((*data->cleanupCallback)(vm, data));
   }

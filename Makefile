@@ -47,7 +47,7 @@ app: linuxlibrary
 
 # build just the static library
 linuxlibrary: gunderscript.o lexer.o frmstk.o vm.o compiler.o
-	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o $(OBJDIR)/parsers.o $(OBJDIR)/compiler.o $(OBJDIR)/compcommon.o $(OBJDIR)/gunderscript.o $(OBJDIR)/buffer.o $(OBJDIR)/libsys.o $(OBJDIR)/libmath.o $(OBJDIR)/libstr.o
+	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o $(OBJDIR)/parsers.o $(OBJDIR)/compiler.o $(OBJDIR)/compcommon.o $(OBJDIR)/gunderscript.o $(OBJDIR)/buffer.o $(OBJDIR)/libsys.o $(OBJDIR)/libmath.o $(OBJDIR)/libstr.o $(OBJDIR)/libarray.o
 
 # build lexer object
 lexer.o: buildfs $(SRCDIR)/lexer.c
@@ -58,7 +58,7 @@ typestk.o: buildfs $(SRCDIR)/typestk.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/typestk.c
 
 # build Gunderscript object
-gunderscript.o: buildfs vm.o compiler.o libsys.o libstr.o libmath.o $(SRCDIR)/gunderscript.c
+gunderscript.o: buildfs vm.o compiler.o libsys.o libstr.o libarray.o libmath.o $(SRCDIR)/gunderscript.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/gunderscript.c
 
 # build vm object
@@ -92,6 +92,10 @@ libsys.o: buildfs vm.o $(SRCDIR)/libsys.c
 # build libstr object
 libstr.o: buildfs vm.o $(SRCDIR)/libstr.c
 	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/libstr.c
+
+# build libarray object
+libarray.o: buildfs vm.o $(SRCDIR)/libarray.c
+	$(CC) $(LIBCFLAGS) -c $(SRCDIR)/libarray.c
 
 # build libmath object
 libmath.o: buildfs vm.o $(SRCDIR)/libmath.c

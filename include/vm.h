@@ -130,6 +130,8 @@ void vm_free(VM * vm);
 
 int vm_exit_index(VM * vm);
 
+void * vmarg_data(VMArg * arg);
+
 VarType vmarg_type(VMArg arg);
 
 double vmarg_number(VMArg arg, bool * success);
@@ -190,6 +192,8 @@ void vmlibdata_check_cleanup(VM * vm, VMLibData * data);
 bool vmlibdata_is_type(VMLibData * data, char * type, size_t typeLen);
 
 void vmlibdata_free(VM * vm, VMLibData * data);
+
+bool vmarg_push_data(VM * vm, void * data, VarType type);
 
 VMLibData * vmarg_libdata(VMArg arg);
 #endif /* VM__H__ */

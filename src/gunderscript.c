@@ -28,6 +28,7 @@
 #include "libsys.h"
 #include "libmath.h"
 #include "libstr.h"
+#include "libarray.h"
 
 /**
  * Creates a new instance of Gunderscript object with a compiler and 
@@ -59,7 +60,8 @@ bool gunderscript_new(Gunderscript * instance, size_t stackSize,
   /* initialize system libraries */
   if(!libsys_install(instance)
      || !libmath_install(instance)
-     || !libstr_install(instance)) {
+     || !libstr_install(instance)
+     || !libarray_install(instance)) {
     vm_free(instance->vm);
     return false;
   }
