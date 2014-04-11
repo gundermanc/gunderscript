@@ -48,6 +48,8 @@ typedef enum {
   VMERR_CALLBACK_NOT_EXIST,           /* invalid callback string, or index */
   VMERR_INCORRECT_NUMARGS,            /* incorrect number of arguments */
   VMERR_INVALID_TYPE_ARGUMENT,        /* argument is wrong type */
+  VMERR_FILE_WRITE_FAIL,              /* error writing char to file */
+  VMERR_FILE_CLOSED,                  /* trying to read or write to closed file */
   VMERR_ARGUMENT_OUT_OF_RANGE,        /* index argument is out of range */
 } VMErr;
 
@@ -70,6 +72,8 @@ static const char * const vmErrorMessages [] = {
   "The callback does not exist",
   "Incorrect number of arguments to native function",
   "Argument to native function is invalid type",
+  "Invalid char. Failed to write to file.",
+  "Trying to read or write to a closed file.",
   "Argument to native function is out of allowable range",
 };
 
