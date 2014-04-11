@@ -300,8 +300,8 @@ static bool vmn_file_open(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
- * VMNative: file_close( fileName )
- * Closes the desired file. Returns true successful.
+ * VMNative: file_close( file )
+ * Closes the desired file.
  */
 static bool vmn_file_close(VM * vm, VMArg * arg, int argc) {
   VMLibData * filePointer;
@@ -325,6 +325,36 @@ static bool vmn_file_close(VM * vm, VMArg * arg, int argc) {
   vmlibdata_set_data(filePointer, NULL);
 
   return false;
+}
+
+
+/**
+ * VMNative: file_read_char( file )
+ * Returns the next character in the file.
+ */
+static bool vmn_file_read_char(VM * vm, VMArg * arg, int argc) {
+  VMLibData * filePointer;
+  int c;
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* check argument 1 type */
+  if((filePointer = vmarg_libdata(arg[0])) == NULL ||
+        !vmlibdata_is_type(vmarg_libdata(arg[0]), LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN )) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+  
+  c = fgetc(vmlibdata_data(filePointer)); 
+
+  vmarg_push_number(vm, c);
+
+  return true;
 }
 
 
@@ -577,6 +607,7 @@ bool libsys_install(Gunderscript * gunderscript) {
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_exists", 11, vmn_file_exists)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_open", 9, vmn_file_open)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_close", 10, vmn_file_close)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "file_read_char", 14, vmn_file_read_char)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_boolean", 10, vmn_is_boolean)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_number", 9, vmn_is_number)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_null", 7, vmn_is_null)
