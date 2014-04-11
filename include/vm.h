@@ -181,6 +181,8 @@ VMLibData * vmlibdata_new(char * type, size_t typeLen,
 
 void * vmlibdata_data(VMLibData * data);
 
+void vmlibdata_set_data(VMLibData * data, void * setData);
+
 void vmlibdata_inc_refcount(VMLibData * data);
 
 void vmlibdata_dec_refcount(VMLibData * data);

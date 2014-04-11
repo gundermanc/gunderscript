@@ -26,6 +26,9 @@
 
 #include "gunderscript.h"
 
+#define LIBSYS_FILE_TYPE     "SYS.FILE"
+#define LIBSYS_FILE_TYPE_LEN    8
+
 bool libsys_install(Gunderscript * gunderscript);
 
 #endif /* LIBSYS__H__ */

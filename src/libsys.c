@@ -25,6 +25,7 @@
 
 #include "gunderscript.h"
 #include "vm.h"
+#include "libsys.h"
 #include <string.h>
 #include <unistd.h>
 
@@ -253,7 +254,10 @@ static bool vmn_file_exists(VM * vm, VMArg * arg, int argc) {
 }
 
 void filepointer_free(VM * VM, VMLibData * data) {
-  fclose(vmlibdata_data(data));
+  FILE * file = vmlibdata_data(data);
+  if (file != NULL){
+      fclose(file);
+  }
 }
 
 /**
@@ -285,10 +289,12 @@ static bool vmn_file_open(VM * vm, VMArg * arg, int argc) {
     vmarg_push_null(vm);
   }
 
-  filePointer = vmlibdata_new("sys.file", 8, filepointer_free, file);
+  filePointer = vmlibdata_new(LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN, filepointer_free, file);
    
   /* push return value */
-  vmarg_push_libdata(vm, filePointer);
+  if(!vmarg_push_libdata(vm, filePointer)){
+    vm_set_err(vm, VMERR_ALLOC_FAILED);
+  }
 
   return true;
 }
@@ -308,12 +314,15 @@ static bool vmn_file_close(VM * vm, VMArg * arg, int argc) {
   }
 
   /* check argument 1 type */
-  if((filePointer = vmarg_libdata(arg[0])) == NULL || !vmlibdata_is_type(vmarg_libdata(arg[0]), "sys.file", 8 )) {
+  if((filePointer = vmarg_libdata(arg[0])) == NULL ||
+        !vmlibdata_is_type(vmarg_libdata(arg[0]), LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN )) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
     return false;
   }
   
   fclose(vmlibdata_data(filePointer));
+
+  vmlibdata_set_data(filePointer, NULL);
 
   return false;
 }

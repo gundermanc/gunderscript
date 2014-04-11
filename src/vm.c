@@ -682,6 +682,9 @@ void * vmlibdata_data(VMLibData * data) {
   return data->libData;
 }
 
+void vmlibdata_set_data(VMLibData * data, void * setData) {
+  data->libData = setData;
+}
 
 /**
  * Used by the VM to track usage of an object, this increments the internal
