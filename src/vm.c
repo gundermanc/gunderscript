@@ -701,6 +701,13 @@ void * vmlibdata_data(VMLibData * data) {
   return data->libData;
 }
 
+/**
+ *Sets the data of a VMLibData instance.
+ */
+void vmlibdata_set_data(VMLibData * data, void * setData) {
+  assert(data != NULL);
+  data->libData = setData;
+}
 
 /**
  * Used by the VM to track usage of an object, this increments the internal
