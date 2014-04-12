@@ -1,9 +1,9 @@
 /**
  * libsys.c
- * (C) 2014 Christian Gunderman
- * Modified by:
+ * (C) 2014 Christian Gunderman + Kai Smith
+ * Modified by: KaiSmith
  * Author Email: gundermanc@gmail.com
- * Modifier Email:
+ * Modifier Email: kjs108@case.edu
  *
  * Description:
  * Defines the Gunderscript functions and types for interfacing with the
@@ -253,10 +253,14 @@ static bool vmn_file_exists(VM * vm, VMArg * arg, int argc) {
   return true;
 }
 
+/**
+ * Frees a FILE* pointer in a VMLibData for the Gunderscript file type.
+ * Called automatically by the VM when the file goes out of scope.
+ */
 void filepointer_free(VM * VM, VMLibData * data) {
   FILE * file = vmlibdata_data(data);
   if (file != NULL){
-      fclose(file);
+    fclose(file);
   }
 }
 
@@ -269,6 +273,7 @@ static bool vmn_file_open(VM * vm, VMArg * arg, int argc) {
   char * accessMode;
   FILE * file;
   VMLibData * filePointer;
+
   /* check for correct number of arguments */
   if(argc != 2) {
     vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
@@ -278,7 +283,8 @@ static bool vmn_file_open(VM * vm, VMArg * arg, int argc) {
   }
 
   /* check argument 1 type */
-  if((fileName = vmarg_string(arg[0])) == NULL || (accessMode = vmarg_string(arg[1])) == NULL) {
+  if((fileName = vmarg_string(arg[0])) == NULL 
+     || (accessMode = vmarg_string(arg[1])) == NULL) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
     return false;
   }
@@ -289,11 +295,13 @@ static bool vmn_file_open(VM * vm, VMArg * arg, int argc) {
     vmarg_push_null(vm);
   }
 
-  filePointer = vmlibdata_new(LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN, filepointer_free, file);
+  filePointer = vmlibdata_new(LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN,
+			      filepointer_free, file);
    
   /* push return value */
   if(!vmarg_push_libdata(vm, filePointer)){
     vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
   }
 
   return true;
@@ -307,6 +315,7 @@ static bool vmn_file_open_read(VM * vm, VMArg * arg, int argc) {
   char * fileName;
   FILE * file;
   VMLibData * filePointer;
+
   /* check for correct number of arguments */
   if(argc != 1) {
     vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
@@ -332,6 +341,7 @@ static bool vmn_file_open_read(VM * vm, VMArg * arg, int argc) {
   /* push return value */
   if(!vmarg_push_libdata(vm, filePointer)){
     vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
   }
 
   return true;
@@ -345,6 +355,7 @@ static bool vmn_file_open_write(VM * vm, VMArg * arg, int argc) {
   char * fileName;
   FILE * file;
   VMLibData * filePointer;
+
   /* check for correct number of arguments */
   if(argc != 1) {
     vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
@@ -361,7 +372,7 @@ static bool vmn_file_open_write(VM * vm, VMArg * arg, int argc) {
   
   file = fopen(fileName, "w");
 
-  if (file == NULL){
+  if (file == NULL) {
     vmarg_push_null(vm);
   }
 
@@ -370,6 +381,7 @@ static bool vmn_file_open_write(VM * vm, VMArg * arg, int argc) {
   /* push return value */
   if(!vmarg_push_libdata(vm, filePointer)){
     vm_set_err(vm, VMERR_ALLOC_FAILED);
+    return false;
   }
 
   return true;
@@ -383,6 +395,7 @@ static bool vmn_file_open_write(VM * vm, VMArg * arg, int argc) {
  */
 static bool vmn_file_close(VM * vm, VMArg * arg, int argc) {
   VMLibData * filePointer;
+
   /* check for correct number of arguments */
   if(argc != 1) {
     vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
@@ -392,14 +405,16 @@ static bool vmn_file_close(VM * vm, VMArg * arg, int argc) {
   }
 
   /* check argument 1 type */
-  if((filePointer = vmarg_libdata(arg[0])) == NULL ||
-        !vmlibdata_is_type(vmarg_libdata(arg[0]), LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN )) {
+  if((filePointer = vmarg_libdata(arg[0])) == NULL 
+     || !vmlibdata_is_type(filePointer, 
+			   LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN )) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
     return false;
   }
   
   fclose(vmlibdata_data(filePointer));
 
+  /* prevents the cleanup routine from double freeing */
   vmlibdata_set_data(filePointer, NULL);
 
   return false;
@@ -413,6 +428,7 @@ static bool vmn_file_close(VM * vm, VMArg * arg, int argc) {
 static bool vmn_file_read_char(VM * vm, VMArg * arg, int argc) {
   VMLibData * filePointer;
   int c;
+
   /* check for correct number of arguments */
   if(argc != 1) {
     vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
@@ -423,7 +439,7 @@ static bool vmn_file_read_char(VM * vm, VMArg * arg, int argc) {
 
   /* check argument 1 type */
   if((filePointer = vmarg_libdata(arg[0])) == NULL ||
-        !vmlibdata_is_type(vmarg_libdata(arg[0]), LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN )) {
+        !vmlibdata_is_type(filePointer, LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN)) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
     return false;
   }
@@ -441,12 +457,14 @@ static bool vmn_file_read_char(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
- * VMNative: file_write_char( char, file )
+ * VMNative: file_write_char( file , char )
  * Writes a character to the file.
  */
 static bool vmn_file_write_char(VM * vm, VMArg * arg, int argc) {
   VMLibData * filePointer;
+  bool isNumber = false;
   int c;
+
   /* check for correct number of arguments */
   if(argc != 2) {
     vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
@@ -455,24 +473,29 @@ static bool vmn_file_write_char(VM * vm, VMArg * arg, int argc) {
     return false;
   }
 
+  filePointer = vmarg_libdata(arg[0]);
+  c = (int) vmarg_number(arg[1], &isNumber);
+
   /* check argument 1 type */
-  if((c = (int) vmarg_number(arg[0], NULL)) == NULL || (filePointer = vmarg_libdata(arg[1])) == NULL ||
-        !vmlibdata_is_type(vmarg_libdata(arg[1]), LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN )) {
+  if(!isNumber || filePointer == NULL
+     || !vmlibdata_is_type(filePointer, 
+			   LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN )) {
     vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
     return false;
   }
  
+  /* file already closed, throw error */
   if(filePointer->libData == NULL){
     vm_set_err(vm, VMERR_FILE_CLOSED);
     return false;
   }
 
+  /* write failed, return false */
   if(fputc(c, vmlibdata_data(filePointer)) == EOF){
-    vm_set_err(vm, VMERR_FILE_WRITE_FAIL);
-    return false;
+    vmarg_push_boolean(vm, false);
   }
 
-  vmarg_push_number(vm, c);
+  vmarg_push_boolean(vm, true);
 
   return true;
 }
@@ -500,7 +523,7 @@ static bool vmn_shell(VM * vm, VMArg * arg, int argc) {
     return false;
   }
 
-  system(vmlibdata_data(data));
+  system(vmarg_string(arg[0]));
   return false;
 }
 

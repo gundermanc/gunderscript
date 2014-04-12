@@ -523,32 +523,66 @@ bool op_dual_comparison(VM * vm,  char * byteCode,
 
   opstk_pop(vm, &value2, sizeof(double), &type1);
   opstk_pop(vm, &value1, sizeof(double), &type2);
-    
-  /* check data types */
-  if(type1 != type2 || (type1 == TYPE_LIBDATA || type2 == TYPE_LIBDATA)
-     || (code != OP_EQUALS && code != OP_NOT_EQUALS && type1 != TYPE_NUMBER)) {
-    vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
-    return false;
-  }
 
+  /* TODO: implement comparisons between types, and object to object comparisons */
   switch(code) {
   case OP_LT:
-    result = value1 < value2;
+    if(type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) {
+      result = value1 < value2;
+    } else {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
     break;
   case OP_LTE:
-    result = value1 <= value2;
+    if(type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) {
+      result = value1 <= value2;
+    } else {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
     break;
   case OP_GTE:
-    result = value1 >= value2;
+    if(type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) {
+      result = value1 >= value2;
+    } else {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
     break;
   case OP_GT:
-    result = value1 > value2;
+    if(type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) {
+      result = value1 > value2;
+    } else {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
     break;
   case OP_EQUALS:
-    result = value1 == value2;
+    if(type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) {
+      result = value1 == value2;
+    } else if ((type1 == TYPE_NULL && type2 != TYPE_NULL)
+	       || type1 != TYPE_NULL && type2 == TYPE_NULL) {
+      result = false;
+    } else if (type1 == TYPE_NULL && type2 == TYPE_NULL) {
+      result = true;
+    } else {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
     break;
   case OP_NOT_EQUALS:
-    result = value1 != value2;
+    if(type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) {
+      result = value1 != value2;
+    } else if ((type1 == TYPE_NULL && type2 != TYPE_NULL)
+	       || type1 != TYPE_NULL && type2 == TYPE_NULL) {
+      result = true;
+    } else if (type1 == TYPE_NULL && type2 == TYPE_NULL) {
+      result = false;
+    } else {
+      vm_set_err(vm, VMERR_INVALID_TYPE_IN_OPERATION);
+      return false;
+    }
     break;
   default:
     /* TODO: remove in release version */

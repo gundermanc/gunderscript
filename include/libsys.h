@@ -1,9 +1,9 @@
 /**
  * libsys.h
- * (C) 2014 Christian Gunderman
- * Modified by:
+ * (C) 2014 Christian Gunderman + Kai Smith
+ * Modified by: Kai Smith
  * Author Email: gundermanc@gmail.com
- * Modifier Email:
+ * Modifier Email: kjs108@case.edu
  *
  * Description:
  *
