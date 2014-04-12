@@ -112,7 +112,21 @@ static bool vmn_math_pow(VM * vm, VMArg * arg, int argc) {
 static bool vmn_math_round(VM * vm, VMArg * arg, int argc) {
 
   switch(argc) {
-  case 1: /* if user specified precision */
+  case 1: /* If user did not specify precision, assume round to int */
+   
+    /* check argument type */
+    if(vmarg_type(arg[0]) != TYPE_NUMBER) {
+      vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+      return false;
+    }
+
+    /* push result */
+    vmarg_push_number(vm, round(vmarg_number(arg[0], NULL)));
+
+    /* this function does return a value */
+    return true;
+  
+  case 2: /* if user specified precision */
 
     /* check argument type */
     if(vmarg_type(arg[0]) != TYPE_NUMBER
@@ -128,22 +142,8 @@ static bool vmn_math_round(VM * vm, VMArg * arg, int argc) {
 
     /* this function does return a value */
     return true;
-
-  case 2: /* If user did not specify precision, assume round to int */
-   
-    /* check argument type */
-    if(vmarg_type(arg[0]) != TYPE_NUMBER) {
-      vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
-      return false;
-    }
-
-    /* push result */
-    vmarg_push_number(vm, round(vmarg_number(arg[0], NULL)));
-
-    /* this function does return a value */
-    return true;
   }
-
+  
   vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
   return false;
 }
