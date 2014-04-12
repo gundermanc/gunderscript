@@ -276,8 +276,9 @@ static bool vmn_shell(VM * vm, VMArg * arg, int argc) {
     /* this function does not return a value */
     return false;
   }
-
-  system(vmlibdata_data(data));
+  
+  /* system(vmlibdata_data(data)); */
+  system(vmarg_string(data));
   return false;
 }
 
