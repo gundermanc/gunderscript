@@ -1,9 +1,9 @@
 /**
  * libsys.h
- * (C) 2014 Christian Gunderman
- * Modified by:
+ * (C) 2014 Christian Gunderman + Kai Smith
+ * Modified by: Kai Smith
  * Author Email: gundermanc@gmail.com
- * Modifier Email:
+ * Modifier Email: kjs108@case.edu
  *
  * Description:
  *
@@ -25,6 +25,9 @@
 #define LIBSYS__H__
 
 #include "gunderscript.h"
+
+#define LIBSYS_FILE_TYPE     "SYS.FILE"
+#define LIBSYS_FILE_TYPE_LEN    8
 
 bool libsys_install(Gunderscript * gunderscript);
 
