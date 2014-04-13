@@ -572,7 +572,8 @@ bool op_dual_comparison(VM * vm,  char * byteCode,
     }
     break;
   case OP_EQUALS:
-    if(type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) {
+    if((type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) ||
+       (type1 == TYPE_BOOLEAN && type2 == TYPE_BOOLEAN)) {
       result = value1 == value2;
     } else if ((type1 == TYPE_NULL && type2 != TYPE_NULL)
 	       || (type1 != TYPE_NULL && type2 == TYPE_NULL)) {
@@ -585,7 +586,8 @@ bool op_dual_comparison(VM * vm,  char * byteCode,
     }
     break;
   case OP_NOT_EQUALS:
-    if(type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) {
+    if((type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) ||
+       (type1 == TYPE_BOOLEAN && type2 == TYPE_BOOLEAN)) {
       result = value1 != value2;
     } else if ((type1 == TYPE_NULL && type2 != TYPE_NULL)
 	       || (type1 != TYPE_NULL && type2 == TYPE_NULL)) {
