@@ -80,6 +80,7 @@ typedef enum {
   OP_AND,
   OP_OR,
   OP_NULL_PUSH,
+  OP_RETURN,
 } OpCode;
 
 #endif /* VMDEFS__H__ */

@@ -260,7 +260,12 @@ bool vm_exec(VM * vm, char * byteCode,
       }
       break;
     case OP_FRM_POP:
-      if(!op_frame_pop(vm, byteCode, byteCodeLen, &vm->index)) {
+      if(!op_frame_pop(vm, byteCode, byteCodeLen, &vm->index, false)) {
+	return false;
+      }
+      break;
+    case OP_RETURN:
+      if(!op_frame_pop(vm, byteCode, byteCodeLen, &vm->index, true)) {
 	return false;
       }
       break;

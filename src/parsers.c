@@ -702,7 +702,7 @@ static bool function_call(Compiler * c, char * functionName,
 
     /* TODO: pop multiple frames if current frame isn't a function frame */
     /* return from current function to return value stored in stack frame */
-    buffer_append_char(c->outBuffer, OP_FRM_POP);
+    buffer_append_char(c->outBuffer, OP_RETURN);
     *returnCall = true;
     return true;
   }

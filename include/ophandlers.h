@@ -35,7 +35,7 @@ bool op_frame_push(VM * vm,  char * byteCode,
 		   size_t byteCodeLen, int * index, bool functionCall);
 
 bool op_frame_pop(VM * vm,  char * byteCode, 
-		   size_t byteCodeLen, int * index);
+		  size_t byteCodeLen, int * index, bool isReturn);
 
 bool op_add(VM * vm,  char * byteCode, 
 	     size_t byteCodeLen, int * index);

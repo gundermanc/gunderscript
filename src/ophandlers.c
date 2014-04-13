@@ -312,45 +312,58 @@ bool op_frame_push(VM * vm,  char * byteCode,
  * Pops a stack from from the top of the frame stack. This is called every time
  * a function or logical block is left. If the stack frame has a recorded return
  * value (it was pushed with OP_CALL_B) then the code returns to that point of
- * execution.
+ * execution. If isReturn is true, function keeps popping frames until we reach
+ * the function frame.
  * OP_FRM_POP
+ * OP_RETURN
  */
 bool op_frame_pop(VM * vm,  char * byteCode, 
-		   size_t byteCodeLen, int * index) {
+		  size_t byteCodeLen, int * index, bool isReturn) {
 
-  int returnAddr = frmstk_ret_addr(vm->frmStk);
+  int returnAddr;
   int i = 0;
   VMLibData * arg;
   VarType type;
 
-  /* decrement refcounters for objects that were variables */
-  for(i = 0; frmstk_var_read(vm->frmStk, 0, i, &arg, 
-			     sizeof(VMLibData*), &type); i++) {
-    if(type == TYPE_LIBDATA) {
-      vmlibdata_dec_refcount(arg);
-      vmlibdata_check_cleanup(vm, arg);
+  /* if this is a return statement, loop until function frame is found, or
+   * frame stack is empty
+   */
+  do {
+    /* get function return address from function frame */
+    returnAddr = frmstk_ret_addr(vm->frmStk);
+
+    /* decrement refcounters for objects that were variables */
+    for(i = 0; frmstk_var_read(vm->frmStk, 0, i, &arg, 
+			       sizeof(VMLibData*), &type); i++) {
+      if(type == TYPE_LIBDATA) {
+	vmlibdata_dec_refcount(arg);
+	vmlibdata_check_cleanup(vm, arg);
+      }
     }
-  }
   
-  /* pop frame off of the stack */
-  if(!frmstk_pop(vm->frmStk)) {
-    vm_set_err(vm, VMERR_STACK_EMPTY);
-    return false;
-  }
-
-  /* if there is a return address, goto it to end the function */
-  if(returnAddr != OP_NO_RETURN) {
-
-    /* check that goto value is within the size of the bytecode */
-    if(returnAddr >= byteCodeLen || returnAddr < 0) {
-      vm->err = VMERR_INVALID_ADDR;
+    /* pop frame off of the stack */
+    if(!frmstk_pop(vm->frmStk)) {
+      vm_set_err(vm, VMERR_FRMSTK_EMPTY);
       return false;
     }
-    (*index) = returnAddr;
-  } else {
-   (*index)++;
-  }
 
+    /* if there is a return address, goto it to end the function */
+    if(returnAddr != OP_NO_RETURN) {
+
+      /* check that goto value is within the size of the bytecode */
+      if(returnAddr >= byteCodeLen || returnAddr < 0) {
+	vm->err = VMERR_INVALID_ADDR;
+	return false;
+      }
+
+      (*index) = returnAddr;
+      return true;
+    }
+
+  } while(isReturn);
+
+  /* move cursor to next opcode */
+  (*index)++;
   return true;
 }
 
