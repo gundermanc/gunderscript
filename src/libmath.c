@@ -1,7 +1,7 @@
 /**
  * libmath.c
  * (C) 2014 Christian Gunderman + Kai Smith
- * Modified by: Kai Smith
+ * Modified by: Kai Smith, Austin Kidder
  * Author Email: gundermanc@gmail.com
  * Modifier Email: kjs108@case.edu
  *
