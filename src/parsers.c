@@ -40,7 +40,7 @@ static const int initialOpStkDepth = 100;
 static const int opStkBlockSize = 12;
 
 /* private function declarations */
-static bool parse_line(Compiler * c, Lexer * l, bool innerCall);
+static bool parse_line(Compiler * c, Lexer * l);
 bool parse_block(Compiler * c, Lexer * l);
 bool parse_body_statement(Compiler * c, Lexer * l);
 
@@ -346,7 +346,7 @@ static bool parse_keyvar(Compiler * c, Lexer * l, TypeStk * opStk,
   }
 
   /* delegate to line parser */
-  if(!parse_line(c, l, true)) {
+  if(!parse_line(c, l)) {
     return false;
   }
 
@@ -685,29 +685,10 @@ bool parse_straight_code(Compiler * c, Lexer * l,
  * c->err receives the error code.
  */
 static bool function_call(Compiler * c, char * functionName, 
-			  size_t functionNameLen, int arguments, 
-			  bool * returnCall) {
+			  size_t functionNameLen, int arguments) {
 
   DSValue value;
   int callbackIndex;
-
-  /* check if function is "return" pseudo-function */
-  if(tokens_equal(functionName, functionNameLen, LANG_RETURN, LANG_RETURN_LEN)) {
-
-    /* make sure there is only one return value */
-    if(arguments != 1) {
-      c->err = COMPILERERR_INCORRECT_NUMARGS;
-      return false;
-    }
-
-    /* TODO: pop multiple frames if current frame isn't a function frame */
-    /* return from current function to return value stored in stack frame */
-    buffer_append_char(c->outBuffer, OP_RETURN);
-    *returnCall = true;
-    return true;
-  }
-
-  *returnCall = false;
 
   /* check if the function name is a C built-in function */
   callbackIndex = vm_callback_index(c->vm, functionName, functionNameLen);
@@ -852,6 +833,40 @@ static bool parse_while_statement(Compiler * c, Lexer * l) {
   address = buffer_size(c->outBuffer);
   buffer_set_string(c->outBuffer, (char*)&address, sizeof(int), jumpInstAddr);
 
+  return true;
+}
+
+/**
+ * Parses return statements in script code, starting at the initial "return" token
+ * and dispatches subparsers as needed until done.
+ * c: an instance of compiler.
+ * l: an instance of lexer.
+ * returns: true if this is a return statement, regardless of error. If error,
+ * c->err is set.
+ */
+static bool parse_return_statement(Compiler * c, Lexer * l) {
+  char * token;
+  size_t len;
+  LexerType type;
+  
+  /* get current token */
+  token = lexer_current_token(l, &type, &len);
+
+  /* check if this is a return statement */
+  if(!tokens_equal(token, len, LANG_RETURN, LANG_RETURN_LEN)) {
+    return false;
+  }
+
+  /* advance to next token */
+  token = lexer_next(l, &type, &len);
+
+  /* run code for pushing the return value */
+  if(!parse_straight_code(c, l, false, NULL)) {
+    return true;
+  }
+
+  /* write return instruction */
+  buffer_append_char(c->outBuffer, OP_RETURN);
   return true;
 }
 
@@ -1039,7 +1054,7 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
  * returns: true if this is a function call, regardless of error. If error,
  * c->err is set.
  */
-static bool parse_function_call(Compiler * c, Lexer * l, bool * noPop) {
+static bool parse_function_call(Compiler * c, Lexer * l) {
   int argCount = 0;
   char * functionToken = NULL;
   size_t functionTokenLen = 0;
@@ -1072,7 +1087,7 @@ static bool parse_function_call(Compiler * c, Lexer * l, bool * noPop) {
   argCount = parse_arguments(c, l, token, type, len);
 
   /* writes a call to the specified function, or returns if error */
-  function_call(c, functionToken, functionTokenLen, argCount, noPop);
+  function_call(c, functionToken, functionTokenLen, argCount);
 
   return true;
 }
@@ -1164,7 +1179,6 @@ static bool parse_assignment_statement(Compiler * c, Lexer * l) {
 
   /* do assignment...return if fails..but we're already done, return anyways */
   assignment(c, l, varToken, varTokenLen);
-  buffer_append_char(c->outBuffer, OP_POP);
   return true;
 }
 
@@ -1295,11 +1309,14 @@ static bool parse_variable_reference(Compiler * c, Lexer * l) {
  * l: an instance of lexer.
  * returns: false if an error occurs and sets c->err to the error code.
  */
-static bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
-  bool noPop = false;
+static bool parse_line(Compiler * c, Lexer * l) {
 
   /* feed line through various sub-parsers until one knows what to do */
-  if(parse_function_call(c, l, &noPop)) {
+ if (parse_return_statement(c, l)) {
+    if(c->err != COMPILERERR_SUCCESS) {
+      return false;
+    }
+  } else if(parse_function_call(c, l)) {
     if(c->err != COMPILERERR_SUCCESS) {
       return false;
     }
@@ -1307,7 +1324,6 @@ static bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
     if(c->err != COMPILERERR_SUCCESS) {
       return false;
     }
-    noPop = true;
   } else if(parse_static_constant(c, l)) {
     if(c->err != COMPILERERR_SUCCESS) {
       return false;
@@ -1324,11 +1340,6 @@ static bool parse_line(Compiler * c, Lexer * l, bool innerCall) {
     }
   }
 
-  /* if noPop is false (this line is NOT a return value): */
-  if(!noPop && !innerCall) {
-    /* pop line return value off of stack */
-    buffer_append_char(c->outBuffer, OP_POP);
-  }
   return true;
 }
 
@@ -1483,9 +1494,12 @@ bool parse_body_statement(Compiler * c, Lexer * l) {
   } else {
 
     /* not a logical structure, evaluate as normal line of code */
-    if(!parse_line(c, l, false)) {
+    if(!parse_line(c, l)) {
       return false;
     }
+
+    /* pop line return value off of stack */
+    buffer_append_char(c->outBuffer, OP_POP);
 
     /* check for terminating semicolon */
     lexer_current_token(l, &type, &len);
