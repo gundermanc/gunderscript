@@ -446,7 +446,7 @@ static bool vmn_file_read_char(VM * vm, VMArg * arg, int argc) {
   }
   
   /* file already closed, throw error */
-  if(filePointer->libData == NULL){
+  if(vmlibdata_data(filePointer) == NULL){
     vm_set_err(vm, VMERR_FILE_CLOSED);
     return false;
   }
@@ -487,7 +487,7 @@ static bool vmn_file_write_char(VM * vm, VMArg * arg, int argc) {
   }
  
   /* file already closed, throw error */
-  if(filePointer->libData == NULL){
+  if(vmlibdata_data(filePointer) == NULL){
     vm_set_err(vm, VMERR_FILE_CLOSED);
     return false;
   }
@@ -527,7 +527,7 @@ static bool vmn_file_size(VM * vm, VMArg * arg, int argc) {
   }
   
   /* file already closed, throw error */
-  if(filePointer->libData == NULL){
+  if(vmlibdata_data(filePointer) == NULL){
     vm_set_err(vm, VMERR_FILE_CLOSED);
     return false;
   }
