@@ -75,8 +75,12 @@ function file_to_string(fileName) {
   while (true) {
     c = file_read_char(fileHandle);
 
-    if(c == 0-1)
+    if(c == 0-1) {
+      // file closer for completeness. Not really neccessary though, since the cleanup
+      // routines for objects automatically closes files.
+      file_close(fileHandle);
       return output; // unary subtraction isn't working yet :( ..soon
+    }
 
     string_set_char_at(output, i, c);
     i = i + 1;
