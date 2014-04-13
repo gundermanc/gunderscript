@@ -502,6 +502,45 @@ static bool vmn_file_write_char(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
+ * VMNative: file_size( file )
+ * Returns the size the file in bytes.
+ */
+static bool vmn_file_size(VM * vm, VMArg * arg, int argc) {
+  VMLibData * filePointer;
+  long bytes;
+  int whence;
+
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* check argument 1 type */
+  if((filePointer = vmarg_libdata(arg[0])) == NULL ||
+        !vmlibdata_is_type(filePointer, LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN)) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+  
+  if(filePointer->libData == NULL){
+    vm_set_err(vm, VMERR_FILE_CLOSED);
+    return false;
+  }
+  
+  whence = SEEK_CUR;
+  fseek(vmlibdata_data(filePointer), 0, SEEK_END);
+  bytes = ftell(vmlibdata_data(filePointer));
+  fseek(vmlibdata_data(filePointer), 0, whence);
+
+  vmarg_push_number(vm, bytes);
+
+  return true;
+}
+
+/**
  * VMNative: sys_shell( command )
  * Accepts one argument. Feeds the command into the shell.
  */
@@ -753,6 +792,7 @@ bool libsys_install(Gunderscript * gunderscript) {
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_close", 10, vmn_file_close)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_read_char", 14, vmn_file_read_char)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_write_char", 15, vmn_file_write_char)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "file_size", 9, vmn_file_size)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_boolean", 10, vmn_is_boolean)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_number", 9, vmn_is_number)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_null", 7, vmn_is_null)
