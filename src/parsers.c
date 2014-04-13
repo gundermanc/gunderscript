@@ -821,7 +821,6 @@ static bool parse_while_statement(Compiler * c, Lexer * l) {
   token = lexer_current_token(l, &type, &len);
 
   if(!parse_body_statement(c, l)) {
-    c->err = COMPILERERR_EXPECTED_OBRACKET;
     return true;
   }
 
@@ -899,7 +898,6 @@ static bool parse_do_while_statement(Compiler * c, Lexer * l) {
 
   /* compile whatever is in our do statement/block */
   if(!parse_body_statement(c, l)) {
-    c->err = COMPILERERR_EXPECTED_OBRACKET;
     return true;
   }
 
@@ -1032,7 +1030,6 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
 
   /* do else body or statement */
   if(!parse_body_statement(c, l)) {
-    c->err = COMPILERERR_EXPECTED_OBRACKET;
     return true;
   }
 
