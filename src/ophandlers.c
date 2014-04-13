@@ -575,7 +575,7 @@ bool op_dual_comparison(VM * vm,  char * byteCode,
     if(type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) {
       result = value1 == value2;
     } else if ((type1 == TYPE_NULL && type2 != TYPE_NULL)
-	       || type1 != TYPE_NULL && type2 == TYPE_NULL) {
+	       || (type1 != TYPE_NULL && type2 == TYPE_NULL)) {
       result = false;
     } else if (type1 == TYPE_NULL && type2 == TYPE_NULL) {
       result = true;
@@ -588,7 +588,7 @@ bool op_dual_comparison(VM * vm,  char * byteCode,
     if(type1 == TYPE_NUMBER && type2 == TYPE_NUMBER) {
       result = value1 != value2;
     } else if ((type1 == TYPE_NULL && type2 != TYPE_NULL)
-	       || type1 != TYPE_NULL && type2 == TYPE_NULL) {
+	       || (type1 != TYPE_NULL && type2 == TYPE_NULL)) {
       result = true;
     } else if (type1 == TYPE_NULL && type2 == TYPE_NULL) {
       result = false;

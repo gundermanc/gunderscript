@@ -505,7 +505,6 @@ static bool vmn_file_write_char(VM * vm, VMArg * arg, int argc) {
  * Accepts one argument. Feeds the command into the shell.
  */
 static bool vmn_shell(VM * vm, VMArg * arg, int argc) {
-  VMLibData * data = vmarg_libdata(arg[0]);
 
   /* check for correct number of arguments */
   if(argc != 1) {
