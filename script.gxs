@@ -14,13 +14,75 @@ function fact(n) {
   return n * fact(n - 1);
 }
 
-
-function prompt_for_name() {
+/**
+ * Asks the user for his/her name and says hi
+ */
+function greet() {
   var name;
+  var output;
+
   sys_print("Hello, my name is Gunderscript. What is your name?\n");
   name = sys_getline();
   sys_print("\n");
-  sys_print("Hello " + name + "\n");
+
+  output = "Hello ";
+
+  // one way of concating strings..this way just adds the second one into the end
+  // of the first one's buffer
+  string_append(output, name);
+
+  sys_print(output);
+}
+
+/**
+ * Promps user for a yes or no answer.
+ * Prompt: the question to ask the user
+ * Returns: true if yes, false if no.
+ */
+function yes_or_no(prompt) {
+  var input;
+
+  sys_print(prompt, "\n");
+
+  do {
+    sys_print("(yes/no) > ");
+    input = sys_getline();
+    sys_print("\n");
+  } while(string_equals(input, "yes") == false && string_equals(input, "no") == false);
+
+  return string_equals(input, "yes");
+}
+
+function file_to_string(fileName) {
+  var fileHandle;
+  var output;
+  var c;
+  var i;
+
+  // open file, check for error
+  fileHandle = file_open_read(fileName);
+  if(fileHandle == null) {
+    return false;
+  }
+
+  // loop through file contents and add to string
+  // create empty string with 100 chars of space initially
+  // strings auto expand if neccessary, but it is best to prealloc them
+  output = string(100);
+
+  i = 0;
+
+  while (true) {
+    c = file_read_char(fileHandle);
+
+    if(c == 0-1)
+      return output; // unary subtraction isn't working yet :( ..soon
+
+    string_set_char_at(output, i, c);
+    i = i + 1;
+  }
+
+  return null; // error occurred
 }
 
 /**
@@ -37,20 +99,34 @@ function exported main() {
   var x;
   var i;
 
-  prompt_for_name();
+  greet();
 
   // demonstrates precedence of operators and assignment statements:
+  // ...and single line comments :D
   x = 1;
   x = 4 * 2 + x + 2;
 
-  sys_print("Lets calculate the factorial of ", x, 
+  sys_print("\nLets calculate the factorial of ", x, 
                      "...it looks like it is ...", fact(x), "\n");
 
-  /* count down from ten, a loop example */
-  sys_print("And a simple loop example:\n");
-  i = 10;
-  while(i != 0) {
-    sys_print(i, ", ");
-    i = i - 1;
-  } 
+  // another way of concating strings...this way creates a new string
+  sys_print("This is a demo script that shows some of the basic functionality of"
+            + " Gunderscript\n\n");
+
+  // an if statement
+  if(yes_or_no("Do you want to see the code for this example script?")) {
+    var fileText;
+
+    fileText = file_to_string("script.gxs");
+
+    if(fileText != null) {
+      sys_print(fileText);
+    } else {
+      sys_print("Error, could not open script file. Weird..");
+    }
+
+    sys_print("End of code. Good bye :)");
+  } else {
+    sys_print("Alrighty, ttyl then :)");
+  }
 }
