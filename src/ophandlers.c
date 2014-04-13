@@ -419,10 +419,10 @@ bool op_add(VM * vm,  char * byteCode,
     vmlibdata_inc_refcount(result);
 
     /* write strings to new string */
-    libstr_string_append(result, libstr_string(data1), 
-			 libstr_string_length(data1));
     libstr_string_append(result, libstr_string(data2), 
 			 libstr_string_length(data2));
+    libstr_string_append(result, libstr_string(data1), 
+			 libstr_string_length(data1));
 
     /* push result to operand stack */
     if(!opstk_push(vm, &result, sizeof(VMLibData*), TYPE_LIBDATA)) {
