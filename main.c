@@ -166,7 +166,6 @@ int main(int argc, char * argv[]) {
   for(i = 2; i < argc; i++) {
     size_t fileLen = 0;
     char * fileContents = load_file(argv[i], &fileLen);
-    printf("File Length: %i chars\n", (int)fileLen);
     if(!gunderscript_build(&ginst, fileContents, fileLen)) {
       print_compile_error(&ginst);
       print_build_fail();
@@ -174,8 +173,6 @@ int main(int argc, char * argv[]) {
     }
     free(fileContents);
   }
-
-  printf("Script output:\n\n");
 
   /* execute the desired entry point */
   if(!gunderscript_function(&ginst, argv[1], strlen(argv[1]))) {
