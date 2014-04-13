@@ -445,6 +445,7 @@ static bool vmn_file_read_char(VM * vm, VMArg * arg, int argc) {
     return false;
   }
   
+  /* file already closed, throw error */
   if(filePointer->libData == NULL){
     vm_set_err(vm, VMERR_FILE_CLOSED);
     return false;
@@ -525,11 +526,13 @@ static bool vmn_file_size(VM * vm, VMArg * arg, int argc) {
     return false;
   }
   
+  /* file already closed, throw error */
   if(filePointer->libData == NULL){
     vm_set_err(vm, VMERR_FILE_CLOSED);
     return false;
   }
   
+  /* Use fseek and ftell to determine file length, remember current file position */
   whence = SEEK_CUR;
   fseek(vmlibdata_data(filePointer), 0, SEEK_END);
   bytes = ftell(vmlibdata_data(filePointer));
