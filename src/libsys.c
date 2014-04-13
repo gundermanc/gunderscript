@@ -85,7 +85,8 @@ static bool vmn_getline(VM * vm, VMArg * arg, int argc) {
 
   /* get the input from the console */
   if(fgets(line, LIBSYS_GETLINE_MAXLEN, stdin) != NULL) {
-    result = vmarg_new_string(line, strlen(line));
+    /* minus 1 because we don't wan't the newline char at the end */
+    result = vmarg_new_string(line, strlen(line) - 1);
     
     /* check for malloc error */
     if(result == NULL) {
