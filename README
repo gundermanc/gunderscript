@@ -125,5 +125,6 @@ since my efforts are now focused on construction, but they are still a good indi
 of the intentions for the project.
 
 CONTRIBUTORS:
-  - Designed and Led by Christian Gunderman.
-  - Kai Smith
+  - Christian Gunderman - Design and Programming Lead
+  - Kai Smith - Math Library and File functions from libsys.c
+  - Austin Kidder - Bugfix
