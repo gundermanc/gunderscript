@@ -533,7 +533,7 @@ static bool vmn_file_size(VM * vm, VMArg * arg, int argc) {
   }
   
   /* Use fseek and ftell to determine file length, remember current file position */
-  whence = SEEK_CUR;
+  whence = ftell(vmlibdata_data(filePointer));
   fseek(vmlibdata_data(filePointer), 0, SEEK_END);
   bytes = ftell(vmlibdata_data(filePointer));
   fseek(vmlibdata_data(filePointer), 0, whence);
