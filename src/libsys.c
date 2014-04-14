@@ -578,6 +578,110 @@ static bool vmn_file_get_cursor(VM * vm, VMArg * arg, int argc) {
 }
 
 /**
+ * VMNative: file_set_cursor( file )
+ * Sets file cursor relative beginning
+ */
+static bool vmn_file_set_cursor(VM * vm, VMArg * arg, int argc) {
+  VMLibData * filePointer;
+  bool isNumber = false;
+  double offset;
+
+  /* check for correct number of arguments */
+  if(argc != 2) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+  
+  offset = vmarg_number(arg[1], &isNumber);
+
+  /* check arguments' types */
+  if((filePointer = vmarg_libdata(arg[0])) == NULL ||
+        !vmlibdata_is_type(filePointer, LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN) ||
+        !isNumber) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+  
+  /* file already closed, throw error */
+  if(vmlibdata_data(filePointer) == NULL){
+    vm_set_err(vm, VMERR_FILE_CLOSED);
+    return false;
+  }
+  
+  fseek(vmlibdata_data(filePointer), offset, SEEK_SET);
+  
+  return false;
+}
+
+/**
+ * VMNative: file_set_cursor_begin( file )
+ * Sets the cursor at the file's beginning
+ */
+static bool vmn_file_set_cursor_begin(VM * vm, VMArg * arg, int argc) {
+  VMLibData * filePointer;
+
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* check argument 1 type */
+  if((filePointer = vmarg_libdata(arg[0])) == NULL ||
+        !vmlibdata_is_type(filePointer, LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN)) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+  
+  /* file already closed, throw error */
+  if(vmlibdata_data(filePointer) == NULL){
+    vm_set_err(vm, VMERR_FILE_CLOSED);
+    return false;
+  }
+  
+  fseek(vmlibdata_data(filePointer), 0, SEEK_SET);
+  
+  return false;
+}
+
+/**
+ * VMNative: file_set_cursor_end( file )
+ * Sets the cursor at the end of the file
+ */
+static bool vmn_file_set_cursor_end(VM * vm, VMArg * arg, int argc) {
+  VMLibData * filePointer;
+
+  /* check for correct number of arguments */
+  if(argc != 1) {
+    vm_set_err(vm, VMERR_INCORRECT_NUMARGS);
+
+    /* this function does not return a value */
+    return false;
+  }
+
+  /* check argument 1 type */
+  if((filePointer = vmarg_libdata(arg[0])) == NULL ||
+        !vmlibdata_is_type(filePointer, LIBSYS_FILE_TYPE, LIBSYS_FILE_TYPE_LEN)) {
+    vm_set_err(vm, VMERR_INVALID_TYPE_ARGUMENT);
+    return false;
+  }
+  
+  /* file already closed, throw error */
+  if(vmlibdata_data(filePointer) == NULL){
+    vm_set_err(vm, VMERR_FILE_CLOSED);
+    return false;
+  }
+  
+  fseek(vmlibdata_data(filePointer), 0, SEEK_END);
+  
+  return false;
+}
+
+/**
  * VMNative: sys_shell( command )
  * Accepts one argument. Feeds the command into the shell.
  */
@@ -831,6 +935,9 @@ bool libsys_install(Gunderscript * gunderscript) {
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_write_char", 15, vmn_file_write_char)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_size", 9, vmn_file_size)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "file_get_cursor", 15, vmn_file_get_cursor)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "file_set_cursor", 15, vmn_file_set_cursor)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "file_set_cursor_begin", 21, vmn_file_set_cursor_begin)
+     || !vm_reg_callback(gunderscript_vm(gunderscript), "file_set_cursor_end", 19, vmn_file_set_cursor_end)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_boolean", 10, vmn_is_boolean)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_number", 9, vmn_is_number)
      || !vm_reg_callback(gunderscript_vm(gunderscript), "is_null", 7, vmn_is_null)
