@@ -43,6 +43,9 @@ VM * gunderscript_vm(Gunderscript * instance);
 
 bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen);
 
+bool gunderscript_build_file(Gunderscript * instance, char * fileName);
+
+
 CompilerErr gunderscript_build_err(Gunderscript * instance);
 
 const char * gunderscript_err_message(Gunderscript * instance);

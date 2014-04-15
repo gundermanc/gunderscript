@@ -32,6 +32,8 @@
 
 Compiler * compiler_new(VM * vm);
 
+bool compiler_build_file(Compiler * compiler, char * fileName);
+
 bool compiler_build(Compiler * compiler, char * input, size_t inputLen);
 
 void compiler_set_err(Compiler * compiler, CompilerErr err);

@@ -73,63 +73,6 @@ static void print_exec_fail() {
   printf("Error compiling and executing bytecode.");
 }
 
-/*static void process_arguments(int argc, char * argv[], size_t * stackSize) {
-
-  int i = 0;
-
-  for(i = 0; i < argc; i++) {
-    if(argv[i][0] == '-' && strlen(argv[i]) == 2) {
-      switch(argv[i][1]) {
-      case 's':
-	if(i < argc) {
-	  return;
-	}
-	*stackSize = strtol(argv[i+1], NULL, 
-      }
-    } else {
-      print_help();
-    }
-  }
-
-  }*/
-
-
-static char * load_file(char * file, size_t * size) {
-  FILE * fp;
-  long lSize;
-  char * buffer;
-
-  fp = fopen (file, "rb" );
-  if(!fp) {
-    perror(file);
-    exit(1);
-  }
-
-  fseek(fp ,0L ,SEEK_END);
-  lSize = ftell(fp);
-  rewind(fp);
-
-  /* allocate memory for entire content */
-  buffer = calloc(1, lSize+1);
-  if(!buffer) {
-    fclose(fp);
-    fputs("memory alloc fails",stderr);
-    exit(1);
-  }
-
-  /* copy the file into the buffer */
-  if(1 != fread( buffer , lSize, 1 , fp) ) {
-    fclose(fp);
-    free(buffer);
-    fputs("entire read fails",stderr);
-    exit(1);
-  }
-
-  *size = lSize;
-  fclose(fp);
-  return buffer;
-}
-
 static void print_compile_error(Gunderscript * ginst) {
   printf("\n\nCompiler Error Number: %i\n", gunderscript_build_err(ginst));
   printf("Detected around Line Number: %i\n", gunderscript_err_line(ginst));
@@ -147,8 +90,6 @@ int main(int argc, char * argv[]) {
   int callbacksSize = 55;
   int i = 0;
 
-  /* process_arguments(argc, argv, &stackSize); */
-
   /* initialize gunderscript object */
   if(!gunderscript_new(&ginst, stackSize, callbacksSize)) {
     print_alloc_error();
@@ -164,24 +105,21 @@ int main(int argc, char * argv[]) {
 
   /* compile scripts one-by-one */
   for(i = 2; i < argc; i++) {
-    size_t fileLen = 0;
-    char * fileContents = load_file(argv[i], &fileLen);
-    if(!gunderscript_build(&ginst, fileContents, fileLen)) {
+    if(!gunderscript_build_file(&ginst, argv[i])) {
       print_compile_error(&ginst);
       print_build_fail();
+      gunderscript_free(&ginst);
       return 1;
     }
-    free(fileContents);
   }
 
   /* execute the desired entry point */
   if(!gunderscript_function(&ginst, argv[1], strlen(argv[1]))) {
     print_exec_error(&ginst);
     print_exec_fail();
+    gunderscript_free(&ginst);
     return 1;
   }
-
-  printf("\n\n");
 
   gunderscript_free(&ginst);
 

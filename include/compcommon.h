@@ -31,6 +31,7 @@
 #include "ht.h"
 #include "buffer.h"
 #include "lexer.h"
+#include "set.h"
 
 /* initial size of all hashtables */
 #define COMPILER_INITIAL_HTSIZE   11
@@ -62,6 +63,8 @@ typedef enum {
   COMPILERERR_MALFORMED_IFORLOOP,
   COMPILERERR_LEXER_ERR,
   COMPILERERR_MALFORMED_CHAR_CONSTANT,
+  COMPILERERR_SOURCE_FILE_READ_ERR,
+  COMPILERERR_MALFORMED_DEPENDS,
 } CompilerErr;
 
 /* english translations of compiler errors */
@@ -86,11 +89,16 @@ static const const char * const compilerErrorMessages [] = {
   "Incorrect number of arguments for this function",
   "Malformed loop or if statement",
   "Lex error: call compiler_lex_err() for the LexerErr",
-  "Malformed char constant, must be a single or escaped char"
+  "Malformed char constant, must be a single or escaped char",
+  "Unable to open and read a source file",
+  "Malformed \"depends\" statement in script"
 };
 
 /* a compiler instance type */
 typedef struct Compiler {
+
+  /* a hashset of previously compiled scripts. prevents duplicated includes */
+  Set * compiledScripts;
 
   /* stack of hashtables of symbol structs containing the index at which the
    * variable will be stored in the frame stack frame in the byte code.

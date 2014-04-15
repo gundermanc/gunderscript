@@ -29,6 +29,8 @@
 #ifndef LANGKEYWORDS__H__
 #define LANGKEYWORDS__H__
 
+#define LANG_DEPENDS    "depends"
+#define LANG_DEPENDS_LEN  7
 #define LANG_FUNCTION   "function"
 #define LANG_FUNCTION_LEN 8
 #define LANG_EXPORTED   "exported"

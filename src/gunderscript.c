@@ -114,6 +114,16 @@ bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen) 
 }
 
 /**
+ * Same as gunderscript_build, but builds a file.
+ * instance: an instance of Gunderscript.
+ * fileName: the file to build.
+ * returns: true upon success, and false upon failure.
+ */
+bool gunderscript_build_file(Gunderscript * instance, char * fileName) {
+  return compiler_build_file(instance->compiler, fileName);
+}
+
+/**
  * Gets any compiler errors that may have occurred.
  * instance: an instance of Gunderscript.
  * returns: a CompilerErr, defined in compiler.h.
@@ -197,6 +207,11 @@ VMErr gunderscript_function_err(Gunderscript * instance) {
  */
 void gunderscript_free(Gunderscript * instance) {
   assert(instance != NULL);
-  compiler_free(instance->compiler);
-  vm_free(instance->vm);
+  if(instance->compiler != NULL) {
+    compiler_free(instance->compiler);
+  }
+
+  if(instance->vm != NULL) {
+    vm_free(instance->vm);
+  }
 }

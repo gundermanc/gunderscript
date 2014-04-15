@@ -68,13 +68,15 @@ Compiler * compiler_new(VM * vm) {
   }
 
   /* TODO: make this stack auto expand when full */
+  compiler->compiledScripts = set_new();
   compiler->symTableStk = stk_new(maxFuncDepth);
   compiler->functionHT = ht_new(COMPILER_INITIAL_HTSIZE, COMPILER_HTBLOCKSIZE, COMPILER_HTLOADFACTOR);
   compiler->outBuffer = buffer_new(bufferBlockSize, bufferBlockSize);
   compiler->vm = vm;
 
   /* check for further malloc errors */
-  if(compiler->symTableStk == NULL 
+  if(compiler->compiledScripts == NULL
+     || compiler->symTableStk == NULL 
      || compiler->functionHT == NULL 
      || compiler->outBuffer == NULL) {
     compiler_free(compiler);
@@ -283,6 +285,56 @@ static bool function_store_definition(Compiler * c, char * name, size_t nameLen,
 }
 
 /**
+ * Parses "depends" statements from the head of the script file. These scripts
+ * will be build before this one is and will be compiled into the same bytecode
+ * buffer.
+ * compiler: an instance of compiler.
+ * lexer: an instance of lexer.
+ * returns: true if all dependencies parsed correctly, and false if an error
+ * occurs.
+ */
+static bool parse_dependencies(Compiler * compiler, Lexer * lexer) {
+  char * token;
+  LexerType type;
+  size_t len;
+
+  /* get current token */
+  token = lexer_current_token(lexer, &type, &len);
+
+  /* while there are more depends statements, build those scripts */
+  while(tokens_equal(token, len, LANG_DEPENDS, LANG_DEPENDS_LEN)) {
+    char * scriptFileName;
+
+    /* check next token is a string */
+    token = lexer_next(lexer, &type, &len);
+    if(type != LEXERTYPE_STRING) {
+      compiler->err = COMPILERERR_MALFORMED_DEPENDS;
+      return false;
+    }
+
+    scriptFileName = calloc(len + 1, sizeof(char));
+    strncpy(scriptFileName, token, len);
+
+    /* build dependency script */
+    if(!compiler_build_file(compiler, scriptFileName)) {
+      free(scriptFileName);
+      return false;
+    }
+    free(scriptFileName);
+
+    /* check for terminating semicolon */
+    token = lexer_next(lexer, &type, &len);
+    if(!tokens_equal(token, len, LANG_ENDSTATEMENT, LANG_ENDSTATEMENT_LEN)) {
+      compiler->err = COMPILERERR_EXPECTED_ENDSTATEMENT;
+      return false;
+    }
+    token = lexer_next(lexer, &type, &len);
+  }
+
+  return true;
+}
+
+/**
  * A subparser function for compiler_build() that looks at the current token,
  * checks for a 'function' token. If found, it proceeds to evaluate the function
  * declaration, make note of the number of arguments, and store the index where
@@ -435,7 +487,95 @@ char * compiler_bytecode(Compiler * compiler) {
 }
 
 /**
+ * Loads the entire contents of a file into a dynamically allocated
+ * string.
+ * file: string containing file name.
+ * size: a size_t* that will recv. the size of the file, in bytes.
+ */
+static char * file_to_string(char * file, size_t * size) {
+  FILE * fp;
+  long lSize;
+  char * buffer;
+
+  fp = fopen (file, "rb" );
+  if(!fp) {
+    return NULL;
+  }
+
+  fseek(fp ,0L ,SEEK_END);
+  lSize = ftell(fp);
+  rewind(fp);
+
+  /* allocate memory for entire content */
+  buffer = calloc(1, lSize+1);
+  if(!buffer) {
+    return NULL;
+  }
+
+  /* copy the file into the buffer */
+  if(fread(buffer, lSize, 1, fp) != 1) {
+    fclose(fp);
+    free(buffer);
+    return NULL;
+  }
+
+  *size = lSize;
+  fclose(fp);
+  return buffer;
+}
+
+/**
  * Builds a script file and adds its code to the bytecode output buffer and
+ * stores references to its functions and variables in the Compiler object.
+ * If the file has already been built in this instance of Compiler, the
+ * function returns true without doing anything to prevent duplicate code.
+ * After several input buffers of scripts have been built, you can copy the
+ * bytecode to a buffer for execution using compiler_bytecode().
+ * compiler: an instance of compiler that will receive the bytecode.
+ * input: an input buffer that contains the script code.
+ * inputLen: the number of bytes in length of the input.
+ * returns: true if the compile operation succeeds, and false if it fails.
+ */
+bool compiler_build_file(Compiler * compiler, char * fileName) {
+  assert(compiler != NULL);
+  assert(fileName != NULL);
+  
+  bool result;
+  bool prevExists;
+  size_t codeFileSize = 0;
+  char * codeFileText;
+
+  /* mark this script file as already compiled */
+  if(!set_add(compiler->compiledScripts, fileName, 
+	      strlen(fileName), &prevExists)) {
+    compiler->err = COMPILERERR_ALLOC_FAILED;
+    return false;
+  }
+
+  /* check if script was previously included in this Compiler instance */
+  if(prevExists) {
+    /* don't rebuild a second time. the code is already in the bytecode */
+    return true;
+  }
+
+  /* load entire file into a buffer for compilation */
+  codeFileText = file_to_string(fileName, &codeFileSize);
+
+  /* check that file opened correctly */
+  if(codeFileText == NULL) {
+    compiler->err = COMPILERERR_SOURCE_FILE_READ_ERR;
+    return false;
+  }
+
+  /* build the code */
+  result = compiler_build(compiler, codeFileText, codeFileSize);
+  free(codeFileText);
+  
+  return result;
+}
+
+/**
+ * Builds a script buffer and adds its code to the bytecode output buffer and
  * stores references to its functions and variables in the Compiler object.
  * After several input buffers of scripts have been built, you can copy the
  * bytecode to a buffer for execution using compiler_bytecode().
@@ -462,8 +602,15 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen) {
   }
   compiler_set_err(compiler, COMPILERERR_SUCCESS);
 
-  /* compile loop */
+  /* get first token */
   lexer_next(lexer, &type, &tokenLen);
+
+  /* handle script imports/"depends" */
+  if(!parse_dependencies(compiler, lexer)) {
+    return false;
+  }
+
+  /* compile loop */
   while(lexer_current_token(lexer, &type, &tokenLen) != NULL) {
     parse_function_definitions(compiler, lexer);
     /* handle errors */
@@ -552,6 +699,10 @@ CompilerFunc * compiler_function(Compiler * compiler, char * name, size_t len) {
  */
 void compiler_free(Compiler * compiler) {
   assert(compiler != NULL);
+
+  if(compiler->compiledScripts != NULL) {
+    set_free(compiler->compiledScripts);
+  }
 
   if(compiler->symTableStk != NULL) {
     stk_free(compiler->symTableStk);
