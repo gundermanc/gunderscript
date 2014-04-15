@@ -431,9 +431,16 @@ static bool next_parse_keyvars(Lexer * l) {
  * returns: true if the first character encountered is a digit, and false if not.
  */
 static bool next_parse_numbers(Lexer * l) {
+  int beginStrIndex = l->index;
 
+  /* start of negative number */
+  if(((prev_char(l) == ' ' || prev_char(l) == '(') 
+      && next_char(l) == '-' && is_digit(peek_char(l)))) {
+    advance_char(l);
+  }
+
+  /* parse normal number */
   if(is_digit(next_char(l))) {
-    int beginStrIndex = l->index;
     bool decimalDetected = false;
 
     /* move index to end of number */
@@ -481,17 +488,6 @@ static bool next_parse_numbers(Lexer * l) {
 }
 
 /**
- * Superficially decides if character is an operator character (not a letter,
- * digit, or whitespace).
- * c: the char to check.
- * returns: true if c is an operator, false if not.
- */
-static bool is_operator(char c) {
-  return (!is_digit(c) && !is_letter(c) && !is_white_space(c)
-	  && c != '"' && c != ';');
-}
-
-/**
  * Checks if a character is a bracket or curly brace.
  * c: the char to check.
  * returns: true if c is a bracket, false if not.
@@ -507,6 +503,17 @@ static bool is_bracket(char c) {
  */
 static bool is_parenthesis(char c) {
   return c == '(' || c == ')';
+}
+
+/**
+ * Superficially decides if character is an operator character (not a letter,
+ * digit, or whitespace).
+ * c: the char to check.
+ * returns: true if c is an operator, false if not.
+ */
+static bool is_operator(char c) {
+  return (!is_digit(c) && !is_letter(c) && !is_white_space(c)
+	  && c != '"' && c != ';' && !is_bracket(c) && !is_parenthesis(c));
 }
 
 /**
