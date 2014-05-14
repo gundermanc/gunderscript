@@ -65,6 +65,7 @@ typedef enum {
   COMPILERERR_MALFORMED_CHAR_CONSTANT,
   COMPILERERR_SOURCE_FILE_READ_ERR,
   COMPILERERR_MALFORMED_DEPENDS,
+  COMPILERERR_FUNCTION_NAME_TOO_LONG,
 } CompilerErr;
 
 /* english translations of compiler errors */
@@ -91,7 +92,8 @@ static const const char * const compilerErrorMessages [] = {
   "Lex error: call compiler_lex_err() for the LexerErr",
   "Malformed char constant, must be a single or escaped char",
   "Unable to open and read a source file",
-  "Malformed \"depends\" statement in script"
+  "Malformed \"depends\" statement in script",
+  "Function name is too long",
 };
 
 /* a compiler instance type */
@@ -108,22 +110,10 @@ typedef struct Compiler {
    * what functions are available to the script.
    */
   VM * vm;
-  HT * functionHT;                /* hashtable of function structs */
-  Buffer * outBuffer;             /* buffer builder that accepts the output */
   CompilerErr err;                /* error code value */
   int errorLineNum;               /* line number where error occurred */
   LexerErr lexerErr;              /* the error code passed by the lexer */
 } Compiler;
-
-/* a function struct */
-typedef struct CompilerFunc {
-  char * name;                    /* the string name of a function */
-  int index;                      /* the index where the function's 
-				   * bytecode begins */
-  int numArgs;                    /* the number of arguments required */
-  int numVars;                    /* the number of variables required */
-  bool exported;
-} CompilerFunc;
 
 bool tokens_equal(char * token1, size_t num1,
 		  char * token2, size_t num2);

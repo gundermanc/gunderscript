@@ -51,6 +51,8 @@
 static const int opStkInitSize = 60;
 /* the number of bytes in size the op stack increases in each expansion */
 static const int opStkBlockSize = 60;
+/* number of bytes in each additional block of the buffer */
+static const int bufferBlockSize = 1000;
 
 /**
  * Initializes a VM with a preallocated maximum frame stack that is stackSize
@@ -72,14 +74,13 @@ VM * vm_new(size_t stackSize, int callbacksSize) {
 
   vm->frmStk = frmstk_new(stackSize);
   if(vm->frmStk == NULL) {
-    free(vm);
+    vm_free(vm);
     return NULL;
   }
 
   vm->opStk = typestk_new(opStkInitSize, opStkBlockSize);
   if(vm->opStk == NULL) {
-    frmstk_free(vm->frmStk);
-    free(vm);
+    vm_free(vm);
     return NULL;
   }
 
@@ -87,18 +88,27 @@ VM * vm_new(size_t stackSize, int callbacksSize) {
 
   vm->callbacks = calloc(vm->callbacksSize, sizeof(VMCallback));
   if(vm->callbacks == NULL) {
-    typestk_free(vm->opStk);
-    frmstk_free(vm->frmStk);
-    free(vm);
+    vm_free(vm);
     return NULL;
+  }
+
+  vm->buffer = buffer_new(bufferBlockSize, bufferBlockSize);
+  if(vm->buffer == NULL) {
+    vm_free(vm);
+    return false;
   }
 
   vm->callbacksHT = ht_new(vm->callbacksSize, 10, 1.0);
   if(vm->callbacksHT == NULL) {
-    free(vm->callbacks);
-    typestk_free(vm->opStk);
-    frmstk_free(vm->frmStk);
-    free(vm);
+    vm_free(vm);
+    return NULL;
+  }
+
+  vm->functionHT = ht_new(COMPILER_INITIAL_HTSIZE, 
+			  COMPILER_HTBLOCKSIZE, COMPILER_HTLOADFACTOR);
+
+  if(vm->functionHT == NULL) {
+    vm_free(vm);
     return NULL;
   }
 
@@ -415,6 +425,48 @@ const char * vm_err_to_string(VMErr err) {
 }
 
 /**
+ * Gets the number of bytes of byte code in the bytecode buffer that can be
+ * copied out using vm_bytecode().
+ * vm: an instance of vm.
+ * returns: the size of the byte code buffer.
+ */
+size_t vm_bytecode_size(VM * vm) {
+  assert(vm != NULL);
+  return buffer_size(vm->buffer);
+}
+
+/**
+ * The vm bytecode buffer.
+ * vm: an instance of vm.
+ * returns: The compiled bytecode or NULL if there is none.
+ */
+char * vm_bytecode(VM * vm) {
+  assert(vm != NULL);
+  if(vm->err != VMERR_SUCCESS
+     || vm_bytecode_size(vm) == 0) {
+    return NULL;
+  }
+
+  return buffer_get_buffer(vm->buffer);
+}
+
+Buffer * vm_buffer(VM * vm) {
+  return vm->buffer;
+}
+
+/**
+ * Frees a VMFunc struct. This must be done to every VMFunc
+ * struct when it is removed from the functionHT hashtable.
+ * cf: an instance of VMFunc to free the associated memory to.
+ */
+static void vmfunc_free(VMFunc * vf) {
+
+  assert(vf != NULL);
+
+  free(vf);
+}
+
+/**
  * Frees a VM instance
  * vm: a VM instance.
  */
@@ -445,7 +497,84 @@ void vm_free(VM * vm) {
     free(vm->callbacks);
   }
 
+  if(vm->buffer != NULL) {
+    buffer_free(vm->buffer);
+  }
+
+  if(vm->functionHT != NULL) {
+    HTIter htIterator;
+    ht_iter_get(vm->functionHT, &htIterator);
+
+    while(ht_iter_has_next(&htIterator)) {
+      DSValue value;
+      ht_iter_next(&htIterator, NULL, 0, &value, NULL, true);
+      vmfunc_free(value.pointerVal);
+    }
+
+    ht_free(vm->functionHT);
+  }
+
   free(vm);
+}
+
+/**
+ * Instantiates a VMFunc structure for storing information about a script
+ * function in the functionHT member of VM struct. This struct is used to
+ * store record of a function declaration, its number of arguments, and its
+ * respective location in the bytecode.
+ * name: A string with the text representation of the function. The text name
+ * it is called by in the code.
+ * nameLen: The number of characters to read from name for the function name.
+ * index: the index of the byte where the function begins in the byte code.
+ * numArgs: the number of arguments that the function expects.
+ * returns: A new instance of VMFunc struct, NULL if the allocation fails.
+ */
+VMFunc * vmfunc_new(int index, int numArgs, int numVars,
+				       bool exported) {
+  assert(index >= 0);
+
+  VMFunc * vf = calloc(1, sizeof(VMFunc));
+  if(vf != NULL) {
+    vf->index = index;
+    vf->numArgs = numArgs;
+    vf->numVars = numVars;
+    vf->exported = true;
+  }
+
+  return vf;
+}
+
+/**
+ * Gets the start index of the specified function from the script declared
+ * functions hashtable. To get the index of a function, it must have been
+ * declared with the exported keyword.
+ * compiler: an instance of compiler.
+ * name: the name of the function to locate.
+ * len: the length of name.
+ * returns: the VMFunc* struct, or NULL if the specified function does not
+ * exist.
+ */
+VMFunc * vm_function(VM * vm, char * name, size_t len) {
+
+  assert(vm != NULL);
+  assert(name != NULL);
+  assert(len > 0);
+
+  DSValue value;
+  VMFunc * cf;
+
+  /* get the specified function's struct */
+  if(!ht_get_raw_key(vm->functionHT, name, len, &value)) {
+    return NULL; /* error occurred */
+  }
+  cf = value.pointerVal;
+
+  /* make sure function was declared with exported keyword */
+  if(!cf->exported) {
+    return NULL;
+  }
+
+  return cf;
 }
 
 /**
@@ -783,4 +912,16 @@ void vmlibdata_free(VM * vm, VMLibData * data) {
     ((*data->cleanupCallback)(vm, data));
   }
   free(data);
+}
+
+/**
+ * Gets a hashtable of the functions that have been declared in script code, so
+ * far. Not for public interface use.
+ * compiler: an instance of compiler.
+ * returns: a hashtable of CompilerFunc* objects.
+ */
+HT * vm_functions(VM * vm) {
+  assert(vm != NULL);
+
+  return vm->functionHT;
 }

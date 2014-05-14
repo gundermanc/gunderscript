@@ -29,10 +29,62 @@
 #include "compiler.h"
 #include "vm.h"
 
+/* first 3 bytes of all gunderscript bytecode files. <= 3 chars in length */
+#define GS_BYTECODE_HEADER   "GXS"
+#define GS_BYTECODE_HEADER_SIZE 4
+#define GUNDERSCRIPT_BUILD_DATE     __DATE__
+#define GS_BYTECODE_BUILDDATE_SIZE  35
+#define GS_MAX_FUNCTION_NAME_LEN    80
+
+/* error codes */
+typedef enum {
+  GUNDERSCRIPTERR_SUCCESS,
+  GUNDERSCRIPTERR_BAD_FILE_OPEN_READ,
+  GUNDERSCRIPTERR_BAD_FILE_OPEN_WRITE,
+  GUNDERSCRIPTERR_BAD_FILE_WRITE,
+  GUNDERSCRIPTERR_BAD_FILE_READ,
+  GUNDERSCRIPTERR_NO_SUCCESSFUL_BUILD,
+  GUNDERSCRIPTERR_NOT_BYTECODE_FILE,
+  GUNDERSCRIPTERR_INCORRECT_RUNTIME_VERSION,
+  GUNDERSCRIPTERR_CORRUPTED_BYTECODE,
+  GUNDERSCRIPTERR_ALLOC_FAILED,
+  GUNDERSCRIPTERR_COMPILERERR,
+  GUNDERSCRIPTERR_VMERR,
+} GunderscriptErr;
+
+/* english translations of Gunderscript errors */
+static const char * const gunderscriptErrorMessages [] = {
+  "Success",
+  "Unable to open file for reading",
+  "Unable to open file for writing",
+  "Error writing to file",
+  "Error reading from file",
+  "No successful build completed yet", /* thrown if try to export before build */
+  "Not a byte code file",
+  "Incorrect runtime version",
+  "Corrupted bytecode",
+  "Memory Allocation Failed",
+  "Compiler Error",
+  "VM Error",
+};
+
+typedef struct {
+  /* stores unique build date/string that is used to check byte code
+   * compatibility before it is run
+   */
+  char header[GS_BYTECODE_HEADER_SIZE];
+  char buildDate[GS_BYTECODE_BUILDDATE_SIZE];
+  int byteCodeLen;
+  int numFunctions;
+} GSByteCodeHeader;
+
 /* stores an instance of a Gunderscript environment */
 typedef struct Gunderscript {
   Compiler * compiler;
   VM * vm;
+  GunderscriptErr err;
+  char * byteCode;
+  int byteCodeLen;
 } Gunderscript;
 
 bool gunderscript_new(Gunderscript * instance, size_t stackSize,
@@ -58,4 +110,11 @@ VMErr gunderscript_function_err(Gunderscript * instance);
 int gunderscript_err_line(Gunderscript * instance);
 
 void gunderscript_free(Gunderscript * instance);
+
+GunderscriptErr gunderscript_get_err(Gunderscript * instance);
+
+bool gunderscript_export_bytecode(Gunderscript * instance, char * fileName);
+
+bool gunderscript_import_bytecode(Gunderscript * instance, char * fileName);
+
 #endif /* GUNDERSCRIPT__H__ */

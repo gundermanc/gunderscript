@@ -53,6 +53,7 @@ bool gunderscript_new(Gunderscript * instance, size_t stackSize,
 
   /* allocate virtual machine */
   instance->vm = vm_new(stackSize, callbacksSize);
+  instance->err = GUNDERSCRIPTERR_SUCCESS;
   if(instance->vm == NULL) {
     return false;
   }
@@ -110,7 +111,12 @@ bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen) 
   assert(instance != NULL);
   assert(input != NULL);
   assert(inputLen > 0);
-  return compiler_build(instance->compiler, input, inputLen);
+  bool result = compiler_build(instance->compiler, input, inputLen);
+
+  if(!result) {
+    instance->err = GUNDERSCRIPTERR_COMPILERERR;
+  }
+  return result;
 }
 
 /**
@@ -120,7 +126,12 @@ bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen) 
  * returns: true upon success, and false upon failure.
  */
 bool gunderscript_build_file(Gunderscript * instance, char * fileName) {
-  return compiler_build_file(instance->compiler, fileName);
+  bool result = compiler_build_file(instance->compiler, fileName);
+  
+  if(!result) {
+    instance->err = GUNDERSCRIPTERR_COMPILERERR;
+  }
+  return result;
 }
 
 /**
@@ -134,6 +145,222 @@ CompilerErr gunderscript_build_err(Gunderscript * instance) {
 }
 
 /**
+ * Run after gunderscript_build_file() to export the compiled bytecode to an
+ * external bytecode file.
+ * instance: a Gunderscript object.
+ * fileName: The name of the file to export to. Caution: file will be overwritten
+ * returns: true upon success, or false if file cannot be opened, 
+ * no code has been built, or there was an error building code.
+ */
+bool gunderscript_export_bytecode(Gunderscript * instance, char * fileName) {
+  FILE * outFile = fopen(fileName, "w");
+  GSByteCodeHeader header;
+  HTIter functionHTIter;
+  char * byteCodeBuffer;
+
+  /* check if file open fails */
+  if(outFile == NULL) {
+    instance->err = GUNDERSCRIPTERR_BAD_FILE_OPEN_WRITE;
+    return false;
+  }
+
+  /* create header */
+  strcpy(header.header, GS_BYTECODE_HEADER);
+  strcpy(header.buildDate, __DATE__);
+  header.byteCodeLen = vm_bytecode_size(instance->vm);
+  header.numFunctions = ht_size(vm_functions(instance->vm));
+
+  /* write header to file, return false on failure */
+  if(fwrite(&header, sizeof(GSByteCodeHeader), 1, outFile) != 1) {
+    instance->err = GUNDERSCRIPTERR_BAD_FILE_WRITE;
+    return false;
+  }
+  
+  ht_iter_get(vm_functions(instance->vm), &functionHTIter);
+
+  /* write exported functions to file */
+  while(ht_iter_has_next(&functionHTIter)) {
+    DSValue value;
+    char functionName[GS_MAX_FUNCTION_NAME_LEN];
+    size_t functionNameLen;
+    char outLen;
+
+    /* get the next item from hashtable */
+    ht_iter_next(&functionHTIter, functionName, GS_MAX_FUNCTION_NAME_LEN,
+		 &value, &functionNameLen, false);
+
+    /* check if the function should be exported. if so, write it to the file */
+    if(((VMFunc*)value.pointerVal)->exported) {
+
+      /* TODO: create an error handler case for this */
+      assert(functionNameLen < GS_MAX_FUNCTION_NAME_LEN);
+    
+      /* write it's name and length to the file */
+      outLen = functionNameLen;
+      if(fwrite(&outLen, sizeof(char), 1, outFile) != 1 
+	 || fwrite(functionName, sizeof(char), functionNameLen, outFile) 
+	 != functionNameLen) {
+	instance->err = GUNDERSCRIPTERR_BAD_FILE_WRITE;
+	return false;
+      }
+
+      /* write its CompilerFunc to the file (stores function call information) */
+      if(fwrite(value.pointerVal, sizeof(VMFunc), 1, outFile) != 1) {
+	instance->err = GUNDERSCRIPTERR_BAD_FILE_WRITE;
+	return false;
+      }
+    }
+  }
+
+  byteCodeBuffer = vm_bytecode(instance->vm);
+  if(byteCodeBuffer == NULL) {
+    instance->err = GUNDERSCRIPTERR_NO_SUCCESSFUL_BUILD;
+    return false;
+  }
+
+  /* write bytecode */
+  if(fwrite(byteCodeBuffer, 
+	    vm_bytecode_size(instance->vm), 1, outFile) != 1) {
+    instance->err = GUNDERSCRIPTERR_BAD_FILE_WRITE;
+    return false;
+  }
+
+  fclose(outFile);
+
+  return true;
+}
+
+bool gunderscript_import_bytecode(Gunderscript * instance, char * fileName) {
+  DSValue value;
+  FILE * inFile = fopen(fileName, "r");
+  GSByteCodeHeader header;
+  int i = 0;
+
+  if(inFile == NULL) {
+    instance->err = GUNDERSCRIPTERR_BAD_FILE_OPEN_READ;
+    return false;
+  }
+
+  /* read header */
+  if(fread(&header, sizeof(GSByteCodeHeader), 1, inFile) != 1) {
+    instance->err = GUNDERSCRIPTERR_BAD_FILE_READ;
+    fclose(inFile);
+    return false;
+  }
+
+  /* check for header */
+  if(strcmp(header.header, GS_BYTECODE_HEADER) != 0) {
+    instance->err = GUNDERSCRIPTERR_NOT_BYTECODE_FILE;
+    fclose(inFile);
+    return false;
+  }
+
+  /* check that this build is the same as the one that created the file */
+  if(strcmp(header.buildDate, GUNDERSCRIPT_BUILD_DATE) != 0) {
+    instance->err = GUNDERSCRIPTERR_INCORRECT_RUNTIME_VERSION;
+    fclose(inFile);
+    return false;
+  }
+
+  /* check that the number of functions isn't negative or zero */
+  if(header.numFunctions < 1) {
+    instance->err = GUNDERSCRIPTERR_CORRUPTED_BYTECODE;
+    return false;
+  }
+
+  /* import the exported functions definitions (script entry points) */
+  for(i = 0; i < header.numFunctions; i++) {
+    VMFunc * currentFunc = calloc(1, sizeof(VMFunc));
+    char functionName[GS_MAX_FUNCTION_NAME_LEN];
+    char functionNameLen;
+    bool prevValue = false;
+
+    /* check if VMFunc alloc failed */
+    if(currentFunc == NULL) {
+      instance->err = GUNDERSCRIPTERR_ALLOC_FAILED;
+      fclose(inFile);
+      return false;
+    }
+
+    /* read function name length */
+    if(fread(&functionNameLen, sizeof(char), 1, inFile) != 1) {
+      instance->err = GUNDERSCRIPTERR_BAD_FILE_READ;
+      return false;
+    }
+
+    /* check function name length */
+    if(functionNameLen > GS_MAX_FUNCTION_NAME_LEN) {
+      instance->err = GUNDERSCRIPTERR_CORRUPTED_BYTECODE;
+      fclose(inFile);
+      return false;
+    }
+
+    /* read function name */
+    if(fread(&functionName, sizeof(char), functionNameLen, inFile) 
+       != functionNameLen) {
+      instance->err = GUNDERSCRIPTERR_BAD_FILE_READ;
+      fclose(inFile);
+      return false;
+    }
+    
+    /* read from file into new VMFunc */
+    value.pointerVal = currentFunc;
+    if(fread(currentFunc, sizeof(VMFunc), 1, inFile) != 1) {
+      instance->err = GUNDERSCRIPTERR_BAD_FILE_READ;
+      fclose(inFile);
+      return false;
+    }
+
+    /* put functions into VM functions hashtable */
+    if(!ht_put_raw_key(vm_functions(instance->vm), functionName, 
+		       functionNameLen, &value, NULL, &prevValue)) {
+      instance->err = GUNDERSCRIPTERR_ALLOC_FAILED;
+      fclose(inFile);
+      return false;
+    }
+
+    /* check for duplicate function names */
+    if(prevValue) {
+      instance->err = GUNDERSCRIPTERR_CORRUPTED_BYTECODE;
+      fclose(inFile);
+      return false;
+    }
+  }
+
+  /* make space in buffer for the bytecode */
+  if(!buffer_resize(vm_buffer(instance->vm), header.byteCodeLen)) {
+    instance->err = GUNDERSCRIPTERR_ALLOC_FAILED;
+    fclose(inFile);
+    return false;
+  }
+
+  /* read raw bytecode from end of bytecode file */
+  {
+    int c, i;
+    for(i = 0; (c = fgetc(inFile)) != -1; i++) {
+      buffer_append_char(vm_buffer(instance->vm), (char)c);
+    }
+
+    if(i != (header.byteCodeLen)) {
+      instance->err = GUNDERSCRIPTERR_BAD_FILE_READ;
+      fclose(inFile);
+      return false;
+    }
+  }
+
+  fclose(inFile);
+  return true;
+}
+
+GunderscriptErr gunderscript_get_err(Gunderscript * instance) {
+  return instance->err;
+}
+
+static const char * err_to_string(GunderscriptErr err) {
+  return gunderscriptErrorMessages[err];
+}
+
+/**
  * Gets a textual error message representing the last error, if there is one.
  * instance: an instance of Gunderscript.
  * returns: an error message, or NULL if there are no errors.
@@ -141,15 +368,17 @@ CompilerErr gunderscript_build_err(Gunderscript * instance) {
 const char * gunderscript_err_message(Gunderscript * instance) {
   assert(instance != NULL);
 
-  if(compiler_get_err(instance->compiler) != COMPILERERR_SUCCESS) {
+  if(gunderscript_get_err(instance) == GUNDERSCRIPTERR_COMPILERERR) {
     if(compiler_get_err(instance->compiler) == COMPILERERR_LEXER_ERR) {
       return lexer_err_to_string(compiler_lex_err(instance->compiler));
     } else {
       return compiler_err_to_string(instance->compiler,
 				  compiler_get_err(instance->compiler));
     }
-  } else {
+  } else if(gunderscript_get_err(instance) == GUNDERSCRIPTERR_VMERR) {
     return vm_err_to_string(vm_get_err(instance->vm));
+  } else {
+    return err_to_string(gunderscript_get_err(instance));
   }
 }
 
@@ -172,17 +401,17 @@ int gunderscript_err_line(Gunderscript * instance) {
  */
 bool gunderscript_function(Gunderscript * instance, char * entryPoint,
 			   size_t entryPointLen) {
-  CompilerFunc * function;
+  VMFunc * function;
 
   /* get compiler function definitions */
-  function = compiler_function(instance->compiler, entryPoint, entryPointLen);
+  function = vm_function(instance->vm, entryPoint, entryPointLen);
   if(function == NULL) {
     return false;
   }
   
   /* execute function in the virtual machine */
-  if(!vm_exec(instance->vm, compiler_bytecode(instance->compiler), 
-	      compiler_bytecode_size(instance->compiler), function->index,
+  if(!vm_exec(instance->vm, vm_bytecode(instance->vm), 
+	      vm_bytecode_size(instance->vm), function->index,
 	      function->numArgs + function->numVars)) {
     return false;
   }

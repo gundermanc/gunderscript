@@ -38,15 +38,9 @@ bool compiler_build(Compiler * compiler, char * input, size_t inputLen);
 
 void compiler_set_err(Compiler * compiler, CompilerErr err);
 
-CompilerFunc * compiler_function(Compiler * compiler, char * name, size_t len);
-
 CompilerErr compiler_get_err(Compiler * compiler);
 
 void compiler_free(Compiler * compiler);
-
-size_t compiler_bytecode_size(Compiler * compiler);
-
-char * compiler_bytecode(Compiler * compiler);
 
 int compiler_err_line(Compiler * compiler);
 

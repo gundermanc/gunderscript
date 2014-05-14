@@ -38,6 +38,7 @@
 #include <stdlib.h>
 #include <assert.h>
 #include <limits.h>
+#include "gunderscript.h"
 #include "compiler.h"
 #include "parsers.h"
 #include "lexer.h"
@@ -48,8 +49,6 @@
 
 /* TODO: make symTableStk auto expand and remove this */
 static const int maxFuncDepth = 100;
-/* number of bytes in each additional block of the buffer */
-static const int bufferBlockSize = 1000;
 
 /**
  * Creates a new compiler object that will contain the current state of the
@@ -70,63 +69,17 @@ Compiler * compiler_new(VM * vm) {
   /* TODO: make this stack auto expand when full */
   compiler->compiledScripts = set_new();
   compiler->symTableStk = stk_new(maxFuncDepth);
-  compiler->functionHT = ht_new(COMPILER_INITIAL_HTSIZE, COMPILER_HTBLOCKSIZE, COMPILER_HTLOADFACTOR);
-  compiler->outBuffer = buffer_new(bufferBlockSize, bufferBlockSize);
   compiler->vm = vm;
 
   /* check for further malloc errors */
   if(compiler->compiledScripts == NULL
      || compiler->symTableStk == NULL 
-     || compiler->functionHT == NULL 
-     || compiler->outBuffer == NULL) {
+     || vm_buffer(compiler->vm) == NULL) {
     compiler_free(compiler);
     return NULL;
   }
 
   return compiler;
-}
-
-/**
- * Instantiates a CompilerFunc structure for storing information about a script
- * function in the functionHT member of Compiler struct. This struct is used to
- * store record of a function declaration, its number of arguments, and its
- * respective location in the bytecode.
- * name: A string with the text representation of the function. The text name
- * it is called by in the code.
- * nameLen: The number of characters to read from name for the function name.
- * index: the index of the byte where the function begins in the byte code.
- * numArgs: the number of arguments that the function expects.
- * returns: A new instance of CompilerFunc struct, NULL if the allocation fails.
- */
-static CompilerFunc * compilerfunc_new(char * name, size_t nameLen,
-				       int index, int numArgs, int numVars,
-				       bool exported) {
-  assert(index >= 0);
-
-  CompilerFunc * cf = calloc(1, sizeof(CompilerFunc));
-  if(cf != NULL) {
-    cf->name = calloc(nameLen + 1, sizeof(char));
-    strncpy(cf->name, name, nameLen);
-    cf->index = index;
-    cf->numArgs = numArgs;
-    cf->numVars = numVars;
-    cf->exported = true;
-  }
-
-  return cf;
-}
-
-/**
- * Frees a CompilerFunc struct. This must be done to every CompilerFunc
- * struct when it is removed from the hashtable.
- * cf: an instance of CompilerFunc to free the associated memory to.
- */
-static void compilerfunc_free(CompilerFunc * cf) {
-
-  assert(cf != NULL);
-
-  free(cf->name);
-  free(cf);
 }
 
 /**
@@ -261,11 +214,11 @@ static bool function_store_definition(Compiler * c, char * name, size_t nameLen,
 
   /* TODO: might need a lexer_next() call to get correct token */
   bool prevValue;
-  CompilerFunc * cp;
+  VMFunc * cp;
   DSValue value;
 
   /* check for proper CompilerFunc allocation */
-  cp = compilerfunc_new(name, nameLen, buffer_size(c->outBuffer), numArgs,
+  cp = vmfunc_new(buffer_size(vm_buffer(c->vm)), numArgs,
 			numVars, exported);
   if(cp == NULL) {
     c->err = COMPILERERR_ALLOC_FAILED;
@@ -273,7 +226,7 @@ static bool function_store_definition(Compiler * c, char * name, size_t nameLen,
   }
 
   value.pointerVal = cp;
-  ht_put_raw_key(c->functionHT, cp->name, nameLen, &value, NULL, &prevValue);
+  ht_put_raw_key(vm_functions(c->vm), name, nameLen, &value, NULL, &prevValue);
 
   /* check that function didn't previously exist */
   if(prevValue) {
@@ -390,6 +343,12 @@ static bool parse_function_definitions(Compiler * c, Lexer * l) {
     return true;
   }
 
+  /* check if name is too long */
+  if(nameLen > GS_MAX_FUNCTION_NAME_LEN) {
+    c->err = COMPILERERR_FUNCTION_NAME_TOO_LONG;
+    return true;
+  }
+
   /* check for the open parenthesis */
   token = lexer_next(l, &type, &len);
   if(!tokens_equal(token, len, LANG_OPARENTH, LANG_OPARENTH_LEN)) {
@@ -448,10 +407,10 @@ static bool parse_function_definitions(Compiler * c, Lexer * l) {
 
   /* push default return value. if no other return is given, this value is 
    * returned */
-  buffer_append_char(c->outBuffer, OP_NULL_PUSH);
+  buffer_append_char(vm_buffer(c->vm), OP_NULL_PUSH);
 
   /* pop function frame and return to calling function */
-  buffer_append_char(c->outBuffer, OP_FRM_POP);
+  buffer_append_char(vm_buffer(c->vm), OP_FRM_POP);
 
   token = lexer_next(l, &type, &len);
 
@@ -459,31 +418,6 @@ static bool parse_function_definitions(Compiler * c, Lexer * l) {
   ht_free(symtblstk_pop(c));
 
   return true;
-}
-
-/**
- * Gets the number of bytes of byte code in the bytecode buffer that can be
- * copied out using compiler_bytecode().
- * compiler: an instance of compiler.
- * returns: the size of the byte code buffer.
- */
-size_t compiler_bytecode_size(Compiler * compiler) {
-  assert(compiler != NULL);
-  return buffer_size(compiler->outBuffer);
-}
-
-/**
- * The compiler bytecode buffer.
- * compiler: an instance of compiler.
- * returns: The compiled bytecode or NULL if there is none.
- */
-char * compiler_bytecode(Compiler * compiler) {
-  assert(compiler != NULL);
-  if(compiler->err != COMPILERERR_SUCCESS) {
-    return NULL;
-  }
-
-  return buffer_get_buffer(compiler->outBuffer);
 }
 
 /**
@@ -658,38 +592,7 @@ CompilerErr compiler_get_err(Compiler * compiler) {
   return compiler->err;
 }
 
-/**
- * Gets the start index of the specified function from the compiler declared
- * functions hashtable. To get the index of a function, it must have been
- * declared with the exported keyword.
- * compiler: an instance of compiler.
- * name: the name of the function to locate.
- * len: the length of name.
- * returns: the index in the byte code where the function begins, or -1 if the
- * function does not exist or was not exported.
- */
-CompilerFunc * compiler_function(Compiler * compiler, char * name, size_t len) {
 
-  assert(compiler != NULL);
-  assert(name != NULL);
-  assert(len > 0);
-
-  DSValue value;
-  CompilerFunc * cf;
-
-  /* get the specified function's struct */
-  if(!ht_get_raw_key(compiler->functionHT, name, len, &value)) {
-    return NULL; /* error occurred */
-  }
-  cf = value.pointerVal;
-
-  /* make sure function was declared with exported keyword */
-  if(!cf->exported) {
-    return NULL;
-  }
-
-  return cf;
-}
 
 /**
  * Frees a compiler object and all associated memory.
@@ -706,23 +609,6 @@ void compiler_free(Compiler * compiler) {
 
   if(compiler->symTableStk != NULL) {
     stk_free(compiler->symTableStk);
-  }
-
-  if(compiler->functionHT != NULL) {
-    HTIter htIterator;
-    ht_iter_get(compiler->functionHT, &htIterator);
-
-    while(ht_iter_has_next(&htIterator)) {
-      DSValue value;
-      ht_iter_next(&htIterator, NULL, 0, &value, NULL, true);
-      compilerfunc_free(value.pointerVal);
-    }
-
-    ht_free(compiler->functionHT);
-  }
- 
-  if(compiler->outBuffer != NULL) {
-    buffer_free(compiler->outBuffer);
   }
 
   free(compiler);

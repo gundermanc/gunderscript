@@ -27,6 +27,7 @@
 
 #include "frmstk.h"
 #include "typestk.h"
+#include "buffer.h"
 #include "ht.h"
 
 /* Virtual Machine error codes */
@@ -98,7 +99,9 @@ typedef bool (*VMCallback) (VM * vm, VMArg * arg, int argc);
 struct VM {
   FrmStk * frmStk;                /* the stack of stack frames */
   TypeStk * opStk;                /* the stack of operands */
+  HT * functionHT;
   VMCallback * callbacks;         /* the array of native bound functions */
+  Buffer * buffer;                /* bytecode buffer */
   HT * callbacksHT;               /* a pointer to the callbacks hashtable */
   int callbacksSize;              /* the size of the callbacks array */
   int numCallbacks;               /* the number of callbacks in array */
@@ -108,6 +111,16 @@ struct VM {
 
 
 typedef struct VMLibData VMLibData;
+
+/* a function struct */
+typedef struct VMFunc {
+  int index;                      /* the index where the function's 
+				   * bytecode begins */
+  int numArgs;                    /* the number of arguments required */
+  int numVars;                    /* the number of variables required */
+  bool exported;
+} VMFunc;
+
 
 VM * vm_new(size_t stackSize, int callbacksSize);
 
@@ -130,8 +143,23 @@ const char * vm_err_to_string(VMErr err);
 
 void vm_free(VM * vm);
 
+HT * vm_functions(VM * vm);
+
+VMFunc * vm_function(VM * compiler, char * name, size_t len);
+
+VMFunc * vmfunc_new(int index, int numArgs, int numVars,
+		    bool exported);
 int vm_exit_index(VM * vm);
 
+size_t vm_bytecode_size(VM * vm);
+
+char * vm_bytecode(VM * vm);
+
+Buffer * vm_buffer(VM * vm);
+
+
+
+/* VM native library interface functions */
 void * vmarg_data(VMArg * arg);
 
 VarType vmarg_type(VMArg arg);
@@ -200,4 +228,5 @@ void vmlibdata_free(VM * vm, VMLibData * data);
 bool vmarg_push_data(VM * vm, void * data, VarType type);
 
 VMLibData * vmarg_libdata(VMArg arg);
+
 #endif /* VM__H__ */

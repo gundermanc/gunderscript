@@ -999,8 +999,8 @@ bool op_call_ptr_n(VM * vm, char * byteCode,
   /* decrement any variable reference counters */
   for(i = 0; i < numArgs; i++) {
     if(args[i].type == TYPE_LIBDATA) {
-       vmlibdata_dec_refcount(vmarg_libdata(args[i]));
-       vmlibdata_check_cleanup(vm, vmarg_libdata(args[i]));
+      vmlibdata_dec_refcount(vmarg_libdata(args[i]));
+      vmlibdata_check_cleanup(vm, vmarg_libdata(args[i]));
     }
   }
   return true;

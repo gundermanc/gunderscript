@@ -67,7 +67,7 @@ static bool write_operator(Compiler * c,  char * token,
   }
 
   /* write operator OP code to output buffer */
-  buffer_append_char(c->outBuffer, opCode);
+  buffer_append_char(vm_buffer(c->vm), opCode);
    
   return true;
 }
@@ -162,8 +162,8 @@ static bool parse_number(Compiler * c, LexerType prevTokenType,
   value = atof(rawValue);
 
   /* write number to output */
-  buffer_append_char(c->outBuffer, OP_NUM_PUSH);
-  buffer_append_string(c->outBuffer, (char*)(&value), sizeof(double));
+  buffer_append_char(vm_buffer(c->vm), OP_NUM_PUSH);
+  buffer_append_string(vm_buffer(c->vm), (char*)(&value), sizeof(double));
 
   /* check for invalid types in previous token: */
   if(prevTokenType != COMPILER_NO_PREV
@@ -257,9 +257,9 @@ static bool parse_string(Compiler * c, LexerType prevTokenType,
   outLen = (char) escapedStrLen;
 
   /* write output */
-  buffer_append_char(c->outBuffer, OP_STR_PUSH);
-  buffer_append_char(c->outBuffer, outLen);
-  buffer_append_string(c->outBuffer, escapedStr, escapedStrLen);
+  buffer_append_char(vm_buffer(c->vm), OP_STR_PUSH);
+  buffer_append_char(vm_buffer(c->vm), outLen);
+  buffer_append_string(vm_buffer(c->vm), escapedStr, escapedStrLen);
 
   /* check for invalid types: */
   if(prevTokenType != COMPILER_NO_PREV
@@ -304,8 +304,8 @@ static bool parse_char(Compiler * c, LexerType prevTokenType,
   value = (double) escapedStr[0];
 
   /* write output */
-  buffer_append_char(c->outBuffer, OP_NUM_PUSH);
-  buffer_append_string(c->outBuffer, (char*)(&value), sizeof(double));
+  buffer_append_char(vm_buffer(c->vm), OP_NUM_PUSH);
+  buffer_append_string(vm_buffer(c->vm), (char*)(&value), sizeof(double));
 
   /* check for invalid types: */
   if(prevTokenType != COMPILER_NO_PREV
@@ -695,19 +695,19 @@ static bool function_call(Compiler * c, char * functionName,
   if(callbackIndex != -1) {
 
     /* function is native, write the OPCodes for native call */
-    buffer_append_char(c->outBuffer, OP_CALL_PTR_N);
-    buffer_append_char(c->outBuffer, arguments);
-    buffer_append_string(c->outBuffer, (char*)(&callbackIndex), sizeof(int));
+    buffer_append_char(vm_buffer(c->vm), OP_CALL_PTR_N);
+    buffer_append_char(vm_buffer(c->vm), arguments);
+    buffer_append_string(vm_buffer(c->vm), (char*)(&callbackIndex), sizeof(int));
     return true;
 
   } else {
 
     /* the function is not a native function. check script functions */
-    if(ht_get_raw_key(c->functionHT, functionName, 
+    if(ht_get_raw_key(vm_functions(c->vm), functionName, 
 		      functionNameLen, &value)) {
 
       /* turn hashtable value into pointer to CompilerFunc struct */
-      CompilerFunc * funcDef = value.pointerVal;
+      VMFunc * funcDef = value.pointerVal;
 
       /* check for correct number of arguments */
       if(funcDef->numArgs != arguments) {
@@ -716,10 +716,10 @@ static bool function_call(Compiler * c, char * functionName,
       }
 
       /* function exists, lets write the OPCodes */
-      buffer_append_char(c->outBuffer, OP_CALL_B);
-      buffer_append_char(c->outBuffer, funcDef->numArgs + funcDef->numVars);
-      buffer_append_char(c->outBuffer, funcDef->numArgs);
-      buffer_append_string(c->outBuffer, (char*)(&funcDef->index), sizeof(int));
+      buffer_append_char(vm_buffer(c->vm), OP_CALL_B);
+      buffer_append_char(vm_buffer(c->vm), funcDef->numArgs + funcDef->numVars);
+      buffer_append_char(vm_buffer(c->vm), funcDef->numArgs);
+      buffer_append_string(vm_buffer(c->vm), (char*)(&funcDef->index), sizeof(int));
     } else {
       c->err = COMPILERERR_UNDEFINED_FUNCTION;
       return false;
@@ -801,7 +801,7 @@ static bool parse_while_statement(Compiler * c, Lexer * l) {
   /* store address where argument is pushed to stack, and 
    * compile argument code and get number of args 
    */
-  beforeWhileAddr = buffer_size(c->outBuffer);
+  beforeWhileAddr = buffer_size(vm_buffer(c->vm));
   argCount = parse_arguments(c, l, token, type, len);
 
   /* check for proper number of arguments */
@@ -813,9 +813,9 @@ static bool parse_while_statement(Compiler * c, Lexer * l) {
   /* fill jump instruction with placeholder bytes since we don't know the
    * end of the function address yet
    */
-  buffer_append_char(c->outBuffer, OP_FCOND_GOTO);
-  jumpInstAddr = buffer_size(c->outBuffer);
-  buffer_append_string(c->outBuffer, (char*)(&address), sizeof(int));
+  buffer_append_char(vm_buffer(c->vm), OP_FCOND_GOTO);
+  jumpInstAddr = buffer_size(vm_buffer(c->vm));
+  buffer_append_string(vm_buffer(c->vm), (char*)(&address), sizeof(int));
 
   /* retrieve current token */
   token = lexer_current_token(l, &type, &len);
@@ -825,12 +825,12 @@ static bool parse_while_statement(Compiler * c, Lexer * l) {
   }
 
   /* write jump to beginning of loop instruction */
-  buffer_append_char(c->outBuffer, OP_GOTO);
-  buffer_append_string(c->outBuffer, (char*)(&beforeWhileAddr), sizeof(int));
+  buffer_append_char(vm_buffer(c->vm), OP_GOTO);
+  buffer_append_string(vm_buffer(c->vm), (char*)(&beforeWhileAddr), sizeof(int));
 
   /* write jump to end of body address for while statement */
-  address = buffer_size(c->outBuffer);
-  buffer_set_string(c->outBuffer, (char*)&address, sizeof(int), jumpInstAddr);
+  address = buffer_size(vm_buffer(c->vm));
+  buffer_set_string(vm_buffer(c->vm), (char*)&address, sizeof(int), jumpInstAddr);
 
   return true;
 }
@@ -865,7 +865,7 @@ static bool parse_return_statement(Compiler * c, Lexer * l) {
   }
 
   /* write return instruction */
-  buffer_append_char(c->outBuffer, OP_RETURN);
+  buffer_append_char(vm_buffer(c->vm), OP_RETURN);
   return true;
 }
 
@@ -894,7 +894,7 @@ static bool parse_do_while_statement(Compiler * c, Lexer * l) {
   token = lexer_next(l, &type, &len);
 
   /* store address before do block */
-  beforeDoAddr = buffer_size(c->outBuffer);
+  beforeDoAddr = buffer_size(vm_buffer(c->vm));
 
   /* compile whatever is in our do statement/block */
   if(!parse_body_statement(c, l)) {
@@ -933,8 +933,8 @@ static bool parse_do_while_statement(Compiler * c, Lexer * l) {
   }
 
   /* write the jump address */
-  buffer_append_char(c->outBuffer, OP_TCOND_GOTO);
-  buffer_append_string(c->outBuffer, (char*)(&beforeDoAddr), sizeof(int));
+  buffer_append_char(vm_buffer(c->vm), OP_TCOND_GOTO);
+  buffer_append_string(vm_buffer(c->vm), (char*)(&beforeDoAddr), sizeof(int));
 
   /* check for a ';' token */
   if(!tokens_equal(token, len, LANG_ENDSTATEMENT, LANG_ENDSTATEMENT_LEN)) {
@@ -993,9 +993,9 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
   /* fill jump instruction with placeholder bytes since we don't know the
    * end of the function address yet
    */
-  buffer_append_char(c->outBuffer, OP_FCOND_GOTO);
-  ifJumpInstAddr = buffer_size(c->outBuffer);
-  buffer_append_string(c->outBuffer, (char*)(&address), sizeof(int));
+  buffer_append_char(vm_buffer(c->vm), OP_FCOND_GOTO);
+  ifJumpInstAddr = buffer_size(vm_buffer(c->vm));
+  buffer_append_string(vm_buffer(c->vm), (char*)(&address), sizeof(int));
 
   /* retrieve current token */
   token = lexer_current_token(l, &type, &len);
@@ -1010,21 +1010,21 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
   /* check if this if block has an else as well */
   if(!tokens_equal(token, len, LANG_ELSE, LANG_ELSE_LEN)) {
     /* write jump address for if statement */
-    address = buffer_size(c->outBuffer);
-    buffer_set_string(c->outBuffer, (char*)&address, sizeof(int), ifJumpInstAddr);
+    address = buffer_size(vm_buffer(c->vm));
+    buffer_set_string(vm_buffer(c->vm), (char*)&address, sizeof(int), ifJumpInstAddr);
     return true;
   }
 
   /* fill jump instruction with placeholder bytes since we don't know the
    * end of the function address yet
    */
-  buffer_append_char(c->outBuffer, OP_GOTO);
-  elseJumpInstAddr = buffer_size(c->outBuffer);
-  buffer_append_string(c->outBuffer, (char*)(&address), sizeof(int));
+  buffer_append_char(vm_buffer(c->vm), OP_GOTO);
+  elseJumpInstAddr = buffer_size(vm_buffer(c->vm));
+  buffer_append_string(vm_buffer(c->vm), (char*)(&address), sizeof(int));
 
   /* write jump address for if statement so that it is after the else jump */
-  address = buffer_size(c->outBuffer);
-  buffer_set_string(c->outBuffer, (char*)&address, sizeof(int), ifJumpInstAddr);
+  address = buffer_size(vm_buffer(c->vm));
+  buffer_set_string(vm_buffer(c->vm), (char*)&address, sizeof(int), ifJumpInstAddr);
 
   token = lexer_next(l, &type, &len);
 
@@ -1034,8 +1034,8 @@ static bool parse_if_statement(Compiler * c, Lexer * l) {
   }
 
   /* write jump address for else statement */
-  address = buffer_size(c->outBuffer);
-  buffer_set_string(c->outBuffer, (char*)&address, sizeof(int), elseJumpInstAddr);
+  address = buffer_size(vm_buffer(c->vm));
+  buffer_set_string(vm_buffer(c->vm), (char*)&address, sizeof(int), elseJumpInstAddr);
 
   return true;
 }
@@ -1123,9 +1123,9 @@ static bool assignment(Compiler * c, Lexer * l, char * variable,
   /* write the variable data OPCodes
    * Moves the last value from the OP stack in the VM to the variable
    * storage slot in the frame stack. */
-  buffer_append_char(c->outBuffer, OP_VAR_STOR);
-  buffer_append_char(c->outBuffer, i);
-  buffer_append_char(c->outBuffer, value.intVal);
+  buffer_append_char(vm_buffer(c->vm), OP_VAR_STOR);
+  buffer_append_char(vm_buffer(c->vm), i);
+  buffer_append_char(vm_buffer(c->vm), value.intVal);
 
   return true;
 }
@@ -1218,9 +1218,9 @@ static bool reference(Compiler * c, Lexer * l,
   /* TODO: need to add ability to search LOWER frames for variables */
   varSlot = value.intVal;
 
-  buffer_append_char(c->outBuffer, OP_VAR_PUSH);
-  buffer_append_char(c->outBuffer, i);
-  buffer_append_char(c->outBuffer, varSlot);
+  buffer_append_char(vm_buffer(c->vm), OP_VAR_PUSH);
+  buffer_append_char(vm_buffer(c->vm), i);
+  buffer_append_char(vm_buffer(c->vm), varSlot);
 
   return true;
 }
@@ -1242,13 +1242,13 @@ static bool parse_static_constant(Compiler * c, Lexer * l) {
 
   /* check if current token is one of the possible static constants */
   if(tokens_equal(token, len, LANG_TRUE, LANG_TRUE_LEN)) {
-    buffer_append_char(c->outBuffer, OP_BOOL_PUSH);
-    buffer_append_char(c->outBuffer, true);
+    buffer_append_char(vm_buffer(c->vm), OP_BOOL_PUSH);
+    buffer_append_char(vm_buffer(c->vm), true);
   } else if(tokens_equal(token, len, LANG_FALSE, LANG_FALSE_LEN)) {
-    buffer_append_char(c->outBuffer, OP_BOOL_PUSH);
-    buffer_append_char(c->outBuffer, false);
+    buffer_append_char(vm_buffer(c->vm), OP_BOOL_PUSH);
+    buffer_append_char(vm_buffer(c->vm), false);
   } else if(tokens_equal(token, len, LANG_NULL, LANG_NULL_LEN)) {
-    buffer_append_char(c->outBuffer, OP_NULL_PUSH);
+    buffer_append_char(vm_buffer(c->vm), OP_NULL_PUSH);
   } else {
     return false;
   }
@@ -1496,7 +1496,7 @@ bool parse_body_statement(Compiler * c, Lexer * l) {
     }
 
     /* pop line return value off of stack */
-    buffer_append_char(c->outBuffer, OP_POP);
+    buffer_append_char(vm_buffer(c->vm), OP_POP);
 
     /* check for terminating semicolon */
     lexer_current_token(l, &type, &len);
@@ -1575,9 +1575,9 @@ bool parse_block(Compiler * c, Lexer * l) {
    * so we save the address of the number of args for pushing and push 0 to fill the
    * space.
    */
-  buffer_append_char(c->outBuffer, OP_FRM_PUSH);
-  varCountAddr = buffer_size(c->outBuffer);
-  buffer_append_char(c->outBuffer, 0);
+  buffer_append_char(vm_buffer(c->vm), OP_FRM_PUSH);
+  varCountAddr = buffer_size(vm_buffer(c->vm));
+  buffer_append_char(vm_buffer(c->vm), 0);
 
   /* define variables, return on error */
   if((varCount = define_variables(c, l)) == -1) {
@@ -1585,7 +1585,7 @@ bool parse_block(Compiler * c, Lexer * l) {
   }
 
   /* save number of variables */
-  buffer_set_char(c->outBuffer, (char)varCount, varCountAddr);
+  buffer_set_char(vm_buffer(c->vm), (char)varCount, varCountAddr);
 
   /* parse code in block */
   if(!parse_body(c, l)) {
@@ -1602,7 +1602,7 @@ bool parse_block(Compiler * c, Lexer * l) {
   }
 
   /* pop block frame */
-  buffer_append_char(c->outBuffer, OP_FRM_POP);
+  buffer_append_char(vm_buffer(c->vm), OP_FRM_POP);
 
   /* we're done here! pop the symbol table for this block off the stack. */
   ht_free(symtblstk_pop(c));
