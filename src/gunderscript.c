@@ -31,8 +31,8 @@
 #include "libarray.h"
 
 /**
- * Creates a new instance of Gunderscript object with a compiler and 
- * a Virtual Machine.
+ * Creates a new instance of Gunderscript object with a Virtual
+ * Machine only.
  * instance: pointer to a Gunderscript object that will receive
  * the instance.
  * stackSize: the size for the VM stack in bytes. The VM does not
@@ -45,7 +45,7 @@
  * occur due to malloc failure or if callbacksSize is too small to
  * contain all of the standard libraries.
  */
-bool gunderscript_new(Gunderscript * instance, size_t stackSize,
+bool gunderscript_new_vm(Gunderscript * instance, size_t stackSize,
 		      int callbacksSize) {
   assert(instance != NULL);
   assert(stackSize > 0);
@@ -64,6 +64,36 @@ bool gunderscript_new(Gunderscript * instance, size_t stackSize,
      || !libstr_install(instance)
      || !libarray_install(instance)) {
     vm_free(instance->vm);
+    return false;
+  }
+
+  instance->compiler = NULL;
+
+  return true;
+}
+
+/**
+ * Creates a new instance of Gunderscript object with a compiler and 
+ * a Virtual Machine.
+ * instance: pointer to a Gunderscript object that will receive
+ * the instance.
+ * stackSize: the size for the VM stack in bytes. The VM does not
+ * dynamically resize so this value is absolute for this instance.
+ * callbacksSize: the number of callbacks slots. This number defines
+ * how many native functions can be bound to this instance. Increase
+ * this value if vm_reg_callback() fails, or if gunderscript_new()
+ * always returns false.
+ * returns: true if creation succeeds, and false if fails. Failure can
+ * occur due to malloc failure or if callbacksSize is too small to
+ * contain all of the standard libraries.
+ */
+bool gunderscript_new_full(Gunderscript * instance, size_t stackSize,
+		      int callbacksSize) {
+  assert(instance != NULL);
+  assert(stackSize > 0);
+  assert(callbacksSize > 0);
+
+  if(!gunderscript_new_vm(instance, stackSize, callbacksSize)) {
     return false;
   }
 
@@ -109,6 +139,7 @@ VM * gunderscript_vm(Gunderscript * instance) {
  */
 bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen) {
   assert(instance != NULL);
+  assert(instance->compiler != NULL);
   assert(input != NULL);
   assert(inputLen > 0);
   bool result = compiler_build(instance->compiler, input, inputLen);
@@ -126,6 +157,9 @@ bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen) 
  * returns: true upon success, and false upon failure.
  */
 bool gunderscript_build_file(Gunderscript * instance, char * fileName) {
+  assert(instance != NULL);
+  assert(instance->compiler != NULL);
+
   bool result = compiler_build_file(instance->compiler, fileName);
   
   if(!result) {
@@ -141,6 +175,7 @@ bool gunderscript_build_file(Gunderscript * instance, char * fileName) {
  */
 CompilerErr gunderscript_build_err(Gunderscript * instance) {
   assert(instance != NULL);
+  assert(instance->compiler != NULL);
   return compiler_get_err(instance->compiler);
 }
 
@@ -369,6 +404,7 @@ const char * gunderscript_err_message(Gunderscript * instance) {
   assert(instance != NULL);
 
   if(gunderscript_get_err(instance) == GUNDERSCRIPTERR_BUILDERR) {
+    assert(instance->compiler != NULL);
     if(compiler_get_err(instance->compiler) == COMPILERERR_LEXER_ERR) {
       return lexer_err_to_string(compiler_lex_err(instance->compiler));
     } else {
@@ -389,6 +425,7 @@ const char * gunderscript_err_message(Gunderscript * instance) {
  */
 int gunderscript_err_line(Gunderscript * instance) {
   assert(instance != NULL);
+  assert(instance->compiler != NULL);
   return compiler_err_line(instance->compiler);
 }
 

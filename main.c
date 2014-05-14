@@ -36,6 +36,9 @@
 #define GXSMAIN_DEFAULT_MAIN     "main"
 #define GXSMAIN_MAX_ASSOCIATED_SCRIPT_FN   255
 
+static const size_t stackSize = 100000;  /* environment constants */
+static const int callbacksSize = 55;
+
 /**
  * Prints a brief help message
  */
@@ -149,9 +152,15 @@ static int execute_associated(Gunderscript * ginst, int argc, char * argv[]) {
   /* does [executable].gxs exist (the associated script) */
   strncpy(fileName, argv[0], GXSMAIN_MAX_ASSOCIATED_SCRIPT_FN);
   remove_suffix(fileName);
-  printf(fileName);
   strncat(fileName, ".gxs", GXSMAIN_MAX_ASSOCIATED_SCRIPT_FN - 4);
   if(access(fileName, F_OK) == 0) {
+
+    /* initialize gunderscript object */
+    if(!gunderscript_new_full(ginst, stackSize, callbacksSize)) {
+      print_alloc_error();
+      return 1;
+    }
+
     /* compile the input script */
     if(!gunderscript_build_file(ginst, fileName)) {
       print_error(ginst);
@@ -168,11 +177,19 @@ static int execute_associated(Gunderscript * ginst, int argc, char * argv[]) {
     gunderscript_free(ginst);
     return 0;
   } else {
+
     /* the script file doesn't exist, check for a bytecode file instead */
     strncpy(fileName, argv[0], GXSMAIN_MAX_ASSOCIATED_SCRIPT_FN);
     remove_suffix(fileName);
     strncat(fileName, ".gxb", GXSMAIN_MAX_ASSOCIATED_SCRIPT_FN - 4);
     if(access(fileName, F_OK) == 0) {
+
+      /* initialize gunderscript object */
+      if(!gunderscript_new_vm(ginst, stackSize, callbacksSize)) {
+	print_alloc_error();
+	return 1;
+      }
+
       /* import the compiled code from a BIN file */
       if(!gunderscript_import_bytecode(ginst, fileName)) {
 	print_error(ginst);
@@ -202,14 +219,6 @@ static int execute_associated(Gunderscript * ginst, int argc, char * argv[]) {
  */
 int main(int argc, char * argv[]) {
   Gunderscript ginst;
-  const size_t stackSize = 100000;  /* environment constants */
-  const int callbacksSize = 55;
-
-  /* initialize gunderscript object */
-  if(!gunderscript_new(&ginst, stackSize, callbacksSize)) {
-    print_alloc_error();
-    return 1;
-  }
 
   /* if no arguments, try to execute associated bytecode / script */
   if(argc == 1) {
@@ -219,12 +228,17 @@ int main(int argc, char * argv[]) {
   /* check for proper number of arguments */
   if(argc != 4) {
     print_help();
-    gunderscript_free(&ginst);
     return 1;
   }
 
   /* build script */
   if(strcmp(argv[1], GXSMAIN_BUILD_SCRIPT) == 0) {
+
+    /* initialize gunderscript object */
+    if(!gunderscript_new_full(&ginst, stackSize, callbacksSize)) {
+      print_alloc_error();
+      return 1;
+    }
 
     /* compile the input script */
     if(!gunderscript_build_file(&ginst, argv[2])) {
@@ -244,6 +258,12 @@ int main(int argc, char * argv[]) {
 
   } else if(strcmp(argv[1], GXSMAIN_RUN_SCRIPT) == 0) {
 
+    /* initialize gunderscript object */
+    if(!gunderscript_new_full(&ginst, stackSize, callbacksSize)) {
+      print_alloc_error();
+      return 1;
+    }
+
     /* compile the input script */
     if(!gunderscript_build_file(&ginst, argv[3])) {
       print_error(&ginst);
@@ -261,6 +281,12 @@ int main(int argc, char * argv[]) {
     return 0;
 
   } else if(strcmp(argv[1], GXSMAIN_RUN_BYTECODE) == 0) {
+
+    /* initialize gunderscript object */
+    if(!gunderscript_new_vm(&ginst, stackSize, callbacksSize)) {
+      print_alloc_error();
+      return 1;
+    }
 
     /* import the compiled code from a BIN file */
     if(!gunderscript_import_bytecode(&ginst, argv[3])) {
@@ -282,6 +308,5 @@ int main(int argc, char * argv[]) {
     print_help();
     return 1;
   }
-  gunderscript_free(&ginst);
   return 0;
 }

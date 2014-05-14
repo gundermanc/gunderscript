@@ -87,8 +87,12 @@ typedef struct Gunderscript {
   int byteCodeLen;
 } Gunderscript;
 
-bool gunderscript_new(Gunderscript * instance, size_t stackSize,
+bool gunderscript_new_full(Gunderscript * instance, size_t stackSize,
 		      int callbacksSize);
+
+bool gunderscript_new_vm(Gunderscript * instance, size_t stackSize,
+		    int callbacksSize);
+
 Compiler * gunderscript_compiler(Gunderscript * instance);
 
 VM * gunderscript_vm(Gunderscript * instance);
