@@ -26,11 +26,15 @@
  */
 
 #include <string.h>
+#include <unistd.h>
 #include "gunderscript.h"
 
 #define GXSMAIN_BUILD_SCRIPT     "build-script"
 #define GXSMAIN_RUN_SCRIPT       "run-script"
 #define GXSMAIN_RUN_BYTECODE     "run-bytecode"
+
+#define GXSMAIN_DEFAULT_MAIN     "main"
+#define GXSMAIN_MAX_ASSOCIATED_SCRIPT_FN   255
 
 /**
  * Prints a brief help message
@@ -65,7 +69,13 @@ static void print_help() {
   printf("    run-script   [entrypoint] [script.gxs] \n");
   printf("         compiles and runs a script from the specfied \"entrypoint\" function.\n");
   printf("    run-bytecode [entrypoint] [bytecode.gxb] \n");
-  printf("         runs a bytecode file generated with \"build-script\" \n");
+  printf("         runs a bytecode file generated with \"build-script\" \n\n\n");
+  printf("Autoexecute:\n");
+  printf("  Scripts will autoexecute if they are named the same as their copy of Gunderscript.\n");
+  printf("  For example:\n");
+  printf("\n  If your Gunderscript was called foobar (Linux) or foobar.exe (Windows), then\n");
+  printf("  your program could be called foobar.gxs (uncompiled script), or\n");
+  printf("  foobar.gxb (compiled bytecode).");
 }
 
 /**
@@ -102,6 +112,91 @@ static void print_error(Gunderscript * ginst) {
 }
 
 /**
+ * Moves the NULL character to remove a program extension, if there is one
+ */
+static void remove_suffix(char * str) {
+  size_t len = strlen(str);
+  int i = 0;
+
+  if(len == 0) {
+    return;
+  }
+
+  /* iterate string right to left */
+  for(i = len-1; i > 0; i--) {
+    if(str[i] == '.') {
+      break;
+    }
+  }
+
+  /* if no string extension, return */
+  if(i == 0) {
+    return;
+  }
+
+  str[i] = '\0';
+}
+
+/**
+ * Execute the script named the same as this executable
+ * TODO: this logic in this whole file is really messy, buuuttt, I'm lazy
+ * and the library itself is beautiful so I am going to be lazy and just
+ * leave this here..lolz
+ */
+static int execute_associated(Gunderscript * ginst, int argc, char * argv[]) {
+  char fileName[GXSMAIN_MAX_ASSOCIATED_SCRIPT_FN];
+
+  /* does [executable].gxs exist (the associated script) */
+  strncpy(fileName, argv[0], GXSMAIN_MAX_ASSOCIATED_SCRIPT_FN);
+  remove_suffix(fileName);
+  printf(fileName);
+  strncat(fileName, ".gxs", GXSMAIN_MAX_ASSOCIATED_SCRIPT_FN - 4);
+  if(access(fileName, F_OK) == 0) {
+    /* compile the input script */
+    if(!gunderscript_build_file(ginst, fileName)) {
+      print_error(ginst);
+      gunderscript_free(ginst);
+      return 1;
+    }
+
+    /* execute the desired entry point */
+    if(!gunderscript_function(ginst, GXSMAIN_DEFAULT_MAIN, strlen(GXSMAIN_DEFAULT_MAIN))) {
+      print_error(ginst);
+      gunderscript_free(ginst);
+      return 1;
+    }
+    gunderscript_free(ginst);
+    return 0;
+  } else {
+    /* the script file doesn't exist, check for a bytecode file instead */
+    strncpy(fileName, argv[0], GXSMAIN_MAX_ASSOCIATED_SCRIPT_FN);
+    remove_suffix(fileName);
+    strncat(fileName, ".gxb", GXSMAIN_MAX_ASSOCIATED_SCRIPT_FN - 4);
+    if(access(fileName, F_OK) == 0) {
+      /* import the compiled code from a BIN file */
+      if(!gunderscript_import_bytecode(ginst, fileName)) {
+	print_error(ginst);
+	gunderscript_free(ginst);
+	return 1;
+      }
+    
+      /* execute the desired entry point */
+      if(!gunderscript_function(ginst, GXSMAIN_DEFAULT_MAIN, strlen(GXSMAIN_DEFAULT_MAIN))) {
+	print_error(ginst);
+	gunderscript_free(ginst);
+	return 1;
+      }
+      gunderscript_free(ginst);
+      return 0;
+
+    } else {
+      print_help();
+      return 1;
+    }
+  }
+}
+
+/**
  * Program entry point. For a summary of command-line arguments, see
  * print_help() or read the code, silly.
  */
@@ -114,6 +209,11 @@ int main(int argc, char * argv[]) {
   if(!gunderscript_new(&ginst, stackSize, callbacksSize)) {
     print_alloc_error();
     return 1;
+  }
+
+  /* if no arguments, try to execute associated bytecode / script */
+  if(argc == 1) {
+    return execute_associated(&ginst, argc, argv);
   }
 
   /* check for proper number of arguments */
@@ -180,6 +280,7 @@ int main(int argc, char * argv[]) {
 
   } else {
     print_help();
+    return 1;
   }
   gunderscript_free(&ginst);
   return 0;
