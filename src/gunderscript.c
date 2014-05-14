@@ -114,7 +114,7 @@ bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen) 
   bool result = compiler_build(instance->compiler, input, inputLen);
 
   if(!result) {
-    instance->err = GUNDERSCRIPTERR_COMPILERERR;
+    instance->err = GUNDERSCRIPTERR_BUILDERR;
   }
   return result;
 }
@@ -129,7 +129,7 @@ bool gunderscript_build_file(Gunderscript * instance, char * fileName) {
   bool result = compiler_build_file(instance->compiler, fileName);
   
   if(!result) {
-    instance->err = GUNDERSCRIPTERR_COMPILERERR;
+    instance->err = GUNDERSCRIPTERR_BUILDERR;
   }
   return result;
 }
@@ -368,14 +368,14 @@ static const char * err_to_string(GunderscriptErr err) {
 const char * gunderscript_err_message(Gunderscript * instance) {
   assert(instance != NULL);
 
-  if(gunderscript_get_err(instance) == GUNDERSCRIPTERR_COMPILERERR) {
+  if(gunderscript_get_err(instance) == GUNDERSCRIPTERR_BUILDERR) {
     if(compiler_get_err(instance->compiler) == COMPILERERR_LEXER_ERR) {
       return lexer_err_to_string(compiler_lex_err(instance->compiler));
     } else {
       return compiler_err_to_string(instance->compiler,
 				  compiler_get_err(instance->compiler));
     }
-  } else if(gunderscript_get_err(instance) == GUNDERSCRIPTERR_VMERR) {
+  } else if(gunderscript_get_err(instance) == GUNDERSCRIPTERR_EXECERR) {
     return vm_err_to_string(vm_get_err(instance->vm));
   } else {
     return err_to_string(gunderscript_get_err(instance));
