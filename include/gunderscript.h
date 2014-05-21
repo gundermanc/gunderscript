@@ -29,6 +29,15 @@
 #include "compiler.h"
 #include "vm.h"
 
+/* define module function exports */
+#if defined(_MSC_VER)
+    #define GSAPI __declspec(dllexport)
+#elif defined(_GCC)
+    #define GSAPI __attribute__((visibility("default")))
+#else
+    #define GSAPI
+#endif
+
 /* first 3 bytes of all gunderscript bytecode files. <= 3 chars in length */
 #define GS_BYTECODE_HEADER   "GXS"
 #define GS_BYTECODE_HEADER_SIZE 4
@@ -87,38 +96,40 @@ typedef struct Gunderscript {
   int byteCodeLen;
 } Gunderscript;
 
-bool gunderscript_new_full(Gunderscript * instance, size_t stackSize,
+GSAPI bool gunderscript_new_full(Gunderscript * instance, size_t stackSize,
 		      int callbacksSize);
 
-bool gunderscript_new_vm(Gunderscript * instance, size_t stackSize,
+GSAPI bool gunderscript_new_vm(Gunderscript * instance, size_t stackSize,
 		    int callbacksSize);
 
-Compiler * gunderscript_compiler(Gunderscript * instance);
+GSAPI Compiler * gunderscript_compiler(Gunderscript * instance);
 
-VM * gunderscript_vm(Gunderscript * instance);
+GSAPI VM * gunderscript_vm(Gunderscript * instance);
 
-bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen);
+GSAPI bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen);
 
-bool gunderscript_build_file(Gunderscript * instance, char * fileName);
+GSAPI bool gunderscript_build_file(Gunderscript * instance, char * fileName);
 
 
-CompilerErr gunderscript_build_err(Gunderscript * instance);
+GSAPI CompilerErr gunderscript_build_err(Gunderscript * instance);
 
-const char * gunderscript_err_message(Gunderscript * instance);
+GSAPI const char * gunderscript_err_message(Gunderscript * instance);
 
-bool gunderscript_function(Gunderscript * instance, char * entryPoint,
+GSAPI bool gunderscript_function(Gunderscript * instance, char * entryPoint,
 			   size_t entryPointLen);
 
-VMErr gunderscript_function_err(Gunderscript * instance);
+GSAPI VMErr gunderscript_function_err(Gunderscript * instance);
 
-int gunderscript_err_line(Gunderscript * instance);
+GSAPI int gunderscript_err_line(Gunderscript * instance);
 
-void gunderscript_free(Gunderscript * instance);
+GSAPI void gunderscript_free(Gunderscript * instance);
 
-GunderscriptErr gunderscript_get_err(Gunderscript * instance);
+GSAPI GunderscriptErr gunderscript_get_err(Gunderscript * instance);
 
-bool gunderscript_export_bytecode(Gunderscript * instance, char * fileName);
+GSAPI bool gunderscript_export_bytecode(Gunderscript * instance, char * fileName);
 
-bool gunderscript_import_bytecode(Gunderscript * instance, char * fileName);
+GSAPI bool gunderscript_import_bytecode(Gunderscript * instance, char * fileName);
+
+GSAPI const char * gunderscript_build_date();
 
 #endif /* GUNDERSCRIPT__H__ */

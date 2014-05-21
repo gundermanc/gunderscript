@@ -45,7 +45,7 @@
  * occur due to malloc failure or if callbacksSize is too small to
  * contain all of the standard libraries.
  */
-bool gunderscript_new_vm(Gunderscript * instance, size_t stackSize,
+GSAPI bool gunderscript_new_vm(Gunderscript * instance, size_t stackSize,
 		      int callbacksSize) {
   assert(instance != NULL);
   assert(stackSize > 0);
@@ -87,7 +87,7 @@ bool gunderscript_new_vm(Gunderscript * instance, size_t stackSize,
  * occur due to malloc failure or if callbacksSize is too small to
  * contain all of the standard libraries.
  */
-bool gunderscript_new_full(Gunderscript * instance, size_t stackSize,
+GSAPI bool gunderscript_new_full(Gunderscript * instance, size_t stackSize,
 		      int callbacksSize) {
   assert(instance != NULL);
   assert(stackSize > 0);
@@ -113,7 +113,7 @@ bool gunderscript_new_full(Gunderscript * instance, size_t stackSize,
  * instance: an instance of Gunderscript.
  * returns: an instance of Compiler.
  */
-Compiler * gunderscript_compiler(Gunderscript * instance) {
+GSAPI Compiler * gunderscript_compiler(Gunderscript * instance) {
   assert(instance != NULL);
   return instance->compiler;
 }
@@ -123,7 +123,7 @@ Compiler * gunderscript_compiler(Gunderscript * instance) {
  * instance: an instance of Gunderscript.
  * returns: an instance of VM.
  */
-VM * gunderscript_vm(Gunderscript * instance) {
+GSAPI VM * gunderscript_vm(Gunderscript * instance) {
   assert(instance != NULL);
   return instance->vm;
 }
@@ -137,7 +137,7 @@ VM * gunderscript_vm(Gunderscript * instance) {
  * inputLen: the length of the input.
  * returns: an instance of VM.
  */
-bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen) {
+GSAPI bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen) {
   assert(instance != NULL);
   assert(instance->compiler != NULL);
   assert(input != NULL);
@@ -156,7 +156,7 @@ bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen) 
  * fileName: the file to build.
  * returns: true upon success, and false upon failure.
  */
-bool gunderscript_build_file(Gunderscript * instance, char * fileName) {
+GSAPI bool gunderscript_build_file(Gunderscript * instance, char * fileName) {
   assert(instance != NULL);
   assert(instance->compiler != NULL);
 
@@ -173,7 +173,7 @@ bool gunderscript_build_file(Gunderscript * instance, char * fileName) {
  * instance: an instance of Gunderscript.
  * returns: a CompilerErr, defined in compiler.h.
  */
-CompilerErr gunderscript_build_err(Gunderscript * instance) {
+GSAPI CompilerErr gunderscript_build_err(Gunderscript * instance) {
   assert(instance != NULL);
   assert(instance->compiler != NULL);
   return compiler_get_err(instance->compiler);
@@ -187,7 +187,7 @@ CompilerErr gunderscript_build_err(Gunderscript * instance) {
  * returns: true upon success, or false if file cannot be opened, 
  * no code has been built, or there was an error building code.
  */
-bool gunderscript_export_bytecode(Gunderscript * instance, char * fileName) {
+GSAPI bool gunderscript_export_bytecode(Gunderscript * instance, char * fileName) {
   FILE * outFile = fopen(fileName, "w");
   GSByteCodeHeader header;
   HTIter functionHTIter;
@@ -265,7 +265,7 @@ bool gunderscript_export_bytecode(Gunderscript * instance, char * fileName) {
   return true;
 }
 
-bool gunderscript_import_bytecode(Gunderscript * instance, char * fileName) {
+GSAPI bool gunderscript_import_bytecode(Gunderscript * instance, char * fileName) {
   DSValue value;
   FILE * inFile = fopen(fileName, "r");
   GSByteCodeHeader header;
@@ -387,7 +387,7 @@ bool gunderscript_import_bytecode(Gunderscript * instance, char * fileName) {
   return true;
 }
 
-GunderscriptErr gunderscript_get_err(Gunderscript * instance) {
+GSAPI GunderscriptErr gunderscript_get_err(Gunderscript * instance) {
   return instance->err;
 }
 
@@ -400,7 +400,7 @@ static const char * err_to_string(GunderscriptErr err) {
  * instance: an instance of Gunderscript.
  * returns: an error message, or NULL if there are no errors.
  */
-const char * gunderscript_err_message(Gunderscript * instance) {
+GSAPI const char * gunderscript_err_message(Gunderscript * instance) {
   assert(instance != NULL);
 
   if(gunderscript_get_err(instance) == GUNDERSCRIPTERR_BUILDERR) {
@@ -423,7 +423,7 @@ const char * gunderscript_err_message(Gunderscript * instance) {
  * instance: an instance of Gunderscript.
  * returns: a line number.
  */
-int gunderscript_err_line(Gunderscript * instance) {
+GSAPI int gunderscript_err_line(Gunderscript * instance) {
   assert(instance != NULL);
   assert(instance->compiler != NULL);
   return compiler_err_line(instance->compiler);
@@ -436,7 +436,7 @@ int gunderscript_err_line(Gunderscript * instance) {
  * entryPointLen: the length of entryPoint in chars.
  * returns: true if a success, and false if an error occurs.
  */
-bool gunderscript_function(Gunderscript * instance, char * entryPoint,
+GSAPI bool gunderscript_function(Gunderscript * instance, char * entryPoint,
 			   size_t entryPointLen) {
   VMFunc * function;
 
@@ -461,7 +461,7 @@ bool gunderscript_function(Gunderscript * instance, char * entryPoint,
  * instance: an instance of Gunderscript.
  * returns: a VMErr
  */
-VMErr gunderscript_function_err(Gunderscript * instance) {
+GSAPI VMErr gunderscript_function_err(Gunderscript * instance) {
   assert(instance != NULL);
   return vm_get_err(instance->vm);
 }
@@ -471,7 +471,7 @@ VMErr gunderscript_function_err(Gunderscript * instance) {
  * instance: an instance of Gunderscript.
  * returns: a VMErr
  */
-void gunderscript_free(Gunderscript * instance) {
+GSAPI void gunderscript_free(Gunderscript * instance) {
   assert(instance != NULL);
   if(instance->compiler != NULL) {
     compiler_free(instance->compiler);
@@ -480,4 +480,11 @@ void gunderscript_free(Gunderscript * instance) {
   if(instance->vm != NULL) {
     vm_free(instance->vm);
   }
+}
+
+/**
+ * Get the about message
+ */
+GSAPI const char * gunderscript_build_date() {
+  return GUNDERSCRIPT_BUILD_DATE;
 }
