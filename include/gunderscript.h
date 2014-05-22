@@ -113,6 +113,8 @@ GSAPI bool gunderscript_build_file(Gunderscript * instance, char * fileName);
 
 GSAPI CompilerErr gunderscript_build_err(Gunderscript * instance);
 
+GSAPI LexerErr gunderscript_lexer_err(Gunderscript * instance);
+
 GSAPI const char * gunderscript_err_message(Gunderscript * instance);
 
 GSAPI bool gunderscript_function(Gunderscript * instance, char * entryPoint,
@@ -131,5 +133,10 @@ GSAPI bool gunderscript_export_bytecode(Gunderscript * instance, char * fileName
 GSAPI bool gunderscript_import_bytecode(Gunderscript * instance, char * fileName);
 
 GSAPI const char * gunderscript_build_date();
+
+
+/* GunderscriptSharp.dll use only, these APIs are not meant for public use */
+GSAPI Gunderscript * gunderscript_alloc_empty();
+GSAPI void gunderscript_free_empty(Gunderscript * instance);
 
 #endif /* GUNDERSCRIPT__H__ */

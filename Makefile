@@ -23,7 +23,7 @@ ARFLAGS = rcs
 INCDIR = include
 OBJDIR = objs
 DATASTRUCTSDIR = c-datastructs
-CFLAGS  = -std=gnu89 -Wall -I $(INCDIR) -I $(DATASTRUCTSDIR)/include
+CFLAGS  = -fPIC -Wall -I $(INCDIR) -I $(DATASTRUCTSDIR)/include
 LIBCFLAGS = $(CFLAGS) -o $(OBJDIR)/$@
 SRCDIR = src
 DOCSDIR = docs
@@ -43,11 +43,12 @@ releaseapp: app
 
 # builds the testing application
 app: linuxlibrary
-	$(CC) $(CFLAGS) -o gunderscript main.c gunderscript.a $(DATASTRUCTSDIR)/lib.a -lm
+	$(CC) $(CFLAGS) -o gunderscript main.c libgunderscript.a $(DATASTRUCTSDIR)/lib.a -lm
 
 # build just the static library
 linuxlibrary: gunderscript.o lexer.o frmstk.o vm.o compiler.o
-	$(AR) $(ARFLAGS) gunderscript.a $(OBJDIR)/lexer.o $(OBJDIR)/ophandlers.o $(OBJDIR)/frmstk.o $(OBJDIR)/vm.o $(OBJDIR)/typestk.o $(OBJDIR)/parsers.o $(OBJDIR)/compiler.o $(OBJDIR)/compcommon.o $(OBJDIR)/gunderscript.o $(OBJDIR)/buffer.o $(OBJDIR)/libsys.o $(OBJDIR)/libmath.o $(OBJDIR)/libstr.o $(OBJDIR)/libarray.o
+	$(AR) $(ARFLAGS) libgunderscript.a $(OBJDIR)/*.o $(DATASTRUCTSDIR)/objs/*.o
+	$(CC) $(OBJDIR)/*.o $(DATASTRUCTSDIR)/objs/*.o -shared -o libgunderscript.so -Wall
 
 # build lexer object
 lexer.o: buildfs $(SRCDIR)/lexer.c
@@ -118,5 +119,5 @@ c-datastructs-clean:
 
 # remove all binaries and annoying Emacs Backups
 clean: c-datastructs-clean
-	$(RM) gunderscript.a gunderscript.exe gunderscript $(SRCDIR)/*~ $(INCDIR)/*~ $(DOCSDIR)/*~ *~
+	$(RM) libgunderscript.a libgunderscript.so gunderscript.exe gunderscript $(SRCDIR)/*~ $(INCDIR)/*~ $(DOCSDIR)/*~ *~
 	$(RM) -rf objs

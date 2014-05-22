@@ -135,7 +135,7 @@ GSAPI VM * gunderscript_vm(Gunderscript * instance) {
  * instance: an instance of Gunderscript.
  * input: a pointer to a buffer of Gunderscript code.
  * inputLen: the length of the input.
- * returns: an instance of VM.
+ * returns: true on success.
  */
 GSAPI bool gunderscript_build(Gunderscript * instance, char * input, size_t inputLen) {
   assert(instance != NULL);
@@ -177,6 +177,13 @@ GSAPI CompilerErr gunderscript_build_err(Gunderscript * instance) {
   assert(instance != NULL);
   assert(instance->compiler != NULL);
   return compiler_get_err(instance->compiler);
+}
+
+/**
+ * Gets the Lexer error, if any
+ */
+GSAPI LexerErr gunderscript_lexer_err(Gunderscript * instance) {
+  return compiler_lex_err(gunderscript_compiler(instance));
 }
 
 /**
@@ -487,4 +494,28 @@ GSAPI void gunderscript_free(Gunderscript * instance) {
  */
 GSAPI const char * gunderscript_build_date() {
   return GUNDERSCRIPT_BUILD_DATE;
+}
+
+/**
+ * Dynamically allocate an uninitialized Gunderscript structure.
+ * NOTE: this is NOT an instance yet. You have to initialize it with
+ * gunderscript_new*. This method is only here for better integration with
+ * C# via GunderscriptSharp.dll by removing the need to do dynamic allocation
+ * which is messing in managed code..[end rant].
+ *
+ * in short, don't use these.
+ */
+GSAPI Gunderscript * gunderscript_alloc_empty() {
+  Gunderscript * instance = malloc(sizeof(Gunderscript));
+  return instance;
+}
+
+/**
+ * Frees an EMPTY Gunderscript object.
+ * NOTE: although public, this API is not for users. It is for GunderscriptSharp.dll.
+ * It doesn't actually free a Gunderscript instance. You should probably not use it.
+ */
+GSAPI void gunderscript_free_empty(Gunderscript * instance) {
+  assert(instance != NULL);
+  free(instance);
 }
