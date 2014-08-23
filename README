@@ -1,3 +1,8 @@
+*** DEPRECATION NOTICE: ***
+Please note, Gunderscript is now deprecated due to unfixable design problems.
+I intend to supercede it with a better architected replacement.
+***                     ***
+
 Gunderscript Programming Language
 (C) 2013-2014 Christian Gunderman
 
